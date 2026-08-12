@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+from rest_framework import serializers
+
+from apps.users.serializers import UserBriefSerializer
+
+from .models import Account, PendingItem
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    owner_detail = UserBriefSerializer(source="owner", read_only=True)
+
+    class Meta:
+        model = Account
+        fields = [
+            "id",
+            "name",
+            "owner",
+            "owner_detail",
+            "kind",
+            "current_balance",
+            "balance_updated_at",
+            "include_in_totals",
+            "created_at",
+        ]
+        read_only_fields = ["id", "owner_detail", "balance_updated_at", "created_at"]
+
+    def _touch_balance(self, instance, validated_data):
+        from django.utils import timezone
+
+        if "current_balance" in validated_data:
+            instance.balance_updated_at = timezone.now()
+        return instance
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        self._touch_balance(instance, validated_data)
+        instance.save(update_fields=["balance_updated_at"])
+        return instance
+
+    def update(self, instance, validated_data):
+        changed = validated_data.get("current_balance") != instance.current_balance
+        instance = super().update(instance, validated_data)
+        if changed:
+            self._touch_balance(instance, validated_data)
+            instance.save(update_fields=["balance_updated_at"])
+        return instance
+
+
+class PendingItemSerializer(serializers.ModelSerializer):
+    owner_detail = UserBriefSerializer(source="owner", read_only=True)
+
+    class Meta:
+        model = PendingItem
+        fields = [
+            "id",
+            "title",
+            "amount",
+            "owner",
+            "owner_detail",
+            "expected_date",
+            "status",
+            "converted_transaction",
+            "note",
+            "created_at",
+        ]
+        read_only_fields = ["id", "owner_detail", "status", "converted_transaction", "created_at"]
+
+
+class PendingItemConvertSerializer(serializers.Serializer):
+    """Converte un BTA in transazione: il segno decide spesa o entrata."""
+
+    date = serializers.DateField(required=False)
+    account = serializers.UUIDField(required=False, allow_null=True)
+    category = serializers.UUIDField(required=False, allow_null=True)
+    paid_by = serializers.UUIDField(required=False, allow_null=True)
+    splits = serializers.ListField(child=serializers.DictField(), required=False)
