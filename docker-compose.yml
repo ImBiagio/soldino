@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-soldino}
+      POSTGRES_USER: ${POSTGRES_USER:-soldino}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-soldino}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-soldino} -d ${POSTGRES_DB:-soldino}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    ports:
+      - "8000:8000"
+
+  worker:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      - backend
+    command: celery -A config worker -l info
+
+  beat:
+    build:
+      context: ./backend
+    env_file: .env
+    depends_on:
+      - backend
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+  frontend:
+    build:
+      context: ./frontend
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+volumes:
+  pgdata:
