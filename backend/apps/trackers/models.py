@@ -106,7 +106,8 @@ class Category(BaseModel):
         help_text="Descrizione operativa: e' cio' che viene passato all'LLM in fase 3.",
     )
     type = models.CharField(max_length=10, choices=Type.choices, default=Type.EXPENSE)
-    color = models.CharField(max_length=9, default="#6366f1")
+    # Default della palette tonale M3 dell'app (seed #1b6c2f).
+    color = models.CharField(max_length=9, default="#1b6c2f")
     icon = models.CharField(max_length=40, blank=True)
     archived = models.BooleanField(default=False)
 

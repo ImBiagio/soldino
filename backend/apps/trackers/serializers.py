@@ -71,28 +71,45 @@ class TrackerSerializer(serializers.ModelSerializer):
         return tracker
 
 
+# (nome, tipo, descrizione, colore, glifo Material Symbols)
+# Colore e icona sono dati, non decorazione del client: la UI li legge da qui.
 DEFAULT_CATEGORIES = [
-    ("Supermarket", "expense", "Spesa alimentare, discount, alimentari"),
-    ("Home", "expense", "Casa: affitto, mutuo, utenze, manutenzione, arredamento"),
-    ("Transport", "expense", "Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto"),
-    ("Eating out", "expense", "Ristoranti, bar, caffe', asporto, delivery"),
-    ("Health", "expense", "Farmacia, visite mediche, esami, dentista"),
-    ("Shopping", "expense", "Abbigliamento, elettronica, oggetti per la persona"),
-    ("Subscriptions", "expense", "Abbonamenti ricorrenti: streaming, cloud, software"),
-    ("Leisure", "expense", "Cinema, viaggi, eventi, sport, hobby"),
-    ("Gifts", "expense", "Regali e donazioni"),
-    ("Other", "expense", "Tutto cio' che non rientra altrove"),
-    ("Salary", "income", "Stipendio e compensi da lavoro"),
-    ("Refund", "income", "Rimborsi e storni"),
-    ("Other income", "income", "Altre entrate"),
+    ("Supermarket", "expense", "Spesa alimentare, discount, alimentari",
+     "#1b6c2f", "shopping_basket"),
+    ("Home", "expense", "Casa: affitto, mutuo, utenze, manutenzione, arredamento",
+     "#38656a", "home"),
+    ("Transport", "expense", "Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto",
+     "#7d5700", "directions_car"),
+    ("Eating out", "expense", "Ristoranti, bar, caffe', asporto, delivery",
+     "#74796f", "local_bar"),
+    ("Health", "expense", "Farmacia, visite mediche, esami, dentista",
+     "#1b6c2f", "local_hospital"),
+    ("Shopping", "expense", "Abbigliamento, elettronica, oggetti per la persona",
+     "#38656a", "redeem"),
+    ("Subscriptions", "expense", "Abbonamenti ricorrenti: streaming, cloud, software",
+     "#7d5700", "live_tv"),
+    ("Leisure", "expense", "Cinema, viaggi, eventi, sport, hobby",
+     "#74796f", "beach_access"),
+    ("Gifts", "expense", "Regali e donazioni", "#1b6c2f", "redeem"),
+    ("Other", "expense", "Tutto cio' che non rientra altrove", "#74796f", "payments"),
+    ("Salary", "income", "Stipendio e compensi da lavoro", "#1b6c2f", "payments"),
+    ("Refund", "income", "Rimborsi e storni", "#38656a", "savings"),
+    ("Other income", "income", "Altre entrate", "#74796f", "payments"),
 ]
 
 
 def _seed_default_categories(tracker: Tracker) -> None:
     Category.objects.bulk_create(
         [
-            Category(tracker=tracker, name=name, type=type_, description=description)
-            for name, type_, description in DEFAULT_CATEGORIES
+            Category(
+                tracker=tracker,
+                name=name,
+                type=type_,
+                description=description,
+                color=color,
+                icon=icon,
+            )
+            for name, type_, description, color, icon in DEFAULT_CATEGORIES
         ]
     )
 
