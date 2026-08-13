@@ -33,6 +33,30 @@ Il codice è montato come volume: hot reload attivo su backend e frontend.
 > allo startup fallirebbe con `Dependency on app with no migrations`. Sintomo
 > lato browser: **"Failed to fetch"**, cioè l'API non risponde affatto.
 
+### ⚠️ Avvia sempre con entrambi i file compose
+
+`docker-compose.override.yml` è quello che monta il codice come volume. La CLI lo
+carica da sola, ma **solo se non passi `-f`**: `docker compose -f docker-compose.yml up`
+lo salta e i container girano sul codice congelato dentro l'immagine — niente
+hot reload, e modifiche che sembrano non avere effetto.
+
+Vale anche per gli IDE: la run configuration Docker Compose di PyCharm punta a
+un file solo. Va aggiunto anche `docker-compose.override.yml` (Run → Edit
+Configurations → Compose → Compose files).
+
+Se qualcosa non si aggiorna, la diagnosi è una sola riga — se non stampa nulla,
+il mount non c'è:
+
+```bash
+docker inspect soldino-frontend-1 --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+```
+
+e si rimedia con:
+
+```bash
+docker compose up -d --force-recreate
+```
+
 ---
 
 ## I servizi, e perché ci sono
