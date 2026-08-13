@@ -1,6 +1,8 @@
+import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 
 import { useAccounts, useCategories, useSaveTransaction } from '../../api/hooks'
+import { activeMembers } from '../../components/Layout'
 import {
   SplitWidget,
   initialSplitState,
@@ -9,10 +11,11 @@ import {
   toSplitPayload,
   type SplitState,
 } from '../../components/SplitWidget'
-import { Avatar, ErrorBanner, Field, Modal } from '../../components/ui'
-import { todayIso } from '../../lib/format'
-import { formatMoney, fromCents } from '../../lib/money'
-import type { Membership, Tracker, Transaction, TransactionType } from '../../lib/types'
+import { Avatar, ErrorBanner, Field, Icon, Modal, Segmented } from '../../components/ui'
+import { formatDate, todayIso } from '../../lib/format'
+import { memberColor } from '../../lib/icons'
+import { formatMoney } from '../../lib/money'
+import type { Tracker, Transaction, TransactionType } from '../../lib/types'
 
 interface Props {
   tracker: Tracker
@@ -22,10 +25,7 @@ interface Props {
 }
 
 export function TransactionForm({ tracker, open, onClose, editing }: Props) {
-  const members = useMemo(
-    () => tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user),
-    [tracker.members],
-  )
+  const members = useMemo(() => activeMembers(tracker), [tracker])
   const defaultPayer = editing?.paid_by ?? members[0]?.user?.id ?? ''
 
   const [type, setType] = useState<TransactionType>(editing?.type ?? 'expense')
@@ -36,6 +36,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   const [account, setAccount] = useState(editing?.account ?? '')
   const [paidBy, setPaidBy] = useState(defaultPayer)
   const [note, setNote] = useState(editing?.note ?? '')
+  const [noteOpen, setNoteOpen] = useState(Boolean(editing?.note))
   const [split, setSplit] = useState<SplitState>(() =>
     editing
       ? splitStateFromTransaction(members, editing.splits, editing.paid_by)
@@ -49,89 +50,99 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   const residual = splitResidualCents(split, members, amount || '0')
   const canSave = Boolean(title && amount && paidBy) && residual === 0
 
+  const accountName = (accounts.data?.results ?? []).find((a) => a.id === account)?.name
+
+  const submit = async () => {
+    await save.mutateAsync({
+      id: editing?.id,
+      type,
+      date,
+      title,
+      amount,
+      category: category || null,
+      account: account || null,
+      paid_by: paidBy,
+      note,
+      ...toSplitPayload(split, members),
+    })
+    onClose()
+  }
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       wide
-      title={editing ? 'Modifica movimento' : 'Nuovo movimento'}
+      title={editing ? 'Modifica movimento' : type === 'expense' ? 'Nuova spesa' : 'Nuova entrata'}
+      headerRight={
+        <Segmented
+          value={type}
+          onChange={(value) => {
+            setType(value)
+            setCategory('')
+          }}
+          options={[
+            { value: 'expense', label: 'Spesa' },
+            { value: 'income', label: 'Entrata' },
+          ]}
+        />
+      }
     >
       <form
-        className="space-y-4"
-        onSubmit={async (event) => {
+        className="grid gap-5"
+        onSubmit={(event) => {
           event.preventDefault()
-          await save.mutateAsync({
-            id: editing?.id,
-            type,
-            date,
-            title,
-            amount,
-            category: category || null,
-            account: account || null,
-            paid_by: paidBy,
-            note,
-            ...toSplitPayload(split, members),
-          })
-          onClose()
+          if (canSave) void submit()
         }}
       >
         <ErrorBanner error={save.error} />
 
-        <div className="flex gap-1">
-          {(['expense', 'income'] as TransactionType[]).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => {
-                setType(value)
-                setCategory('')
-              }}
-              className={
-                type === value
-                  ? 'btn-primary flex-1'
-                  : 'btn-ghost flex-1'
-              }
-            >
-              {value === 'expense' ? 'Spesa' : 'Entrata'}
-            </button>
-          ))}
+        {/* --- blocco importo: l'importo prima di tutto --- */}
+        <div className="rounded-card bg-secondary-container px-6 py-6 text-center text-on-secondary-container">
+          <p className="text-[13px] font-semibold uppercase tracking-wide">Importo</p>
+          <input
+            className="amount w-full border-none bg-transparent text-center text-[44px] font-semibold leading-tight text-on-primary-container outline-none placeholder:text-on-secondary-container/50 sm:text-display-medium"
+            inputMode="decimal"
+            placeholder="0,00"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+            aria-label="Importo"
+          />
+          <p className="text-body-medium">
+            {[title || 'senza descrizione', formatDate(date), accountName]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
         </div>
+
+        {/* --- tastierino: su mobile si salva senza lasciare il pollice --- */}
+        <Keypad value={amount} onChange={setAmount} onConfirm={submit} canConfirm={canSave} />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Descrizione">
             <input
-              className="input"
+              className="field-input"
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(event) => setTitle(event.target.value)}
               placeholder="Esselunga, affitto, stipendio…"
               required
               autoFocus
             />
           </Field>
-          <Field label="Importo">
-            <input
-              className="input amount text-right"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(',', '.'))}
-              placeholder="0.00"
-              required
-            />
-          </Field>
           <Field label="Data">
             <input
-              className="input"
+              className="field-input"
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(event) => setDate(event.target.value)}
               required
             />
           </Field>
           <Field label="Categoria">
             <select
-              className="input"
+              className="field-input"
               value={category ?? ''}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(event) => setCategory(event.target.value)}
             >
               <option value="">Senza categoria</option>
               {(categories.data?.results ?? [])
@@ -145,9 +156,9 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
           </Field>
           <Field label="Conto">
             <select
-              className="input"
+              className="field-input"
               value={account ?? ''}
-              onChange={(e) => setAccount(e.target.value)}
+              onChange={(event) => setAccount(event.target.value)}
             >
               <option value="">Nessuno</option>
               {(accounts.data?.results ?? []).map((a) => (
@@ -157,65 +168,154 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
               ))}
             </select>
           </Field>
-          <Field
-            label={type === 'expense' ? 'Chi ha pagato' : 'Chi ha incassato'}
-            hint="Distingue “ho pagato io, dividiamo” da “ha pagato l'altro”."
-          >
-            <div className="flex flex-wrap gap-2">
-              {members.map((member) => (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => setPaidBy(member.user!.id)}
-                  className={
-                    paidBy === member.user!.id
-                      ? 'flex items-center gap-2 rounded-lg border border-indigo-500 bg-indigo-50 px-3 py-2 text-sm dark:bg-indigo-950'
-                      : 'flex items-center gap-2 rounded-lg border border-ink-300 px-3 py-2 text-sm dark:border-ink-600'
-                  }
-                >
-                  <Avatar name={member.display_name} size={22} />
-                  {member.display_name}
-                </button>
-              ))}
-            </div>
-          </Field>
         </div>
 
-        <div className="rounded-lg border border-ink-200 p-3 dark:border-ink-700">
-          <p className="label">Come si divide</p>
-          <SplitWidget
-            members={members}
-            amount={amount || '0'}
-            value={split}
-            onChange={setSplit}
-            currency={tracker.currency}
-          />
-        </div>
-
-        <Field label="Nota">
-          <textarea
-            className="input"
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </Field>
-
-        {residual !== 0 && (
-          <p className="text-xs text-amber-600">
-            Le quote non quadrano: mancano {formatMoney(fromCents(residual), tracker.currency)}.
+        <div>
+          <p className="mb-2 text-body-medium font-medium">
+            {type === 'expense' ? 'Ha pagato' : 'Ha incassato'}
           </p>
+          <div className="flex flex-wrap gap-2">
+            {members.map((member, index) => (
+              <button
+                key={member.id}
+                type="button"
+                onClick={() => setPaidBy(member.user!.id)}
+                aria-pressed={paidBy === member.user!.id}
+                className={
+                  paidBy === member.user!.id
+                    ? 'state inline-flex items-center gap-2 rounded-pill bg-primary px-4 py-2 text-body-medium font-medium text-on-primary'
+                    : 'chip-outlined'
+                }
+              >
+                <Avatar name={member.display_name} size={28} color={memberColor(index)} />
+                {member.display_name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <SplitWidget
+          members={members}
+          amount={amount || '0'}
+          value={split}
+          onChange={setSplit}
+          currency={tracker.currency}
+        />
+
+        {noteOpen && (
+          <Field label="Nota">
+            <textarea
+              className="field-input resize-none"
+              rows={2}
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </Field>
         )}
 
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-ghost" onClick={onClose}>
-            Annulla
-          </button>
-          <button className="btn-primary" disabled={!canSave || save.isPending}>
-            {save.isPending ? 'Salvataggio…' : 'Salva'}
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {!noteOpen && (
+            <button type="button" className="chip-outlined" onClick={() => setNoteOpen(true)}>
+              <Icon name="note_add" size={18} />
+              Nota
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <button type="button" className="btn-text" onClick={onClose}>
+              Annulla
+            </button>
+            <button className="btn-filled" disabled={!canSave || save.isPending}>
+              <Icon name="check" size={20} />
+              {save.isPending ? 'Salvataggio…' : 'Salva'}
+            </button>
+          </div>
         </div>
+
+        {residual !== 0 && (
+          <p className="text-body-small text-warning">
+            Le quote non quadrano: manca {formatMoney(residual / 100, tracker.currency)}.
+          </p>
+        )}
       </form>
     </Modal>
+  )
+}
+
+/**
+ * Tastierino mobile. Il tasto di dettatura del design non c'e': senza un
+ * riconoscimento vocale vero sarebbe un bottone finto.
+ */
+function Keypad({
+  value,
+  onChange,
+  onConfirm,
+  canConfirm,
+}: {
+  value: string
+  onChange: (value: string) => void
+  onConfirm: () => void
+  canConfirm: boolean
+}) {
+  const press = (key: string) => {
+    if (key === 'back') {
+      onChange(value.slice(0, -1))
+      return
+    }
+    if (key === '.') {
+      if (value.includes('.')) return
+      onChange((value || '0') + '.')
+      return
+    }
+    // Non si superano i due decimali: l'importo e' sempre a centesimi.
+    const [, decimals] = value.split('.')
+    if (decimals !== undefined && decimals.length >= 2) return
+    onChange(value === '0' ? key : value + key)
+  }
+
+  const key = (label: string, action: string, className?: string) => (
+    <button
+      key={action}
+      type="button"
+      onClick={() => press(action)}
+      className={clsx(
+        'state flex items-center justify-center rounded-nested bg-surface py-4 text-title-medium',
+        className,
+      )}
+    >
+      {label}
+    </button>
+  )
+
+  return (
+    <div className="grid grid-cols-4 gap-2 rounded-card bg-surface-container p-3 sm:hidden">
+      {key('1', '1')}
+      {key('2', '2')}
+      {key('3', '3')}
+      <button
+        type="button"
+        onClick={() => press('back')}
+        aria-label="Cancella"
+        className="state flex items-center justify-center rounded-nested bg-secondary-container text-on-secondary-container"
+      >
+        <Icon name="backspace" size={22} />
+      </button>
+      {key('4', '4')}
+      {key('5', '5')}
+      {key('6', '6')}
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={!canConfirm}
+        aria-label="Salva"
+        className="state row-span-3 flex items-center justify-center rounded-nested bg-primary text-on-primary disabled:opacity-40"
+      >
+        <Icon name="check" size={26} />
+      </button>
+      {key('7', '7')}
+      {key('8', '8')}
+      {key('9', '9')}
+      {key(',', '.')}
+      {key('0', '0', 'col-span-2')}
+    </div>
   )
 }

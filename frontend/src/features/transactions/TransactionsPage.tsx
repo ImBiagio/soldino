@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 
 import {
@@ -9,12 +9,25 @@ import {
   useSaveTransaction,
   useTransactions,
 } from '../../api/hooks'
-import { Avatar, EmptyState, ErrorBanner, Spinner } from '../../components/ui'
+import { activeMembers } from '../../components/Layout'
+import {
+  Avatar,
+  Chip,
+  EmptyState,
+  ErrorBanner,
+  Field,
+  Icon,
+  IconCircle,
+  Modal,
+  RowsSkeleton,
+} from '../../components/ui'
 import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
-import { formatMoney } from '../../lib/money'
-import type { Tracker, Transaction } from '../../lib/types'
+import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { formatMoney, toCents } from '../../lib/money'
+import type { Account, Category, Tracker, Transaction } from '../../lib/types'
 import { TransactionForm } from './TransactionForm'
 
+// Il contratto della URL resta quello di prima: cambia solo il controllo.
 const FILTER_KEYS = [
   'type',
   'q',
@@ -31,10 +44,12 @@ const FILTER_KEYS = [
 
 export function TransactionsPage() {
   const tracker = useOutletContext<Tracker>()
-  // I filtri vivono nella URL: un elenco filtrato e' condivisibile e sopravvive al refresh.
   const [params, setParams] = useSearchParams()
-  const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Transaction | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+
+  // Il FAB della shell apre il form passando da ?new=1: nessuno stato globale.
+  const formOpen = params.get('new') === '1' || editing !== null
 
   const filters = useMemo(() => {
     const out: Record<string, string> = { page_size: '100' }
@@ -59,6 +74,13 @@ export function TransactionsPage() {
     setParams(next, { replace: true })
   }
 
+  const closeForm = () => {
+    setEditing(null)
+    const next = new URLSearchParams(params)
+    next.delete('new')
+    setParams(next, { replace: true })
+  }
+
   const groups = useMemo(() => {
     const map = new Map<string, Transaction[]>()
     for (const tx of data?.results ?? []) {
@@ -69,246 +91,478 @@ export function TransactionsPage() {
     return [...map.entries()].sort((a, b) => b[0].localeCompare(a[0]))
   }, [data])
 
-  const members = tracker.members.filter((m) => m.status === 'active' && m.user)
+  const members = activeMembers(tracker)
+  const categoryList = categories.data?.results ?? []
+  const accountList = accounts.data?.results ?? []
+  // Ogni membro ha un colore stabile per posizione: lo stesso della barra di split.
+  const memberIndex = useMemo(
+    () => new Map(members.map((member, index) => [member.user!.id, index])),
+    [members],
+  )
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          className="input max-w-xs flex-1"
-          placeholder="Cerca descrizione o nota…"
-          defaultValue={params.get('q') ?? ''}
-          onChange={(e) => setFilter('q', e.target.value)}
-        />
-        <select
-          className="input w-auto"
-          value={params.get('type') ?? ''}
-          onChange={(e) => setFilter('type', e.target.value)}
-        >
-          <option value="">Tutti i tipi</option>
-          <option value="expense">Spese</option>
-          <option value="income">Entrate</option>
-        </select>
-        <select
-          className="input w-auto"
-          value={params.get('category') ?? ''}
-          onChange={(e) => setFilter('category', e.target.value)}
-        >
-          <option value="">Tutte le categorie</option>
-          {(categories.data?.results ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input w-auto"
-          value={params.get('account') ?? ''}
-          onChange={(e) => setFilter('account', e.target.value)}
-        >
-          <option value="">Tutti i conti</option>
-          {(accounts.data?.results ?? []).map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input w-auto"
-          value={params.get('paid_by') ?? ''}
-          onChange={(e) => setFilter('paid_by', e.target.value)}
-        >
-          <option value="">Chiunque ha pagato</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.user!.id}>
-              {m.display_name}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input w-auto"
-          type="date"
-          value={params.get('date_from') ?? ''}
-          onChange={(e) => setFilter('date_from', e.target.value)}
-          aria-label="Dal"
-        />
-        <input
-          className="input w-auto"
-          type="date"
-          value={params.get('date_to') ?? ''}
-          onChange={(e) => setFilter('date_to', e.target.value)}
-          aria-label="Al"
-        />
-        {[...params.keys()].some((k) => FILTER_KEYS.includes(k as never)) && (
-          <button className="btn-ghost" onClick={() => setParams({}, { replace: true })}>
-            Azzera filtri
-          </button>
-        )}
+    <div className="grid gap-[18px] px-5 pb-8 pt-6 md:px-7">
+      {/* --- ricerca + azione principale --- */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex h-14 max-w-[520px] flex-1 items-center gap-3 rounded-panel bg-surface-container px-5">
+          <Icon name="search" size={22} className="text-on-surface-variant" />
+          <input
+            className="w-full border-none bg-transparent text-body-large outline-none placeholder:text-on-surface-variant"
+            placeholder={`Cerca fra ${data?.count ?? 0} movimenti`}
+            defaultValue={params.get('q') ?? ''}
+            onChange={(event) => setFilter('q', event.target.value)}
+          />
+        </div>
         <button
-          className="btn-primary ml-auto"
-          onClick={() => {
-            setEditing(null)
-            setFormOpen(true)
-          }}
+          type="button"
+          onClick={() => setParams(withParam(params, 'new', '1'), { replace: true })}
+          className="btn-filled hidden md:inline-flex"
         >
-          + Movimento
+          <Icon name="add" size={20} />
+          Nuovo movimento
         </button>
       </div>
 
+      {/* --- filter chips: sostituiscono i sette select --- */}
+      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 md:mx-0 md:flex-wrap md:px-0">
+        {params.get('date_from') && (
+          <Chip
+            selected
+            icon="check"
+            trailingIcon="close"
+            label={`Dal ${formatDate(params.get('date_from')!)}`}
+            onClick={() => setFilter('date_from', '')}
+          />
+        )}
+        {params.get('date_to') && (
+          <Chip
+            selected
+            icon="check"
+            trailingIcon="close"
+            label={`Al ${formatDate(params.get('date_to')!)}`}
+            onClick={() => setFilter('date_to', '')}
+          />
+        )}
+        <Chip
+          selected={params.get('type') === 'expense'}
+          icon={params.get('type') === 'expense' ? 'check' : undefined}
+          label="Solo spese"
+          onClick={() => setFilter('type', params.get('type') === 'expense' ? '' : 'expense')}
+        />
+        <Chip
+          selected={params.get('type') === 'income'}
+          icon={params.get('type') === 'income' ? 'check' : undefined}
+          label="Solo entrate"
+          onClick={() => setFilter('type', params.get('type') === 'income' ? '' : 'income')}
+        />
+        <SelectChip
+          label="Categoria"
+          value={params.get('category')}
+          options={categoryList.map((c) => ({ value: c.id, label: c.name }))}
+          onChange={(value) => setFilter('category', value)}
+        />
+        <SelectChip
+          label="Conto"
+          value={params.get('account')}
+          options={accountList.map((a) => ({ value: a.id, label: a.name }))}
+          onChange={(value) => setFilter('account', value)}
+        />
+        <SelectChip
+          label="Chi ha pagato"
+          value={params.get('paid_by')}
+          options={members.map((m) => ({ value: m.user!.id, label: m.display_name }))}
+          onChange={(value) => setFilter('paid_by', value)}
+        />
+        <Chip icon="filter_list" label="Altri filtri" onClick={() => setSheetOpen(true)} />
+        {FILTER_KEYS.some((key) => params.get(key)) && (
+          <Chip
+            icon="close"
+            label="Azzera"
+            onClick={() => setParams(new URLSearchParams(), { replace: true })}
+          />
+        )}
+      </div>
+
       <ErrorBanner error={error} />
+
       {isLoading ? (
-        <Spinner />
+        <RowsSkeleton />
       ) : groups.length === 0 ? (
         <EmptyState
+          icon="receipt_long"
           title="Nessun movimento"
-          description="Cambia i filtri o registra il primo movimento."
+          description="Cambia i filtri, oppure registra il primo movimento."
+          action={
+            <button
+              type="button"
+              onClick={() => setParams(withParam(params, 'new', '1'), { replace: true })}
+              className="btn-tonal"
+            >
+              <Icon name="add" size={20} />
+              Nuovo movimento
+            </button>
+          }
         />
       ) : (
-        <div className={clsx('space-y-6', isFetching && 'opacity-70 transition')}>
-          <p className="text-xs text-ink-500">{data?.count} movimenti</p>
+        <div className={clsx('grid gap-5 transition-opacity', isFetching && 'opacity-70')}>
           {groups.map(([key, rows]) => {
             const monthTotal = rows.reduce(
-              (sum, tx) => sum + (tx.type === 'expense' ? -1 : 1) * Number(tx.amount),
+              (sum, tx) => sum + (tx.type === 'expense' ? -1 : 1) * toCents(tx.amount),
               0,
             )
             return (
               <section key={key}>
-                <div className="mb-2 flex items-baseline justify-between">
-                  <h2 className="text-sm font-semibold capitalize">{monthKeyLabel(key)}</h2>
+                <div className="mb-2 flex items-baseline justify-between px-1">
+                  <h2 className="text-[22px] font-semibold capitalize">{monthKeyLabel(key)}</h2>
                   <span
                     className={clsx(
-                      'amount text-sm',
-                      monthTotal < 0 ? 'text-rose-600' : 'text-emerald-600',
+                      'amount text-[18px] font-semibold',
+                      monthTotal < 0 ? 'text-error' : 'text-primary',
                     )}
                   >
-                    {formatMoney(monthTotal, tracker.currency)}
+                    {formatMoney(monthTotal / 100, tracker.currency)}
                   </span>
                 </div>
-                <ul className="divide-y divide-ink-200 overflow-hidden rounded-xl border border-ink-200 bg-white dark:divide-ink-700 dark:border-ink-700 dark:bg-ink-800">
+                <div className="grid gap-1">
                   {rows.map((tx) => (
                     <TransactionRow
                       key={tx.id}
                       tx={tx}
                       tracker={tracker}
-                      categories={categories.data?.results ?? []}
-                      onEdit={() => {
-                        setEditing(tx)
-                        setFormOpen(true)
-                      }}
+                      categories={categoryList}
+                      accounts={accountList}
+                      memberIndex={memberIndex}
+                      onEdit={() => setEditing(tx)}
                       onInlineSave={(patch) => save.mutate({ id: tx.id, ...patch })}
                       onDelete={() => remove.mutate(tx.id)}
                     />
                   ))}
-                </ul>
+                </div>
               </section>
             )
           })}
         </div>
       )}
 
+      <MoreFiltersSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        params={params}
+        onChange={setFilter}
+      />
+
       {formOpen && (
         <TransactionForm
           key={editing?.id ?? 'new'}
           tracker={tracker}
-          open={formOpen}
+          open
           editing={editing}
-          onClose={() => setFormOpen(false)}
+          onClose={closeForm}
         />
       )}
     </div>
   )
 }
 
+function withParam(params: URLSearchParams, key: string, value: string) {
+  const next = new URLSearchParams(params)
+  next.set(key, value)
+  return next
+}
+
+/* ------------------------------------------------------------ chip menu -- */
+
+function SelectChip({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: string | null
+  options: { value: string; label: string }[]
+  onChange: (value: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = options.find((option) => option.value === value)
+
+  useEffect(() => {
+    if (!open) return
+    const onClick = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative">
+      <Chip
+        selected={Boolean(selected)}
+        icon={selected ? 'check' : undefined}
+        trailingIcon="arrow_drop_down"
+        label={selected?.label ?? label}
+        onClick={() => setOpen((value) => !value)}
+      />
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-56 overflow-y-auto rounded-card bg-surface-container p-2 shadow-sheet">
+          <button
+            type="button"
+            className="state w-full rounded-nested px-3 py-2 text-left text-body-medium"
+            onClick={() => {
+              onChange('')
+              setOpen(false)
+            }}
+          >
+            Tutti
+          </button>
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={clsx(
+                'state w-full rounded-nested px-3 py-2 text-left text-body-medium',
+                option.value === value && 'bg-secondary-container text-on-secondary-container',
+              )}
+              onClick={() => {
+                onChange(option.value)
+                setOpen(false)
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MoreFiltersSheet({
+  open,
+  onClose,
+  params,
+  onChange,
+}: {
+  open: boolean
+  onClose: () => void
+  params: URLSearchParams
+  onChange: (key: string, value: string) => void
+}) {
+  return (
+    <Modal open={open} onClose={onClose} title="Altri filtri">
+      <div className="grid gap-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Dal">
+            <input
+              className="field-input"
+              type="date"
+              value={params.get('date_from') ?? ''}
+              onChange={(event) => onChange('date_from', event.target.value)}
+            />
+          </Field>
+          <Field label="Al">
+            <input
+              className="field-input"
+              type="date"
+              value={params.get('date_to') ?? ''}
+              onChange={(event) => onChange('date_to', event.target.value)}
+            />
+          </Field>
+          <Field label="Importo minimo">
+            <input
+              className="field-input amount"
+              inputMode="decimal"
+              value={params.get('min_amount') ?? ''}
+              onChange={(event) => onChange('min_amount', event.target.value)}
+            />
+          </Field>
+          <Field label="Importo massimo">
+            <input
+              className="field-input amount"
+              inputMode="decimal"
+              value={params.get('max_amount') ?? ''}
+              onChange={(event) => onChange('max_amount', event.target.value)}
+            />
+          </Field>
+        </div>
+        <button type="button" className="btn-filled w-full" onClick={onClose}>
+          Applica
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+/* ---------------------------------------------------------------- riga -- */
+
 function TransactionRow({
   tx,
   tracker,
   categories,
+  accounts,
+  memberIndex,
   onEdit,
   onInlineSave,
   onDelete,
 }: {
   tx: Transaction
   tracker: Tracker
-  categories: { id: string; name: string; type: string }[]
+  categories: Category[]
+  accounts: Account[]
+  memberIndex: Map<string, number>
   onEdit: () => void
   onInlineSave: (patch: Record<string, unknown>) => void
   onDelete: () => void
 }) {
   const [editingAmount, setEditingAmount] = useState(false)
   const [amount, setAmount] = useState(tx.amount)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [categoryOpen, setCategoryOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const category = categories.find((c) => c.id === tx.category)
+  const account = accounts.find((a) => a.id === tx.account)
   const isGroup = tx.splits.length > 1
+  const isIncome = tx.type === 'income'
+
+  useEffect(() => {
+    if (!menuOpen && !categoryOpen) return
+    const onClick = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false)
+        setCategoryOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [menuOpen, categoryOpen])
+
+  const splitLabel = isGroup
+    ? tx.splits.map((split) => Math.round(Number(split.share_pct))).join('/')
+    : 'personale'
 
   return (
-    <li className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-ink-50 dark:hover:bg-ink-700/50">
-      <span className="w-14 shrink-0 text-xs text-ink-500">{formatDate(tx.date).slice(0, 5)}</span>
-
-      <span
-        className="h-8 w-1 shrink-0 rounded-full"
-        style={{ backgroundColor: tx.category_color ?? '#94a3b8' }}
-        aria-hidden
+    <div
+      className={clsx(
+        'flex items-center gap-4 rounded-row px-5 py-3.5',
+        isIncome ? 'bg-secondary-container' : 'bg-surface-container-low',
+      )}
+    >
+      <IconCircle
+        name={categoryIcon(category)}
+        color={categoryColor(category)}
+        size={44}
+        className="hidden sm:inline-flex"
       />
 
       <div className="min-w-0 flex-1">
-        <button className="block max-w-full truncate text-left font-medium" onClick={onEdit}>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="block max-w-full truncate text-left text-body-large font-medium"
+        >
           {tx.title}
         </button>
-        <div className="flex flex-wrap items-center gap-1 text-xs text-ink-500">
-          {/* Modifica inline della categoria: e' il campo che si sbaglia piu' spesso. */}
-          <select
-            className="rounded border-none bg-transparent p-0 text-xs text-ink-500 hover:underline"
-            value={tx.category ?? ''}
-            onChange={(e) => onInlineSave({ category: e.target.value || null })}
-            aria-label="Categoria"
-          >
-            <option value="">Senza categoria</option>
-            {categories
-              .filter((c) => c.type === tx.type)
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
-          {tx.account_name && <span>· {tx.account_name}</span>}
+        <p className="flex flex-wrap items-center gap-1.5 text-body-small text-on-surface-variant">
+          <span>{formatDate(tx.date).slice(0, 5)}</span>
+          <span>·</span>
+          {/* La categoria si riassegna sul posto: e' il campo che si sbaglia di piu'. */}
+          <span className="relative" ref={categoryOpen ? menuRef : undefined}>
+            <button
+              type="button"
+              onClick={() => setCategoryOpen((open) => !open)}
+              className="underline decoration-dotted underline-offset-2"
+            >
+              {category?.name ?? 'Senza categoria'}
+            </button>
+            {categoryOpen && (
+              <span className="absolute left-0 top-full z-20 mt-1 block max-h-64 w-52 overflow-y-auto rounded-card bg-surface-container p-2 shadow-sheet">
+                <button
+                  type="button"
+                  className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium"
+                  onClick={() => {
+                    onInlineSave({ category: null })
+                    setCategoryOpen(false)
+                  }}
+                >
+                  Senza categoria
+                </button>
+                {categories
+                  .filter((option) => option.type === tx.type)
+                  .map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium"
+                      onClick={() => {
+                        onInlineSave({ category: option.id })
+                        setCategoryOpen(false)
+                      }}
+                    >
+                      {option.name}
+                    </button>
+                  ))}
+              </span>
+            )}
+          </span>
+          {account && (
+            <>
+              <span>·</span>
+              <span>{account.name}</span>
+            </>
+          )}
           {tx.possible_duplicates.length > 0 && (
-            <span className="chip bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-pill bg-warning-container px-2 py-0.5 text-on-warning-container">
+              <Icon name="content_copy" size={14} />
               possibile doppione
             </span>
           )}
-        </div>
+        </p>
+        {isGroup && (
+          <p className="amount mt-0.5 truncate text-body-small text-on-surface-variant">
+            {tx.splits
+              .map(
+                (split) =>
+                  `${split.user_detail.display_name} ${formatMoney(split.share_amount, tracker.currency)}`,
+              )
+              .join(' · ')}
+          </p>
+        )}
       </div>
 
       <span
         className={clsx(
-          'chip shrink-0',
+          'hidden shrink-0 items-center gap-1 rounded-pill px-2.5 py-1 text-body-small font-medium sm:inline-flex',
           isGroup
-            ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200'
-            : 'bg-ink-100 text-ink-600 dark:bg-ink-700 dark:text-ink-300',
+            ? 'bg-secondary-container text-on-secondary-container'
+            : 'bg-surface text-on-surface-variant',
         )}
-        title={tx.splits
-          .map((s) => `${s.user_detail.display_name}: ${formatMoney(s.share_amount)}`)
-          .join(' · ')}
       >
-        {isGroup ? 'gruppo' : 'personale'}
+        <Icon name={isGroup ? 'group' : 'person'} size={16} />
+        {splitLabel}
       </span>
 
-      <span className="hidden shrink-0 items-center gap-1 sm:flex" title={`Pagato da ${tx.paid_by_detail.display_name}`}>
-        <Avatar name={tx.paid_by_detail.display_name} size={22} />
-      </span>
+      <Avatar
+        name={tx.paid_by_detail.display_name}
+        size={32}
+        color={memberColor(memberIndex.get(tx.paid_by) ?? 0)}
+      />
 
       {editingAmount ? (
         <input
-          className="input amount w-24 py-1 text-right"
+          className="field-input amount w-[152px] rounded-nested bg-surface px-2 py-1 text-right"
           autoFocus
           value={amount}
-          onChange={(e) => setAmount(e.target.value.replace(',', '.'))}
+          onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
           onBlur={() => {
             setEditingAmount(false)
             if (amount !== tx.amount) onInlineSave({ amount })
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur()
-            if (e.key === 'Escape') {
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur()
+            if (event.key === 'Escape') {
               setAmount(tx.amount)
               setEditingAmount(false)
             }
@@ -316,26 +570,54 @@ function TransactionRow({
         />
       ) : (
         <button
-          className={clsx(
-            'amount w-24 shrink-0 text-right font-medium',
-            tx.type === 'expense' ? 'text-rose-600' : 'text-emerald-600',
-          )}
+          type="button"
           onClick={() => setEditingAmount(true)}
-          title="Clicca per modificare"
+          title="Tocca per correggere"
+          className={clsx(
+            'amount shrink-0 whitespace-nowrap text-right text-[16px] font-semibold sm:text-amount-row',
+            isIncome ? 'text-primary' : 'text-error',
+          )}
+          style={{ width: 152 }}
         >
-          {tx.type === 'expense' ? '−' : '+'}
+          {isIncome ? '+' : '−'}
           {formatMoney(tx.amount, tracker.currency)}
         </button>
       )}
 
-      <button
-        className="shrink-0 text-ink-400 hover:text-rose-600"
-        onClick={onDelete}
-        aria-label="Elimina"
-        title="Elimina"
-      >
-        ✕
-      </button>
-    </li>
+      <div className="relative" ref={menuOpen ? menuRef : undefined}>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-label="Azioni"
+          className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
+        >
+          <Icon name="more_vert" size={20} />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-card bg-surface-container p-2 shadow-sheet">
+            <button
+              type="button"
+              className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium"
+              onClick={() => {
+                setMenuOpen(false)
+                onEdit()
+              }}
+            >
+              Modifica
+            </button>
+            <button
+              type="button"
+              className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium text-error"
+              onClick={() => {
+                setMenuOpen(false)
+                onDelete()
+              }}
+            >
+              Elimina
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
