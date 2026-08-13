@@ -1,71 +1,315 @@
 import clsx from 'clsx'
-import { NavLink, Outlet, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
 
-import { useTracker } from '../api/hooks'
+import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
-import { Avatar, Spinner } from './ui'
+import { memberColor } from '../lib/icons'
+import type { Membership, Tracker } from '../lib/types'
+import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 
-const TABS = [
-  { to: '', label: 'Dashboard', end: true },
-  { to: 'movimenti', label: 'Movimenti' },
-  { to: 'attese', label: 'In attesa' },
-  { to: 'abbonamenti', label: 'Abbonamenti' },
-  { to: 'impostazioni', label: 'Impostazioni' },
+const DESTINATIONS = [
+  { to: '', label: 'Oggi', icon: 'dashboard', end: true },
+  { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
+  { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
+  { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
+  { to: 'impostazioni', label: 'Setup', icon: 'tune' },
 ]
+
+/** Sul mobile la bottom bar tiene quattro voci: Setup passa nel menu. */
+const MOBILE_DESTINATIONS = DESTINATIONS.slice(0, 4)
+
+export function activeMembers(tracker: Tracker): Membership[] {
+  return tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user)
+}
 
 export function TrackerLayout() {
   const { trackerId } = useParams()
   const { data: tracker, isLoading } = useTracker(trackerId)
-  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
 
-  if (isLoading || !tracker) return <Spinner />
+  if (isLoading || !tracker) {
+    return (
+      <div className="flex min-h-screen">
+        <Skeleton className="hidden w-24 rounded-none md:block" />
+        <div className="flex-1 space-y-4 p-7">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-[280px] rounded-panel" />
+        </div>
+      </div>
+    )
+  }
+
+  const openNewTransaction = () => navigate(`/t/${tracker.id}/movimenti?new=1`)
 
   return (
-    <div className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-ink-200 bg-white/90 backdrop-blur dark:border-ink-700 dark:bg-ink-900/90">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <div className="min-w-0">
-            <NavLink to="/" className="text-xs text-ink-500 hover:underline">
-              ← tutti i tracker
-            </NavLink>
-            <h1 className="truncate text-lg font-semibold">{tracker.name}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-2">
-              {tracker.members
-                .filter((m) => m.status === 'active')
-                .map((member) => (
-                  <Avatar key={member.id} name={member.display_name} />
-                ))}
-            </div>
-            <button className="btn-ghost" onClick={() => logout()} title={user?.email}>
-              Esci
-            </button>
-          </div>
-        </div>
-        <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4">
-          {TABS.map((tab) => (
-            <NavLink
-              key={tab.label}
-              to={tab.to}
-              end={tab.end}
-              className={({ isActive }) =>
-                clsx(
-                  'whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition',
-                  isActive
-                    ? 'border-indigo-600 text-indigo-600'
-                    : 'border-transparent text-ink-500 hover:text-ink-800 dark:hover:text-ink-200',
-                )
-              }
-            >
-              {tab.label}
-            </NavLink>
+    <div className="flex min-h-screen bg-surface">
+      {/* --- navigation rail (desktop) --- */}
+      <nav
+        aria-label="Sezioni"
+        className="sticky top-0 hidden h-screen w-24 shrink-0 flex-col items-center bg-surface-container-low py-3 md:flex"
+      >
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Menu"
+          className="state flex h-14 w-14 items-center justify-center rounded-pill text-on-surface-variant"
+        >
+          <Icon name="menu" />
+        </button>
+
+        <button
+          type="button"
+          onClick={openNewTransaction}
+          aria-label="Nuovo movimento"
+          className="state mt-2 flex items-center justify-center rounded-row bg-primary-container text-on-primary-container shadow-fab"
+          style={{ width: 60, height: 60 }}
+        >
+          <Icon name="add" size={26} />
+        </button>
+
+        <div className="mt-6 flex flex-col items-center gap-3.5">
+          {DESTINATIONS.map((destination) => (
+            <RailItem key={destination.label} {...destination} />
           ))}
-        </nav>
-      </header>
-      <main className="mx-auto max-w-6xl px-4 py-6">
+        </div>
+      </nav>
+
+      <div className="min-w-0 flex-1 pb-28 md:pb-0">
         <Outlet context={tracker} />
-      </main>
+      </div>
+
+      {/* --- bottom bar + FAB (mobile) --- */}
+      <button
+        type="button"
+        onClick={openNewTransaction}
+        aria-label="Nuovo movimento"
+        className="state fixed right-[18px] z-30 flex items-center justify-center rounded-fab bg-primary-container text-on-primary-container shadow-fab-mobile md:hidden"
+        style={{ width: 64, height: 64, bottom: 96 }}
+      >
+        <Icon name="add" size={28} />
+      </button>
+
+      <nav
+        aria-label="Sezioni"
+        className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex justify-around bg-surface-container-low px-2 pt-3 md:hidden"
+      >
+        {MOBILE_DESTINATIONS.map((destination) => (
+          <BottomItem key={destination.label} {...destination} />
+        ))}
+      </nav>
+
+      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} tracker={tracker} />
+    </div>
+  )
+}
+
+function RailItem({
+  to,
+  label,
+  icon,
+  end,
+}: {
+  to: string
+  label: string
+  icon: string
+  end?: boolean
+}) {
+  return (
+    <NavLink to={to} end={end} className="group flex flex-col items-center gap-1">
+      {({ isActive }) => (
+        <>
+          <span
+            className={clsx(
+              'state flex items-center justify-center transition-colors duration-200 ease-m3',
+              isActive
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'text-on-surface-variant',
+            )}
+            style={{ width: 56, height: 32, borderRadius: 16 }}
+          >
+            <Icon name={icon} size={24} filled={isActive} />
+          </span>
+          <span
+            className={clsx(
+              'text-label-small',
+              isActive ? 'text-on-surface' : 'text-on-surface-variant',
+            )}
+          >
+            {label}
+          </span>
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+function BottomItem({
+  to,
+  label,
+  icon,
+  end,
+}: {
+  to: string
+  label: string
+  icon: string
+  end?: boolean
+}) {
+  return (
+    <NavLink to={to} end={end} className="flex flex-1 flex-col items-center gap-1">
+      {({ isActive }) => (
+        <>
+          <span
+            className={clsx(
+              'state flex items-center justify-center transition-colors duration-200 ease-m3',
+              isActive
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'text-on-surface-variant',
+            )}
+            style={{ width: 56, height: 32, borderRadius: 16 }}
+          >
+            <Icon name={icon} size={24} filled={isActive} />
+          </span>
+          <span
+            className={clsx(
+              'text-label-small',
+              isActive ? 'text-on-surface' : 'text-on-surface-variant',
+            )}
+          >
+            {label}
+          </span>
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+function MenuSheet({
+  open,
+  onClose,
+  tracker,
+}: {
+  open: boolean
+  onClose: () => void
+  tracker: Tracker
+}) {
+  const { data } = useTrackers()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  return (
+    <Modal open={open} onClose={onClose} title="Soldino">
+      <div className="grid gap-2">
+        <p className="px-1 text-label-small uppercase tracking-wide text-on-surface-variant">
+          I tuoi tracker
+        </p>
+        {(data?.results ?? []).map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => {
+              navigate(`/t/${item.id}`)
+              onClose()
+            }}
+            className={clsx(
+              'state flex items-center gap-3 rounded-card px-4 py-3 text-left',
+              item.id === tracker.id
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'bg-surface-container-low',
+            )}
+          >
+            <Icon name="savings" size={22} />
+            <span className="min-w-0 flex-1 truncate text-body-large font-medium">{item.name}</span>
+            {item.id === tracker.id && <Icon name="check" size={20} />}
+          </button>
+        ))}
+
+        <div className="mt-2 grid gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              navigate(`/t/${tracker.id}/impostazioni`)
+              onClose()
+            }}
+            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left md:hidden"
+          >
+            <Icon name="tune" size={22} />
+            <span className="flex-1 text-body-large">Setup del tracker</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              navigate('/')
+              onClose()
+            }}
+            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
+          >
+            <Icon name="list" size={22} />
+            <span className="flex-1 text-body-large">Tutti i tracker</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
+          >
+            <Avatar name={user?.display_name ?? ''} size={22} />
+            <span className="flex-1 text-body-large">Esci ({user?.email})</span>
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+/** Top app bar: chip switcher del tracker, ricerca, stack avatar. */
+export function AppBar({
+  tracker,
+  greeting,
+  onSearch,
+}: {
+  tracker: Tracker
+  greeting?: string
+  onSearch?: () => void
+}) {
+  const navigate = useNavigate()
+  const members = activeMembers(tracker)
+
+  return (
+    <div className="px-5 pb-2 pt-5 md:px-7">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <Chip
+            variant="assist"
+            icon="swap_horiz"
+            label={tracker.name}
+            onClick={() => navigate('/')}
+          />
+          {greeting && (
+            <h1 className="mt-3 text-[28px] font-medium leading-9 md:text-headline-small">
+              {greeting}
+            </h1>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {onSearch && (
+            <button
+              type="button"
+              onClick={onSearch}
+              aria-label="Cerca"
+              className="state hidden h-10 w-10 items-center justify-center rounded-pill bg-surface-container-low text-on-surface-variant md:flex"
+            >
+              <Icon name="search" size={20} />
+            </button>
+          )}
+          <AvatarStack
+            people={members.map((member, index) => ({
+              name: member.display_name,
+              color: memberColor(index),
+            }))}
+          />
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { TrackerLayout } from './components/Layout'
-import { Spinner } from './components/ui'
+import { Skeleton } from './components/ui'
 import {
   AcceptInvitePage,
   LoginPage,
@@ -18,7 +18,7 @@ import { useAuth } from './lib/auth'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, ready } = useAuth()
-  if (!ready) return <Spinner />
+  if (!ready) return <Skeleton className="m-6 h-24" />
   if (!user) return <Navigate to="/accedi" replace />
   return children
 }
