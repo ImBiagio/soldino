@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
@@ -5,13 +6,27 @@ import {
   useAccounts,
   useCategories,
   useDeleteRecurringRule,
+  useRecurringProposals,
   useRecurringRules,
   useSaveRecurringRule,
+  useSaveTransaction,
 } from '../../api/hooks'
-import { EmptyState, ErrorBanner, Field, Modal, Spinner, Stat } from '../../components/ui'
+import { activeMembers } from '../../components/Layout'
+import {
+  EmptyState,
+  ErrorBanner,
+  Field,
+  Icon,
+  IconCircle,
+  Modal,
+  RowsSkeleton,
+  Switch,
+} from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
+import { categoryIcon } from '../../lib/icons'
 import { formatMoney, toCents } from '../../lib/money'
-import type { Tracker } from '../../lib/types'
+import { canAdvanceClientSide, nextRun } from '../../lib/recurrence'
+import type { RecurringRule, Tracker } from '../../lib/types'
 
 const FREQUENCY_LABEL: Record<string, string> = {
   weekly: 'settimanale',
@@ -23,188 +38,305 @@ const FREQUENCY_LABEL: Record<string, string> = {
 export function SubscriptionsPage() {
   const tracker = useOutletContext<Tracker>()
   const { data, isLoading, error } = useRecurringRules(tracker.id)
+  const { proposals } = useRecurringProposals(tracker.id)
   const save = useSaveRecurringRule(tracker.id)
   const remove = useDeleteRecurringRule(tracker.id)
-  const categories = useCategories(tracker.id)
-  const accounts = useAccounts(tracker.id)
-  const [open, setOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
 
   const rules = data?.results ?? []
+  const proposalIds = new Set(proposals.map((rule) => rule.id))
   const monthly = rules
-    .filter((r) => r.active && r.type === 'expense')
-    .reduce((sum, r) => sum + toCents(r.monthly_cost), 0)
-  const members = tracker.members.filter((m) => m.status === 'active' && m.user)
+    .filter((rule) => rule.active && rule.type === 'expense')
+    .reduce((sum, rule) => sum + toCents(rule.monthly_cost), 0)
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div>
-          <h1 className="text-lg font-semibold">Ricorrenze e abbonamenti</h1>
-          <p className="text-sm text-ink-500">
-            Con “conferma automatica” spenta la ricorrenza propone e basta: nessuna scrittura
-            senza la tua approvazione.
-          </p>
-        </div>
-        <button className="btn-primary ml-auto" onClick={() => setOpen(true)}>
-          + Ricorrenza
-        </button>
-      </div>
+    <div className="p-5 md:p-7">
+      <div className="panel p-6 md:p-7">
+        <h1 className="text-title-large">Ricorrenze</h1>
+        <p className="mt-1 text-body-medium text-on-surface-variant">
+          Le proposte da approvare stanno in cima: senza conferma automatica nulla viene scritto.
+        </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Stat
-          label="Costo mensilizzato"
-          value={formatMoney(monthly / 100, tracker.currency)}
-          tone="negative"
-        />
-        <Stat
-          label="Costo annualizzato"
-          value={formatMoney((monthly * 12) / 100, tracker.currency)}
-          tone="negative"
-        />
-      </div>
-
-      <ErrorBanner error={error} />
-      {isLoading ? (
-        <Spinner />
-      ) : rules.length === 0 ? (
-        <EmptyState
-          title="Nessuna ricorrenza"
-          description="Affitto, mutuo, Netflix: tutto quello che torna da solo."
-        />
-      ) : (
-        <ul className="divide-y divide-ink-200 overflow-hidden rounded-xl border border-ink-200 bg-white dark:divide-ink-700 dark:border-ink-700 dark:bg-ink-800">
-          {rules.map((rule) => (
-            <li key={rule.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">
-                  {rule.title}
-                  {rule.is_subscription && (
-                    <span className="ml-2 chip bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-200">
-                      abbonamento
-                    </span>
-                  )}
-                  {!rule.active && (
-                    <span className="ml-2 chip bg-ink-100 text-ink-500">sospesa</span>
-                  )}
-                </p>
-                <p className="text-xs text-ink-500">
-                  {FREQUENCY_LABEL[rule.frequency]} · prossima {formatDate(rule.next_run)}
-                  {rule.auto_commit ? ' · conferma automatica' : ' · da approvare'}
-                </p>
-              </div>
-              <span className="amount w-24 text-right">
-                {formatMoney(rule.amount, tracker.currency)}
-              </span>
-              <span className="amount w-24 text-right text-xs text-ink-500">
-                {formatMoney(rule.monthly_cost, tracker.currency)}/mese
-              </span>
-              <label className="flex items-center gap-1 text-xs text-ink-500">
-                <input
-                  type="checkbox"
-                  checked={rule.active}
-                  onChange={(e) => save.mutate({ id: rule.id, active: e.target.checked })}
-                />
-                attiva
-              </label>
-              <button
-                className="text-ink-400 hover:text-rose-600"
-                onClick={() => remove.mutate(rule.id)}
-                aria-label="Elimina"
-              >
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuova ricorrenza">
-        <form
-          className="space-y-3"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const form = new FormData(event.currentTarget)
-            await save.mutateAsync({
-              type: form.get('type') as never,
-              title: String(form.get('title')),
-              amount: String(form.get('amount')).replace(',', '.'),
-              frequency: form.get('frequency') as never,
-              next_run: String(form.get('next_run')),
-              paid_by: String(form.get('paid_by')),
-              category: (form.get('category') as string) || null,
-              account: (form.get('account') as string) || null,
-              is_subscription: form.get('is_subscription') === 'on',
-              auto_commit: form.get('auto_commit') === 'on',
-            })
-            setOpen(false)
-          }}
-        >
-          <ErrorBanner error={save.error} />
-          <Field label="Descrizione">
-            <input className="input" name="title" required autoFocus />
-          </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Importo">
-              <input className="input amount text-right" name="amount" required />
-            </Field>
-            <Field label="Tipo">
-              <select className="input" name="type" defaultValue="expense">
-                <option value="expense">Spesa</option>
-                <option value="income">Entrata</option>
-              </select>
-            </Field>
-            <Field label="Frequenza">
-              <select className="input" name="frequency" defaultValue="monthly">
-                <option value="weekly">Settimanale</option>
-                <option value="monthly">Mensile</option>
-                <option value="yearly">Annuale</option>
-              </select>
-            </Field>
-            <Field label="Prossima occorrenza">
-              <input className="input" type="date" name="next_run" defaultValue={todayIso()} />
-            </Field>
-            <Field label="A carico di">
-              <select className="input" name="paid_by" required>
-                {members.map((m) => (
-                  <option key={m.id} value={m.user!.id}>
-                    {m.display_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Categoria">
-              <select className="input" name="category" defaultValue="">
-                <option value="">Senza categoria</option>
-                {(categories.data?.results ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Conto">
-              <select className="input" name="account" defaultValue="">
-                <option value="">Nessuno</option>
-                {(accounts.data?.results ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-card bg-surface-container p-5">
+            <p className="text-body-medium text-on-surface-variant">Al mese</p>
+            <p className="amount text-[26px] font-semibold">
+              {formatMoney(monthly / 100, tracker.currency)}
+            </p>
           </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="is_subscription" /> È un abbonamento
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="auto_commit" /> Conferma automatica (scrive senza
-            chiedere)
-          </label>
-          <button className="btn-primary w-full" disabled={save.isPending}>
-            Crea
+          <div className="rounded-card bg-surface-container p-5">
+            <p className="text-body-medium text-on-surface-variant">All'anno</p>
+            <p className="amount text-[26px] font-semibold">
+              {formatMoney((monthly * 12) / 100, tracker.currency)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button type="button" className="btn-filled btn-sm" onClick={() => setFormOpen(true)}>
+            <Icon name="add" size={20} />
+            Ricorrenza
           </button>
-        </form>
-      </Modal>
+        </div>
+
+        <ErrorBanner error={error} />
+
+        <div className="mt-4 grid gap-2">
+          {proposals.map((rule) => (
+            <ProposalRow key={`proposal-${rule.id}`} tracker={tracker} rule={rule} />
+          ))}
+
+          {isLoading ? (
+            <RowsSkeleton rows={3} />
+          ) : rules.length === 0 ? (
+            <EmptyState
+              icon="autorenew"
+              title="Nessuna ricorrenza"
+              description="Affitto, mutuo, Netflix: tutto quello che torna da solo."
+            />
+          ) : (
+            rules.map((rule) => (
+              <div
+                key={rule.id}
+                className={clsx(
+                  'flex flex-wrap items-center gap-4 rounded-card bg-surface-container-low px-5 py-4',
+                  !rule.active && 'opacity-[0.62]',
+                )}
+              >
+                <IconCircle
+                  name={categoryIcon({ name: rule.title, icon: '' })}
+                  color="var(--tertiary)"
+                  size={44}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-2 truncate text-body-large font-medium">
+                    {rule.title}
+                    {rule.is_subscription && (
+                      <span className="rounded-pill bg-tertiary-container px-2 py-0.5 text-body-small text-on-tertiary-container">
+                        abbonamento
+                      </span>
+                    )}
+                    {!rule.active && (
+                      <span className="rounded-pill bg-surface-container-high px-2 py-0.5 text-body-small text-on-surface-variant">
+                        sospesa
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-body-small text-on-surface-variant">
+                    {FREQUENCY_LABEL[rule.frequency]} · {formatDate(rule.next_run)} ·{' '}
+                    {rule.auto_commit ? 'conferma automatica' : 'da approvare'}
+                    {rule.frequency === 'yearly' &&
+                      ` · ${formatMoney(rule.monthly_cost, tracker.currency)}/mese`}
+                  </p>
+                </div>
+                <span className="amount text-[16px] font-semibold">
+                  {formatMoney(rule.amount, tracker.currency)}
+                </span>
+                <Switch
+                  checked={rule.active}
+                  onChange={(checked) => save.mutate({ id: rule.id, active: checked })}
+                  label={`Attiva ${rule.title}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => remove.mutate(rule.id)}
+                  aria-label="Elimina"
+                  className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
+                >
+                  <Icon name="close" size={20} />
+                </button>
+                {proposalIds.has(rule.id) && <span className="sr-only">proposta in sospeso</span>}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <RuleForm tracker={tracker} open={formOpen} onClose={() => setFormOpen(false)} />
     </div>
+  )
+}
+
+/**
+ * Riga di proposta. L'approvazione scrive la transazione e sposta `next_run`:
+ * due chiamate non atomiche, perché manca l'endpoint dedicato lato backend.
+ */
+function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule }) {
+  const createTransaction = useSaveTransaction(tracker.id)
+  const saveRule = useSaveRecurringRule(tracker.id)
+  const [busy, setBusy] = useState(false)
+  const canApprove = canAdvanceClientSide(rule)
+
+  const approve = async () => {
+    const following = nextRun(rule)
+    if (!following) return
+    setBusy(true)
+    try {
+      await createTransaction.mutateAsync({
+        type: rule.type,
+        date: rule.next_run,
+        title: rule.title,
+        amount: rule.amount,
+        category: rule.category,
+        account: rule.account,
+        paid_by: rule.paid_by,
+        splits_input:
+          rule.split_template && rule.split_template.length > 0
+            ? rule.split_template
+            : [{ user: rule.paid_by, share_pct: '100.00' }],
+      })
+      await saveRule.mutateAsync({ id: rule.id, next_run: following })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const skip = async () => {
+    const following = nextRun(rule)
+    if (!following) return
+    await saveRule.mutateAsync({ id: rule.id, next_run: following })
+  }
+
+  return (
+    <div className="rounded-card bg-warning-container px-5 py-4 text-on-warning-container">
+      <ErrorBanner error={createTransaction.error ?? saveRule.error} />
+      <div className="flex flex-wrap items-center gap-4">
+        <Icon name="inbox" size={24} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-body-large font-medium">
+            {rule.title} · {formatMoney(rule.amount, tracker.currency)}
+          </p>
+          <p className="text-body-small">Proposta per il {formatDate(rule.next_run)}</p>
+        </div>
+        {canApprove ? (
+          <>
+            <button
+              type="button"
+              onClick={approve}
+              disabled={busy}
+              className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
+            >
+              {busy ? 'Approvo…' : 'Approva'}
+            </button>
+            <button
+              type="button"
+              onClick={skip}
+              aria-label="Salta questa occorrenza"
+              className="state flex h-9 w-9 items-center justify-center rounded-pill"
+            >
+              <Icon name="close" size={20} />
+            </button>
+          </>
+        ) : (
+          <p className="text-body-small">
+            Ricorrenza personalizzata: va approvata a mano creando il movimento.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RuleForm({
+  tracker,
+  open,
+  onClose,
+}: {
+  tracker: Tracker
+  open: boolean
+  onClose: () => void
+}) {
+  const save = useSaveRecurringRule(tracker.id)
+  const categories = useCategories(tracker.id)
+  const accounts = useAccounts(tracker.id)
+  const members = activeMembers(tracker)
+
+  return (
+    <Modal open={open} onClose={onClose} title="Nuova ricorrenza">
+      <form
+        className="grid gap-3"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const form = new FormData(event.currentTarget)
+          await save.mutateAsync({
+            type: form.get('type') as never,
+            title: String(form.get('title')),
+            amount: String(form.get('amount')).replace(',', '.'),
+            frequency: form.get('frequency') as never,
+            next_run: String(form.get('next_run')),
+            paid_by: String(form.get('paid_by')),
+            category: (form.get('category') as string) || null,
+            account: (form.get('account') as string) || null,
+            is_subscription: form.get('is_subscription') === 'on',
+            auto_commit: form.get('auto_commit') === 'on',
+          })
+          onClose()
+        }}
+      >
+        <ErrorBanner error={save.error} />
+        <Field label="Descrizione">
+          <input className="field-input" name="title" required autoFocus />
+        </Field>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Importo">
+            <input className="field-input amount text-right" name="amount" required />
+          </Field>
+          <Field label="Tipo">
+            <select className="field-input" name="type" defaultValue="expense">
+              <option value="expense">Spesa</option>
+              <option value="income">Entrata</option>
+            </select>
+          </Field>
+          <Field label="Frequenza">
+            <select className="field-input" name="frequency" defaultValue="monthly">
+              <option value="weekly">Settimanale</option>
+              <option value="monthly">Mensile</option>
+              <option value="yearly">Annuale</option>
+            </select>
+          </Field>
+          <Field label="Prossima occorrenza">
+            <input className="field-input" type="date" name="next_run" defaultValue={todayIso()} />
+          </Field>
+          <Field label="A carico di">
+            <select className="field-input" name="paid_by" required>
+              {members.map((member) => (
+                <option key={member.id} value={member.user!.id}>
+                  {member.display_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Categoria">
+            <select className="field-input" name="category" defaultValue="">
+              <option value="">Senza categoria</option>
+              {(categories.data?.results ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+        <Field label="Conto">
+          <select className="field-input" name="account" defaultValue="">
+            <option value="">Nessuno</option>
+            {(accounts.data?.results ?? []).map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <label className="flex items-center gap-2 px-1 text-body-medium">
+          <input type="checkbox" name="is_subscription" /> È un abbonamento
+        </label>
+        <label className="flex items-center gap-2 px-1 text-body-medium">
+          <input type="checkbox" name="auto_commit" /> Conferma automatica (scrive senza chiedere)
+        </label>
+        <button className="btn-filled w-full" disabled={save.isPending}>
+          Crea
+        </button>
+      </form>
+    </Modal>
   )
 }
