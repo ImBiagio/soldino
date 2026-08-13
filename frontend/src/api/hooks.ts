@@ -1,9 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type UseQueryOptions,
-} from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
 
 import { api } from '../lib/api'
 import type {
@@ -32,8 +27,7 @@ export const keys = {
   categories: (id: UUID) => ['trackers', id, 'categories'] as const,
   accounts: (id: UUID) => ['trackers', id, 'accounts'] as const,
   pending: (id: UUID) => ['trackers', id, 'pending'] as const,
-  transactions: (id: UUID, filters: unknown) =>
-    ['trackers', id, 'transactions', filters] as const,
+  transactions: (id: UUID, filters: unknown) => ['trackers', id, 'transactions', filters] as const,
   settlements: (id: UUID) => ['trackers', id, 'settlements'] as const,
   balances: (id: UUID) => ['trackers', id, 'balances'] as const,
   summary: (id: UUID, period: unknown) => ['trackers', id, 'summary', period] as const,
@@ -290,6 +284,23 @@ export function useSaveRecurringRule(trackerId: UUID) {
         : api.post<RecurringRule>(`${trackerBase(trackerId)}/recurring-rules`, body),
     onSuccess: invalidate,
   })
+}
+
+/**
+ * Proposte ricorrenti da approvare.
+ *
+ * Con `auto_commit=false` la regola propone e basta, ma il backend non espone
+ * ancora le occorrenze in sospeso. Finché non esiste
+ * `GET /trackers/{id}/recurring/pending`, le proposte si derivano dalle regole
+ * scadute e non auto-confermate: stessa informazione, calcolata dal client.
+ */
+export function useRecurringProposals(trackerId: UUID) {
+  const query = useRecurringRules(trackerId)
+  const today = new Date().toISOString().slice(0, 10)
+  const proposals = (query.data?.results ?? []).filter(
+    (rule) => rule.active && !rule.auto_commit && rule.next_run <= today,
+  )
+  return { ...query, proposals }
 }
 
 export function useDeleteRecurringRule(trackerId: UUID) {

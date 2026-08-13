@@ -1,281 +1,524 @@
 import clsx from 'clsx'
-import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useOutletContext } from 'react-router-dom'
 
 import {
   useBalances,
+  useCategories,
   useCreateSettlement,
   useReconciliation,
+  useRecurringProposals,
   useSummary,
 } from '../../api/hooks'
-import { Avatar, ErrorBanner, Modal, Spinner, Stat } from '../../components/ui'
+import { AppBar } from '../../components/Layout'
+import {
+  Avatar,
+  CompositeBar,
+  DashboardSkeleton,
+  ErrorBanner,
+  Field,
+  Icon,
+  IconCircle,
+  Modal,
+  Skeleton,
+} from '../../components/ui'
+import { useAuth } from '../../lib/auth'
 import { monthLabel, todayIso } from '../../lib/format'
+import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney, formatSigned, toCents } from '../../lib/money'
-import type { Tracker } from '../../lib/types'
+import type { BalancesResponse, Tracker } from '../../lib/types'
+
+type Transfer = BalancesResponse['suggested_transfers'][number]
+type Period = 'month' | 'quarter' | 'year'
 
 export function DashboardPage() {
   const tracker = useOutletContext<Tracker>()
+  const { user } = useAuth()
   const now = new Date()
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState<number | ''>(now.getMonth() + 1)
+  const [period, setPeriod] = useState<Period>('month')
 
-  const summary = useSummary(tracker.id, { year, month: month || undefined })
+  const summary = useSummary(
+    tracker.id,
+    period === 'month'
+      ? { year: now.getFullYear(), month: now.getMonth() + 1 }
+      : { year: now.getFullYear() },
+  )
   const balances = useBalances(tracker.id)
   const reconciliation = useReconciliation(tracker.id)
 
   return (
-    <div className="space-y-6">
-      <ReconciliationCard tracker={tracker} />
+    <>
+      <AppBar tracker={tracker} greeting={`Ciao ${user?.display_name ?? ''}`} />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="input w-auto"
-          value={month}
-          onChange={(e) => setMonth(e.target.value === '' ? '' : Number(e.target.value))}
-        >
-          <option value="">Tutto l'anno</option>
-          {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-            <option key={m} value={m}>
-              {monthLabel(m)}
-            </option>
-          ))}
-        </select>
-        <select
-          className="input w-auto"
-          value={year}
-          onChange={(e) => setYear(Number(e.target.value))}
-        >
-          {Array.from({ length: 6 }, (_, i) => now.getFullYear() - i).map((y) => (
-            <option key={y} value={y}>
-              {y}
-            </option>
-          ))}
-        </select>
-      </div>
+      <div className="grid gap-5 px-5 pb-8 pt-3 md:px-7">
+        <ReconciliationPill tracker={tracker} />
 
-      <ErrorBanner error={summary.error} />
-      {summary.isLoading || !summary.data ? (
-        <Spinner />
-      ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Stat
-              label="Spese"
-              value={formatMoney(summary.data.total_expense, tracker.currency)}
-              tone="negative"
-              hint={`${summary.data.transaction_count} movimenti`}
-            />
-            <Stat
-              label="Entrate"
-              value={formatMoney(summary.data.total_income, tracker.currency)}
-              tone="positive"
-            />
-            <Stat
-              label="Saldo del periodo"
-              value={formatSigned(summary.data.net, tracker.currency)}
-              tone={toCents(summary.data.net) >= 0 ? 'positive' : 'negative'}
-            />
-          </div>
+        <ErrorBanner error={balances.error ?? summary.error} />
 
-          <section className="card">
-            <h2 className="mb-3 text-sm font-semibold">Per categoria</h2>
-            {summary.data.by_category.length === 0 ? (
-              <p className="text-sm text-ink-500">Nessun movimento nel periodo.</p>
-            ) : (
-              <ul className="space-y-2">
-                {summary.data.by_category
-                  .filter((row) => row.type === 'expense')
-                  .map((row) => {
-                    const share =
-                      toCents(summary.data!.total_expense) > 0
-                        ? (toCents(row.total) / toCents(summary.data!.total_expense)) * 100
-                        : 0
-                    return (
-                      <li key={`${row.category_id}-${row.type}`} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="flex items-center gap-2">
-                            <span
-                              className="h-3 w-3 rounded-full"
-                              style={{ backgroundColor: row.color }}
-                            />
-                            {row.category_name}
-                            <span className="text-xs text-ink-500">({row.count})</span>
-                          </span>
-                          <span className="amount">
-                            {formatMoney(row.total, tracker.currency)}
-                          </span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-ink-200 dark:bg-ink-700">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${share}%`, backgroundColor: row.color }}
-                          />
-                        </div>
-                      </li>
-                    )
-                  })}
-              </ul>
-            )}
-          </section>
-        </>
-      )}
-
-      <section className="card space-y-3">
-        <h2 className="text-sm font-semibold">Chi deve cosa</h2>
         {balances.isLoading || !balances.data ? (
-          <Spinner />
+          <DashboardSkeleton />
         ) : (
-          <>
-            <ul className="space-y-1">
-              {balances.data.balances.map((balance) => (
-                <li key={balance.user.id} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2">
-                    <Avatar name={balance.user.display_name} />
-                    {balance.user.display_name}
-                  </span>
-                  <span
-                    className={clsx(
-                      'amount font-medium',
-                      toCents(balance.net) > 0
-                        ? 'text-emerald-600'
-                        : toCents(balance.net) < 0
-                          ? 'text-rose-600'
-                          : 'text-ink-500',
-                    )}
-                    title={`Pagato ${formatMoney(balance.paid)} · di competenza ${formatMoney(balance.owed)}`}
-                  >
-                    {formatSigned(balance.net, tracker.currency)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+          <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
+            <div className="grid gap-4">
+              {balances.data.suggested_transfers.length === 0 ? (
+                <SettledCard balances={balances.data} tracker={tracker} />
+              ) : (
+                balances.data.suggested_transfers.map((transfer, index) => (
+                  <HeroCard
+                    key={index}
+                    tracker={tracker}
+                    transfer={transfer}
+                    balances={balances.data!}
+                  />
+                ))
+              )}
+            </div>
 
-            {balances.data.suggested_transfers.length === 0 ? (
-              <p className="text-sm text-emerald-600">Siete in pari.</p>
-            ) : (
-              <ul className="space-y-2 border-t border-ink-200 pt-3 dark:border-ink-700">
-                {balances.data.suggested_transfers.map((transfer, index) => (
-                  <SettleRow key={index} tracker={tracker} transfer={transfer} />
-                ))}
-              </ul>
-            )}
-          </>
+            <div className="grid content-start gap-4">
+              <ProposalsCard tracker={tracker} />
+              <MonthCard tracker={tracker} />
+            </div>
+          </div>
         )}
-      </section>
 
-      {reconciliation.data && (
-        <p className="text-xs text-ink-500">
-          Saldo conti {formatMoney(reconciliation.data.accounts_balance, tracker.currency)} · in
-          attesa {formatSigned(reconciliation.data.pending_total, tracker.currency)}
-        </p>
-      )}
-    </div>
+        <SpendingCard
+          tracker={tracker}
+          period={period}
+          onPeriod={setPeriod}
+          summary={summary.data}
+          loading={summary.isLoading}
+        />
+
+        {reconciliation.data && <ReconciliationCard tracker={tracker} data={reconciliation.data} />}
+      </div>
+    </>
   )
 }
 
-function ReconciliationCard({ tracker }: { tracker: Tracker }) {
-  const { data, isLoading } = useReconciliation(tracker.id)
-  if (isLoading || !data) return null
-  const delta = toCents(data.delta)
-  const quadra = delta === 0
+/* ------------------------------------------------- pill riconciliazione -- */
+
+function ReconciliationPill({ tracker }: { tracker: Tracker }) {
+  const { data } = useReconciliation(tracker.id)
+  if (!data) return null
+  const quadra = toCents(data.delta) === 0
 
   return (
-    <div
+    <a
+      href="#riconciliazione"
       className={clsx(
-        'rounded-xl border p-4',
+        'state inline-flex w-fit items-center gap-2 rounded-pill py-2 pl-4 pr-3 text-body-medium',
         quadra
-          ? 'border-emerald-300 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950'
-          : 'border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950',
+          ? 'bg-secondary-container text-on-secondary-container'
+          : 'bg-warning-container text-on-warning-container',
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold">Riconciliazione</p>
-          <p className="text-xs text-ink-600 dark:text-ink-300">
-            Saldo conti {formatMoney(data.accounts_balance, tracker.currency)} + in attesa{' '}
-            {formatSigned(data.pending_total, tracker.currency)} ={' '}
-            {formatMoney(data.available_balance, tracker.currency)} disponibili · dalle
-            transazioni {formatSigned(data.transactions_balance, tracker.currency)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="label mb-0">Delta</p>
-          <p className="amount text-2xl font-semibold">
-            {formatSigned(data.delta, tracker.currency)}
-          </p>
-        </div>
-      </div>
-    </div>
+      <Icon name="balance" size={20} />
+      {quadra ? (
+        <span>Il tracker quadra</span>
+      ) : (
+        <>
+          <span>
+            Il tracker non quadra per{' '}
+            <strong className="amount font-semibold">
+              {formatMoney(Math.abs(toCents(data.delta)) / 100, tracker.currency)}
+            </strong>
+          </span>
+          <Icon name="chevron_right" size={20} />
+        </>
+      )}
+    </a>
   )
 }
 
-function SettleRow({
+/* ------------------------------------------------------------ card hero -- */
+
+function HeroCard({
+  tracker,
+  transfer,
+  balances,
+}: {
+  tracker: Tracker
+  transfer: Transfer
+  balances: BalancesResponse
+}) {
+  const { user } = useAuth()
+  const [settling, setSettling] = useState(false)
+  const [detail, setDetail] = useState(false)
+
+  const youOwe = transfer.from_user.id === user?.id
+  const youReceive = transfer.to_user.id === user?.id
+  const sentence = youOwe
+    ? `Devi a ${transfer.to_user.display_name}`
+    : youReceive
+      ? `${transfer.from_user.display_name} deve a te`
+      : `${transfer.from_user.display_name} deve a ${transfer.to_user.display_name}`
+
+  return (
+    <section className="rounded-panel bg-primary p-7 text-on-primary">
+      <p className="text-body-medium font-medium uppercase tracking-wide text-primary-container">
+        Chi deve cosa
+      </p>
+      <p className="mt-5 text-[18px] leading-6">{sentence}</p>
+      <p className="amount mt-1 text-headline-medium md:text-display-large">
+        {formatMoney(transfer.amount, tracker.currency)}
+      </p>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setSettling(true)}
+          className="state inline-flex items-center gap-2 rounded-pill bg-primary-container px-6 py-3.5 text-body-medium font-medium text-on-primary-container"
+        >
+          <Icon name="handshake" size={20} />
+          Segna come saldato
+        </button>
+        <button
+          type="button"
+          onClick={() => setDetail((open) => !open)}
+          className="state inline-flex items-center gap-2 rounded-pill border px-6 py-3.5 text-body-medium font-medium"
+          style={{ borderColor: 'rgba(255,255,255,0.5)' }}
+        >
+          Come si compone
+        </button>
+      </div>
+
+      <div
+        className="grid transition-all duration-[250ms] ease-m3"
+        style={{ gridTemplateRows: detail ? '1fr' : '0fr' }}
+      >
+        <div className="overflow-hidden">
+          <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
+            {balances.balances.map((balance, index) => (
+              <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
+                <Avatar name={balance.user.display_name} size={32} color={memberColor(index)} />
+                <span className="min-w-0 flex-1 truncate text-body-medium">
+                  {balance.user.display_name} · pagato{' '}
+                  <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span> · di
+                  competenza{' '}
+                  <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
+                </span>
+                <span className="amount shrink-0 font-semibold">
+                  {formatSigned(balance.net, tracker.currency)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <SettleModal
+        open={settling}
+        onClose={() => setSettling(false)}
+        tracker={tracker}
+        transfer={transfer}
+      />
+    </section>
+  )
+}
+
+function SettledCard({ balances, tracker }: { balances: BalancesResponse; tracker: Tracker }) {
+  return (
+    <section className="rounded-panel bg-primary p-7 text-on-primary">
+      <p className="text-body-medium font-medium uppercase tracking-wide text-primary-container">
+        Chi deve cosa
+      </p>
+      <p className="mt-5 text-title-large">Siete in pari</p>
+      <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
+        {balances.balances.map((balance, index) => (
+          <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
+            <Avatar name={balance.user.display_name} size={32} color={memberColor(index)} />
+            <span className="min-w-0 flex-1 truncate text-body-medium">
+              {balance.user.display_name} · pagato{' '}
+              <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span>
+            </span>
+            <span className="amount shrink-0 font-semibold">
+              {formatSigned(balance.net, tracker.currency)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function SettleModal({
+  open,
+  onClose,
   tracker,
   transfer,
 }: {
+  open: boolean
+  onClose: () => void
   tracker: Tracker
-  transfer: {
-    from_user: { id: string; display_name: string }
-    to_user: { id: string; display_name: string }
-    amount: string
-  }
+  transfer: Transfer
 }) {
-  const [open, setOpen] = useState(false)
-  const [date, setDate] = useState(todayIso())
+  // L'importo arriva già precompilato dal trasferimento suggerito: un tap.
   const [amount, setAmount] = useState(transfer.amount)
+  const [date, setDate] = useState(todayIso())
   const create = useCreateSettlement(tracker.id)
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 text-sm">
-      <span>
-        <strong>{transfer.from_user.display_name}</strong> deve a{' '}
-        <strong>{transfer.to_user.display_name}</strong>{' '}
-        <span className="amount">{formatMoney(transfer.amount, tracker.currency)}</span>
-      </span>
-      <button className="btn-ghost" onClick={() => setOpen(true)}>
-        Salda
-      </button>
+    <Modal open={open} onClose={onClose} title="Segna come saldato">
+      <form
+        className="grid gap-3 text-on-surface"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          await create.mutateAsync({
+            from_user: transfer.from_user.id,
+            to_user: transfer.to_user.id,
+            amount,
+            date,
+          })
+          onClose()
+        }}
+      >
+        <ErrorBanner error={create.error} />
+        <p className="text-body-medium text-on-surface-variant">
+          {transfer.from_user.display_name} → {transfer.to_user.display_name}. Un pareggio azzera il
+          debito e non compare in nessuna statistica per categoria.
+        </p>
+        <Field label="Importo">
+          <input
+            className="field-input amount text-right"
+            inputMode="decimal"
+            value={amount}
+            onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+          />
+        </Field>
+        <Field label="Data">
+          <input
+            className="field-input"
+            type="date"
+            value={date}
+            onChange={(event) => setDate(event.target.value)}
+          />
+        </Field>
+        <button className="btn-filled mt-1 w-full" disabled={create.isPending}>
+          <Icon name="handshake" size={20} />
+          Registra il pareggio
+        </button>
+      </form>
+    </Modal>
+  )
+}
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Registra un pareggio">
-        <form
-          className="space-y-3"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            await create.mutateAsync({
-              from_user: transfer.from_user.id,
-              to_user: transfer.to_user.id,
-              amount,
-              date,
-            })
-            setOpen(false)
-          }}
+/* -------------------------------------------------------- card proposte -- */
+
+function ProposalsCard({ tracker }: { tracker: Tracker }) {
+  const { proposals, isLoading } = useRecurringProposals(tracker.id)
+  if (isLoading || proposals.length === 0) return null
+
+  return (
+    <section className="rounded-panel bg-warning-container p-6 text-on-warning-container">
+      <div className="flex items-center gap-2">
+        <Icon name="inbox" size={22} />
+        <p className="text-body-large font-medium">
+          {proposals.length}{' '}
+          {proposals.length === 1 ? 'ricorrenza da approvare' : 'ricorrenze da approvare'}
+        </p>
+      </div>
+      <p className="mt-2 text-body-medium">
+        {proposals
+          .slice(0, 3)
+          .map((rule) => `${rule.title} ${formatMoney(rule.amount, tracker.currency)}`)
+          .join(' · ')}
+        . Nessuna scrittura senza il tuo ok.
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          to="abbonamenti"
+          className="state inline-flex items-center rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container"
         >
-          <ErrorBanner error={create.error} />
-          <p className="text-sm text-ink-500">
-            Un pareggio azzera il debito e non compare in nessuna statistica per categoria.
+          Vedi le proposte
+        </Link>
+      </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------ card mese -- */
+
+function MonthCard({ tracker }: { tracker: Tracker }) {
+  const now = new Date()
+  const { data, isLoading } = useSummary(tracker.id, {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+  })
+
+  if (isLoading || !data) return <Skeleton className="h-[144px] rounded-panel" />
+
+  return (
+    <section className="rounded-panel bg-surface-container p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-label-small uppercase tracking-wide text-on-surface-variant">
+          {monthLabel(now.getMonth() + 1)} {now.getFullYear()}
+        </p>
+        <Icon name="calendar_month" size={18} className="text-on-surface-variant" />
+      </div>
+      <p className="text-body-medium text-on-surface-variant">Uscite</p>
+      <p className="amount text-[30px] font-semibold leading-9 text-error">
+        {formatMoney(data.total_expense, tracker.currency)}
+      </p>
+      <p className="mt-2 text-body-medium text-on-surface-variant">Entrate</p>
+      <p className="amount text-[30px] font-semibold leading-9 text-primary">
+        {formatMoney(data.total_income, tracker.currency)}
+      </p>
+      <div className="my-3 h-px bg-outline-variant" />
+      <div className="flex items-baseline justify-between">
+        <span className="text-body-medium text-on-surface-variant">Resta</span>
+        <span className="amount text-[22px] font-semibold">
+          {formatSigned(data.net, tracker.currency)}
+        </span>
+      </div>
+    </section>
+  )
+}
+
+/* -------------------------------------------------- card "dove sono finiti" */
+
+function SpendingCard({
+  tracker,
+  period,
+  onPeriod,
+  summary,
+  loading,
+}: {
+  tracker: Tracker
+  period: Period
+  onPeriod: (period: Period) => void
+  summary: ReturnType<typeof useSummary>['data']
+  loading: boolean
+}) {
+  const categories = useCategories(tracker.id)
+  const byId = useMemo(
+    () => new Map((categories.data?.results ?? []).map((c) => [c.id, c])),
+    [categories.data],
+  )
+
+  const rows = (summary?.by_category ?? []).filter((row) => row.type === 'expense')
+  const total = toCents(summary?.total_expense ?? '0')
+
+  return (
+    <section className="card-m3 p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-title-medium">Dove sono finiti</h2>
+        <div className="flex gap-2">
+          {(
+            [
+              ['month', 'Mese'],
+              ['quarter', 'Trimestre'],
+              ['year', 'Anno'],
+            ] as [Period, string][]
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onPeriod(id)}
+              aria-pressed={period === id}
+              className={
+                period === id
+                  ? 'state rounded-pill bg-primary px-4 py-2 text-body-medium font-medium text-on-primary'
+                  : 'chip-outlined'
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <Skeleton className="h-[26px] rounded-pill" />
+      ) : rows.length === 0 ? (
+        <p className="text-body-medium text-on-surface-variant">Nessun movimento nel periodo.</p>
+      ) : (
+        <>
+          <CompositeBar
+            segments={rows.map((row, index) => ({
+              value: toCents(row.total),
+              color: categoryColor(byId.get(row.category_id ?? ''), index),
+              label: row.category_name,
+            }))}
+          />
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {rows.slice(0, 4).map((row, index) => {
+              const category = byId.get(row.category_id ?? '')
+              const color = categoryColor(category, index)
+              const share = total > 0 ? Math.round((toCents(row.total) / total) * 100) : 0
+              return (
+                <div key={`${row.category_id}`} className="rounded-row bg-surface p-4">
+                  <IconCircle name={categoryIcon(category)} color={color} size={40} />
+                  <p className="mt-3 text-[15px] font-medium">{row.category_name}</p>
+                  <p className="amount text-title-medium">
+                    {formatMoney(row.total, tracker.currency)}
+                  </p>
+                  <p className="text-body-small text-on-surface-variant">
+                    {share}% · {row.count} movimenti
+                  </p>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+/* --------------------------------------------- card riconciliazione estesa */
+
+function ReconciliationCard({
+  tracker,
+  data,
+}: {
+  tracker: Tracker
+  data: NonNullable<ReturnType<typeof useReconciliation>['data']>
+}) {
+  const quadra = toCents(data.delta) === 0
+
+  return (
+    <section id="riconciliazione" className="rounded-panel bg-surface-container p-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-md">
+          <h2 className="text-title-medium">Riconciliazione</h2>
+          <p className="mt-1 text-body-medium text-on-surface-variant">
+            Saldo conti + in attesa = disponibile. Il delta è quanto il foglio dei conti si discosta
+            dalle transazioni registrate.
           </p>
-          <label className="block">
-            <span className="label">Importo</span>
-            <input
-              className="input amount text-right"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value.replace(',', '.'))}
-            />
-          </label>
-          <label className="block">
-            <span className="label">Data</span>
-            <input
-              className="input"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </label>
-          <button className="btn-primary w-full" disabled={create.isPending}>
-            Registra
-          </button>
-        </form>
-      </Modal>
-    </li>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-5">
+          <Term label="Conti" value={formatMoney(data.accounts_balance, tracker.currency)} />
+          <span className="pb-1 text-title-medium text-on-surface-variant">+</span>
+          <Term label="In attesa" value={formatSigned(data.pending_total, tracker.currency)} />
+          <span className="pb-1 text-title-medium text-on-surface-variant">−</span>
+          <Term
+            label="Transazioni"
+            value={formatMoney(data.transactions_balance, tracker.currency)}
+          />
+          <div
+            className={clsx(
+              'rounded-row px-4 py-3',
+              quadra
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'bg-warning-container text-on-warning-container',
+            )}
+          >
+            <p className="text-label-small uppercase tracking-wide">Delta</p>
+            <p className="amount text-title-medium">{formatSigned(data.delta, tracker.currency)}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function Term({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-label-small uppercase tracking-wide text-on-surface-variant">{label}</p>
+      <p className="amount text-title-medium">{value}</p>
+    </div>
   )
 }

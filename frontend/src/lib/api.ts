@@ -109,10 +109,10 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 }
 
 export const api = {
-  get: <T,>(path: string, params?: RequestOptions['params']) => request<T>(path, { params }),
-  post: <T,>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
-  patch: <T,>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
-  put: <T,>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
-  delete: <T,>(path: string) => request<T>(path, { method: 'DELETE' }),
+  get: <T>(path: string, params?: RequestOptions['params']) => request<T>(path, { params }),
+  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
+  patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
+  put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
+  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   refresh: refreshAccessToken,
 }
