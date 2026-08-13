@@ -85,6 +85,23 @@ stateless (`django.core.signing`), senza tabelle da mantenere.
 
 ---
 
+## Interfaccia
+
+Material 3 Expressive, palette tonale generata dal seed `#1b6c2f`. I token
+stanno come custom properties in `src/index.css` e Tailwind li mappa sui nomi di
+ruolo M3 (`bg-surface-container`, `text-on-primary`), così nel markup non
+compaiono hex. Roboto Flex per il testo, **Roboto Mono per ogni importo**,
+Material Symbols Rounded per le icone.
+
+Navigation rail su desktop, bottom bar con FAB sotto i 768px. La palette è solo
+chiara: il design non definisce una variante scura.
+
+I colori e le icone delle categorie sono **dati** (`Category.color`,
+`Category.icon`), non scelte del client: la UI li legge dall'API.
+
+> I font arrivano da Google Fonts via `<link>`. In produzione conviene
+> self-hostarli e servire un subset del font delle icone.
+
 ## I principi che reggono il modello
 
 Sono le decisioni che costano care se prese dopo. Ognuna vive in un punto preciso:
@@ -220,4 +237,9 @@ propone soltanto.
   di atterraggio dell'import.
 - **Togliere le città dal normalizzatore merchant.** Serve un gazetteer, si fa in
   fase 2 sui dati veri. Vedi [ADR 0005](docs/decisions/0005-normalizzatore-merchant.md).
+- **Endpoint di approvazione delle ricorrenze.** L'interfaccia elenca e approva
+  le proposte, ma lo fa con due chiamate non atomiche e replicando
+  `RecurringRule.advance()` in `frontend/src/lib/recurrence.ts`. Serve
+  `GET /trackers/{id}/recurring/pending` + `POST …/{occurrence}/approve`:
+  quando ci sarà, quel file va cancellato.
 - **Fasi 3-5.** Scope non toccato, come da piano.
