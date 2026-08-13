@@ -1,3 +1,4 @@
+import clsx from 'clsx'
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
@@ -12,22 +13,44 @@ import {
   useSaveCategory,
   useUpdateMember,
 } from '../../api/hooks'
-import { Avatar, ErrorBanner, Field, Modal, Spinner } from '../../components/ui'
+import { activeMembers } from '../../components/Layout'
+import {
+  Avatar,
+  ErrorBanner,
+  Field,
+  Icon,
+  IconCircle,
+  Modal,
+  Skeleton,
+  Switch,
+} from '../../components/ui'
+import { accountIcon, categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney } from '../../lib/money'
-import type { Tracker } from '../../lib/types'
+import type { Category, Tracker } from '../../lib/types'
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: 'Proprietario',
+  editor: 'Editor',
+  viewer: 'Sola lettura',
+}
 
 export function SettingsPage() {
   const tracker = useOutletContext<Tracker>()
   const isOwner = tracker.my_role === 'owner'
 
   return (
-    <div className="space-y-6">
-      <MembersSection tracker={tracker} isOwner={isOwner} />
-      <AccountsSection tracker={tracker} />
-      <CategoriesSection tracker={tracker} />
+    <div className="p-5 md:p-7">
+      <div className="panel grid gap-5 p-6 md:p-7">
+        <h1 className="text-title-large">Setup del tracker</h1>
+        <MembersSection tracker={tracker} isOwner={isOwner} />
+        <AccountsSection tracker={tracker} />
+        <CategoriesSection tracker={tracker} />
+      </div>
     </div>
   )
 }
+
+/* -------------------------------------------------------------- membri -- */
 
 function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean }) {
   const update = useUpdateMember(tracker.id)
@@ -36,69 +59,93 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
   const [open, setOpen] = useState(false)
   const [inviteLink, setInviteLink] = useState<string | null>(null)
 
-  const total = tracker.members
-    .filter((m) => m.status === 'active')
-    .reduce((sum, m) => sum + Number(m.default_share_pct), 0)
+  const visible = tracker.members.filter((member) => member.status !== 'revoked')
+  const maxWeight = Math.max(...visible.map((member) => Number(member.default_share_pct)), 1)
 
   return (
-    <section className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Membri e percentuali di default</h2>
+    <section className="rounded-card bg-surface-container-low p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-body-large font-medium">Chi c'è, e con quale peso</h2>
         {isOwner && (
-          <button className="btn-ghost" onClick={() => setOpen(true)}>
+          <button type="button" className="btn-tonal btn-sm" onClick={() => setOpen(true)}>
             Invita
           </button>
         )}
       </div>
 
-      <ul className="space-y-2">
-        {tracker.members
-          .filter((m) => m.status !== 'revoked')
-          .map((member) => (
-            <li key={member.id} className="flex flex-wrap items-center gap-2 text-sm">
-              <Avatar name={member.display_name} />
-              <span className="min-w-0 flex-1 truncate">
-                {member.display_name}
-                {member.status === 'pending' && (
-                  <span className="ml-2 chip bg-amber-100 text-amber-700">invito in sospeso</span>
-                )}
-              </span>
-              <select
-                className="input w-auto py-1"
-                value={member.role}
-                disabled={!isOwner || member.role === 'owner'}
-                onChange={(e) => update.mutate({ id: member.id, role: e.target.value as never })}
+      <div className="grid gap-3">
+        {visible.map((member, index) => {
+          const weight = Number(member.default_share_pct)
+          return (
+            <div key={member.id} className="flex flex-wrap items-center gap-4">
+              <Avatar name={member.display_name} size={40} color={memberColor(index)} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body-large font-medium">{member.display_name}</p>
+                <p className="flex flex-wrap items-center gap-2 text-body-small text-on-surface-variant">
+                  {ROLE_LABEL[member.role]}
+                  {member.status === 'pending' && (
+                    <span className="rounded-pill bg-warning-container px-2 py-0.5 text-on-warning-container">
+                      invito in sospeso
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div
+                className="hidden h-2 overflow-hidden rounded sm:block"
+                style={{ width: 140, background: 'var(--outline-variant)' }}
               >
-                <option value="owner">Proprietario</option>
-                <option value="editor">Editor</option>
-                <option value="viewer">Sola lettura</option>
-              </select>
+                <div
+                  className="h-full rounded"
+                  style={{
+                    width: `${(weight / maxWeight) * 100}%`,
+                    background: memberColor(index),
+                  }}
+                />
+              </div>
+
               <input
-                className="input amount w-20 py-1 text-right"
+                className="field-input amount w-[60px] text-right"
                 defaultValue={member.default_share_pct}
                 disabled={!isOwner}
-                onBlur={(e) =>
-                  e.target.value !== member.default_share_pct &&
-                  update.mutate({ id: member.id, default_share_pct: e.target.value })
+                onBlur={(event) =>
+                  event.target.value !== member.default_share_pct &&
+                  update.mutate({ id: member.id, default_share_pct: event.target.value })
                 }
-                aria-label={`Percentuale di default di ${member.display_name}`}
+                aria-label={`Peso di ${member.display_name}`}
               />
-              <span className="text-xs text-ink-500">%</span>
+              <span className="text-body-small text-on-surface-variant">%</span>
+
               {isOwner && member.role !== 'owner' && (
-                <button
-                  className="text-ink-400 hover:text-rose-600"
-                  onClick={() => remove.mutate(member.id)}
-                  aria-label="Rimuovi"
-                >
-                  ✕
-                </button>
+                <>
+                  <select
+                    className="field-input w-auto"
+                    value={member.role}
+                    onChange={(event) =>
+                      update.mutate({ id: member.id, role: event.target.value as never })
+                    }
+                    aria-label={`Ruolo di ${member.display_name}`}
+                  >
+                    <option value="editor">Editor</option>
+                    <option value="viewer">Sola lettura</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => remove.mutate(member.id)}
+                    aria-label="Rimuovi"
+                    className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
+                  >
+                    <Icon name="close" size={20} />
+                  </button>
+                </>
               )}
-            </li>
-          ))}
-      </ul>
-      <p className="text-xs text-ink-500">
-        Somma delle percentuali attive: {total.toFixed(2)}%. Non devono per forza fare 100: sono
-        pesi, e la ripartizione a centesimi quadra comunque.
+            </div>
+          )
+        })}
+      </div>
+
+      <p className="mt-4 text-body-small text-on-surface-variant">
+        Sono pesi, non deve fare 100: la ripartizione a centesimi quadra comunque.
       </p>
       <ErrorBanner error={update.error ?? remove.error} />
 
@@ -111,15 +158,15 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
         title="Invita una persona"
       >
         {inviteLink ? (
-          <div className="space-y-2">
-            <p className="text-sm">Invito creato. In sviluppo la mail finisce in console:</p>
-            <code className="block break-all rounded bg-ink-100 p-2 text-xs dark:bg-ink-900">
+          <div className="grid gap-2">
+            <p className="text-body-medium">Invito creato. In sviluppo la mail va in console:</p>
+            <code className="block break-all rounded-row bg-surface-container p-3 text-body-small">
               {inviteLink}
             </code>
           </div>
         ) : (
           <form
-            className="space-y-3"
+            className="grid gap-3"
             onSubmit={async (event) => {
               event.preventDefault()
               const form = new FormData(event.currentTarget)
@@ -137,18 +184,18 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
           >
             <ErrorBanner error={invite.error} />
             <Field label="Email">
-              <input className="input" type="email" name="email" required autoFocus />
+              <input className="field-input" type="email" name="email" required autoFocus />
             </Field>
             <Field label="Ruolo">
-              <select className="input" name="role" defaultValue="editor">
+              <select className="field-input" name="role" defaultValue="editor">
                 <option value="editor">Editor</option>
                 <option value="viewer">Sola lettura</option>
               </select>
             </Field>
-            <Field label="Percentuale di default">
-              <input className="input amount text-right" name="pct" defaultValue="50.00" />
+            <Field label="Peso di default">
+              <input className="field-input amount text-right" name="pct" defaultValue="50.00" />
             </Field>
-            <button className="btn-primary w-full" disabled={invite.isPending}>
+            <button className="btn-filled w-full" disabled={invite.isPending}>
               Invia invito
             </button>
           </form>
@@ -158,79 +205,84 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
   )
 }
 
+/* --------------------------------------------------------------- conti -- */
+
 function AccountsSection({ tracker }: { tracker: Tracker }) {
   const { data, isLoading } = useAccounts(tracker.id)
   const save = useSaveAccount(tracker.id)
   const remove = useDeleteAccount(tracker.id)
   const [open, setOpen] = useState(false)
-  const members = tracker.members.filter((m) => m.status === 'active' && m.user)
+  const members = activeMembers(tracker)
+
+  const accounts = data?.results ?? []
+  const declared = accounts
+    .filter((account) => account.include_in_totals)
+    .reduce((sum, account) => sum + Number(account.current_balance), 0)
 
   return (
-    <section className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Conti</h2>
-        <button className="btn-ghost" onClick={() => setOpen(true)}>
-          + Conto
+    <section className="rounded-card bg-surface-container-low p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-body-large font-medium">
+          Conti ·{' '}
+          <span className="amount font-semibold">{formatMoney(declared, tracker.currency)}</span>{' '}
+          dichiarati
+        </h2>
+        <button type="button" className="btn-tonal btn-sm" onClick={() => setOpen(true)}>
+          <Icon name="add" size={18} />
+          Conto
         </button>
       </div>
+
       {isLoading ? (
-        <Spinner />
+        <Skeleton className="h-16" />
       ) : (
-        <ul className="space-y-2">
-          {(data?.results ?? []).map((account) => (
-            <li key={account.id} className="flex items-center gap-2 text-sm">
-              <span className="min-w-0 flex-1 truncate">
-                {account.name}
-                <span className="ml-2 text-xs text-ink-500">
+        <div className="grid gap-2">
+          {accounts.map((account) => (
+            <div
+              key={account.id}
+              className="flex flex-wrap items-center gap-3 rounded-nested bg-surface px-4 py-3"
+            >
+              <IconCircle name={accountIcon(account.kind)} color="var(--tertiary)" size={40} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body-large font-medium">{account.name}</p>
+                <p className="text-body-small text-on-surface-variant">
                   {account.kind} · {account.owner_detail.display_name}
-                </span>
-              </span>
+                </p>
+              </div>
               <input
-                className="input amount w-32 py-1 text-right"
+                className="field-input amount w-32 text-right"
                 defaultValue={account.current_balance}
-                onBlur={(e) =>
-                  e.target.value !== account.current_balance &&
-                  save.mutate({ id: account.id, current_balance: e.target.value.replace(',', '.') })
+                onBlur={(event) =>
+                  event.target.value !== account.current_balance &&
+                  save.mutate({
+                    id: account.id,
+                    current_balance: event.target.value.replace(',', '.'),
+                  })
                 }
                 aria-label={`Saldo di ${account.name}`}
               />
-              <label className="flex items-center gap-1 text-xs text-ink-500">
-                <input
-                  type="checkbox"
-                  checked={account.include_in_totals}
-                  onChange={(e) =>
-                    save.mutate({ id: account.id, include_in_totals: e.target.checked })
-                  }
-                />
-                nei totali
-              </label>
+              <Switch
+                checked={account.include_in_totals}
+                onChange={(checked) => save.mutate({ id: account.id, include_in_totals: checked })}
+                label={`${account.name} nei totali`}
+              />
               <button
-                className="text-ink-400 hover:text-rose-600"
+                type="button"
                 onClick={() => remove.mutate(account.id)}
                 aria-label="Elimina"
+                className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
               >
-                ✕
+                <Icon name="close" size={20} />
               </button>
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-      <p className="text-xs text-ink-500">
-        Totale dichiarato:{' '}
-        <span className="amount">
-          {formatMoney(
-            (data?.results ?? [])
-              .filter((a) => a.include_in_totals)
-              .reduce((sum, a) => sum + Number(a.current_balance), 0),
-            tracker.currency,
-          )}
-        </span>
-      </p>
       <ErrorBanner error={save.error ?? remove.error} />
 
       <Modal open={open} onClose={() => setOpen(false)} title="Nuovo conto">
         <form
-          className="space-y-3"
+          className="grid gap-3"
           onSubmit={async (event) => {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
@@ -245,10 +297,16 @@ function AccountsSection({ tracker }: { tracker: Tracker }) {
         >
           <ErrorBanner error={save.error} />
           <Field label="Nome">
-            <input className="input" name="name" required autoFocus placeholder="Hype, BBVA…" />
+            <input
+              className="field-input"
+              name="name"
+              required
+              autoFocus
+              placeholder="Hype, BBVA…"
+            />
           </Field>
           <Field label="Tipo">
-            <select className="input" name="kind" defaultValue="bank">
+            <select className="field-input" name="kind" defaultValue="bank">
               <option value="bank">Conto corrente</option>
               <option value="card">Carta</option>
               <option value="cash">Contanti</option>
@@ -256,108 +314,165 @@ function AccountsSection({ tracker }: { tracker: Tracker }) {
             </select>
           </Field>
           <Field label="Intestatario">
-            <select className="input" name="owner" required>
-              {members.map((m) => (
-                <option key={m.id} value={m.user!.id}>
-                  {m.display_name}
+            <select className="field-input" name="owner" required>
+              {members.map((member) => (
+                <option key={member.id} value={member.user!.id}>
+                  {member.display_name}
                 </option>
               ))}
             </select>
           </Field>
           <Field label="Saldo attuale">
-            <input className="input amount text-right" name="balance" defaultValue="0.00" />
+            <input className="field-input amount text-right" name="balance" defaultValue="0.00" />
           </Field>
-          <button className="btn-primary w-full">Crea</button>
+          <button className="btn-filled w-full">Crea</button>
         </form>
       </Modal>
     </section>
   )
 }
 
+/* ----------------------------------------------------------- categorie -- */
+
 function CategoriesSection({ tracker }: { tracker: Tracker }) {
   const { data, isLoading } = useCategories(tracker.id)
   const save = useSaveCategory(tracker.id)
   const remove = useDeleteCategory(tracker.id)
-  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Category | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  const categories = data?.results ?? []
 
   return (
-    <section className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Categorie</h2>
-        <button className="btn-ghost" onClick={() => setOpen(true)}>
-          + Categoria
+    <section className="rounded-card bg-surface-container-low p-5">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-body-large font-medium">Categorie</h2>
+        <button type="button" className="btn-tonal btn-sm" onClick={() => setCreating(true)}>
+          <Icon name="add" size={18} />
+          Categoria
         </button>
       </div>
+
       {isLoading ? (
-        <Spinner />
+        <Skeleton className="h-10" />
       ) : (
-        <ul className="space-y-1">
-          {(data?.results ?? []).map((category) => (
-            <li key={category.id} className="flex items-center gap-2 text-sm">
-              <input
-                type="color"
-                className="h-6 w-6 cursor-pointer rounded border-none bg-transparent p-0"
-                value={category.color}
-                onChange={(e) => save.mutate({ id: category.id, color: e.target.value })}
-                aria-label={`Colore di ${category.name}`}
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category, index) => (
+            <button
+              key={category.id}
+              type="button"
+              onClick={() => setEditing(category)}
+              className="state inline-flex items-center gap-2 rounded-pill bg-surface py-1.5 pl-1.5 pr-4 text-body-medium"
+            >
+              <IconCircle
+                name={categoryIcon(category)}
+                color={categoryColor(category, index)}
+                size={22}
               />
-              <span className="w-40 shrink-0 truncate">{category.name}</span>
-              <span className="chip bg-ink-100 text-ink-600 dark:bg-ink-700 dark:text-ink-300">
-                {category.type === 'expense' ? 'spesa' : 'entrata'}
-              </span>
-              {/* La descrizione e' cio' che in fase 3 viene passato all'LLM: vale la pena curarla. */}
-              <input
-                className="input flex-1 py-1 text-xs"
-                defaultValue={category.description}
-                placeholder="Descrizione (serve alla categorizzazione automatica)"
-                onBlur={(e) =>
-                  e.target.value !== category.description &&
-                  save.mutate({ id: category.id, description: e.target.value })
-                }
-              />
-              <button
-                className="text-ink-400 hover:text-rose-600"
-                onClick={() => remove.mutate(category.id)}
-                aria-label="Elimina"
-              >
-                ✕
-              </button>
-            </li>
+              {category.name}
+            </button>
           ))}
-        </ul>
+        </div>
       )}
+
+      <p className="mt-4 text-body-small text-on-surface-variant">
+        La descrizione di ogni categoria alimenterà la categorizzazione automatica: si modifica
+        toccando la chip.
+      </p>
       <ErrorBanner error={save.error ?? remove.error} />
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuova categoria">
-        <form
-          className="space-y-3"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const form = new FormData(event.currentTarget)
-            await save.mutateAsync({
-              name: String(form.get('name')),
-              type: form.get('type') as never,
-              description: String(form.get('description') ?? ''),
-            })
-            setOpen(false)
+      {(editing || creating) && (
+        <Modal
+          open
+          onClose={() => {
+            setEditing(null)
+            setCreating(false)
           }}
+          title={editing ? `Categoria “${editing.name}”` : 'Nuova categoria'}
         >
-          <ErrorBanner error={save.error} />
-          <Field label="Nome">
-            <input className="input" name="name" required autoFocus />
-          </Field>
-          <Field label="Tipo">
-            <select className="input" name="type" defaultValue="expense">
-              <option value="expense">Spesa</option>
-              <option value="income">Entrata</option>
-            </select>
-          </Field>
-          <Field label="Descrizione">
-            <textarea className="input" name="description" rows={2} />
-          </Field>
-          <button className="btn-primary w-full">Crea</button>
-        </form>
-      </Modal>
+          <form
+            className="grid gap-3"
+            onSubmit={async (event) => {
+              event.preventDefault()
+              const form = new FormData(event.currentTarget)
+              await save.mutateAsync({
+                id: editing?.id,
+                name: String(form.get('name')),
+                type: (form.get('type') as never) ?? editing?.type,
+                description: String(form.get('description') ?? ''),
+                color: String(form.get('color')),
+                icon: String(form.get('icon') ?? ''),
+              })
+              setEditing(null)
+              setCreating(false)
+            }}
+          >
+            <Field label="Nome">
+              <input
+                className="field-input"
+                name="name"
+                required
+                autoFocus
+                defaultValue={editing?.name}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Tipo">
+                <select
+                  className="field-input"
+                  name="type"
+                  defaultValue={editing?.type ?? 'expense'}
+                >
+                  <option value="expense">Spesa</option>
+                  <option value="income">Entrata</option>
+                </select>
+              </Field>
+              <Field label="Colore">
+                <input
+                  className="field-input h-8 p-0"
+                  type="color"
+                  name="color"
+                  defaultValue={editing?.color ?? '#1b6c2f'}
+                />
+              </Field>
+            </div>
+            <Field label="Icona" hint="Nome di un glifo Material Symbols, es. shopping_basket.">
+              <input
+                className="field-input"
+                name="icon"
+                defaultValue={editing?.icon}
+                placeholder="shopping_basket"
+              />
+            </Field>
+            <Field
+              label="Descrizione"
+              hint="È il testo che in fase 3 verrà passato alla categorizzazione automatica."
+            >
+              <textarea
+                className="field-input resize-none"
+                name="description"
+                rows={2}
+                defaultValue={editing?.description}
+              />
+            </Field>
+            <div className="flex gap-2">
+              {editing && (
+                <button
+                  type="button"
+                  className={clsx('btn-outlined flex-1 text-error')}
+                  onClick={() => {
+                    remove.mutate(editing.id)
+                    setEditing(null)
+                  }}
+                >
+                  Elimina
+                </button>
+              )}
+              <button className="btn-filled flex-1">Salva</button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </section>
   )
 }

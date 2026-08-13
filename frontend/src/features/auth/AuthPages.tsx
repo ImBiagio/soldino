@@ -1,20 +1,45 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 
-import { ErrorBanner, Field, Spinner } from '../../components/ui'
+import { ErrorBanner, Field, Icon, Skeleton } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 
-function Shell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+/** Pagina piena: pannello primary con il marchio, card chiara con il form. */
+function Shell({
+  title,
+  children,
+  footer,
+}: {
+  title: string
+  children: ReactNode
+  footer?: ReactNode
+}) {
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Soldino</h1>
-        <p className="mt-1 text-sm text-ink-500">{subtitle ?? 'Le spese di casa, in chiaro.'}</p>
-      </div>
-      <div className="card space-y-4">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {children}
+    <div className="flex min-h-screen items-center justify-center p-4 sm:p-6">
+      <div className="w-full max-w-md rounded-panel bg-primary p-6 text-on-primary sm:p-8">
+        <div className="mb-6 flex items-center gap-3">
+          <span
+            className="flex items-center justify-center rounded-row bg-primary-container text-on-primary-container"
+            style={{ width: 52, height: 52 }}
+          >
+            <Icon name="savings" size={28} />
+          </span>
+          <div>
+            <p className="text-[34px] font-semibold leading-none">Soldino</p>
+            <p className="mt-1 text-body-medium text-primary-container">
+              Il conto della casa, a colpo d'occhio.
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-card bg-surface p-5 text-on-surface sm:p-6">
+          <h1 className="mb-4 text-title-medium">{title}</h1>
+          {children}
+        </div>
+
+        {footer && <div className="mt-4 text-center text-body-medium">{footer}</div>}
       </div>
     </div>
   )
@@ -30,9 +55,19 @@ export function LoginPage() {
   if (user) return <Navigate to="/" replace />
 
   return (
-    <Shell title="Accedi">
+    <Shell
+      title="Accedi"
+      footer={
+        <span className="text-primary-container">
+          Non hai un account?{' '}
+          <Link className="font-medium text-on-primary underline" to="/registrati">
+            Registrati
+          </Link>
+        </span>
+      }
+    >
       <form
-        className="space-y-3"
+        className="grid gap-3"
         onSubmit={async (event) => {
           event.preventDefault()
           setBusy(true)
@@ -49,34 +84,28 @@ export function LoginPage() {
         <ErrorBanner error={error} />
         <Field label="Email">
           <input
-            className="input"
+            className="field-input"
             type="email"
             autoComplete="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(event) => setEmail(event.target.value)}
             required
           />
         </Field>
         <Field label="Password">
           <input
-            className="input"
+            className="field-input"
             type="password"
             autoComplete="current-password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(event) => setPassword(event.target.value)}
             required
           />
         </Field>
-        <button className="btn-primary w-full" disabled={busy}>
+        <button className="btn-filled mt-1 w-full" disabled={busy}>
           {busy ? 'Accesso…' : 'Entra'}
         </button>
       </form>
-      <p className="text-sm text-ink-500">
-        Non hai un account?{' '}
-        <Link className="text-indigo-600 hover:underline" to="/registrati">
-          Registrati
-        </Link>
-      </p>
     </Shell>
   )
 }
@@ -93,17 +122,27 @@ export function RegisterPage() {
   if (user) return <Navigate to="/" replace />
 
   return (
-    <Shell title="Crea un account">
+    <Shell
+      title="Crea un account"
+      footer={
+        <span className="text-primary-container">
+          Hai già un account?{' '}
+          <Link className="font-medium text-on-primary underline" to="/accedi">
+            Accedi
+          </Link>
+        </span>
+      }
+    >
       {message ? (
-        <div className="space-y-3">
-          <p className="text-sm">{message}</p>
-          <Link className="btn-ghost w-full" to="/accedi">
+        <div className="grid gap-3">
+          <p className="text-body-medium">{message}</p>
+          <Link className="btn-tonal w-full" to="/accedi">
             Torna al login
           </Link>
         </div>
       ) : (
         <form
-          className="space-y-3"
+          className="grid gap-3"
           onSubmit={async (event) => {
             event.preventDefault()
             setBusy(true)
@@ -120,19 +159,19 @@ export function RegisterPage() {
           <ErrorBanner error={error} />
           <Field label="Nome">
             <input
-              className="input"
+              className="field-input"
               value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              onChange={(event) => setDisplayName(event.target.value)}
               placeholder="Come ti chiamano"
             />
           </Field>
           <Field label="Email">
             <input
-              className="input"
+              className="field-input"
               type="email"
               autoComplete="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               required
             />
           </Field>
@@ -142,15 +181,15 @@ export function RegisterPage() {
             hint="Almeno 10 caratteri."
           >
             <input
-              className="input"
+              className="field-input"
               type="password"
               autoComplete="new-password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               required
             />
           </Field>
-          <button className="btn-primary w-full" disabled={busy}>
+          <button className="btn-filled mt-1 w-full" disabled={busy}>
             {busy ? 'Creazione…' : 'Crea account'}
           </button>
         </form>
@@ -175,7 +214,7 @@ export function VerifyEmailPage() {
   if (done) return <Navigate to="/" replace />
   return (
     <Shell title="Conferma email">
-      {error ? <ErrorBanner error={error} /> : <Spinner label="Verifica in corso…" />}
+      {error ? <ErrorBanner error={error} /> : <Skeleton className="h-12" />}
     </Shell>
   )
 }
@@ -200,51 +239,61 @@ export function AcceptInvitePage() {
     api.get<InvitePreview>(`/api/invites/${token}`).then(setPreview).catch(setError)
   }, [token])
 
-  if (!ready) return <Spinner />
+  if (!ready) {
+    return (
+      <Shell title="Invito">
+        <Skeleton className="h-12" />
+      </Shell>
+    )
+  }
 
   return (
-    <Shell title="Invito" subtitle="Ti hanno invitato su un tracker condiviso.">
-      <ErrorBanner error={error} />
-      {preview && (
-        <div className="space-y-1 text-sm">
-          <p>
-            Tracker: <strong>{preview.tracker_name}</strong>
-          </p>
-          <p className="text-ink-500">
-            Invito per {preview.invited_email} · ruolo {preview.role}
-          </p>
-        </div>
-      )}
-      {user ? (
-        <button
-          className="btn-primary w-full"
-          disabled={busy || !preview}
-          onClick={async () => {
-            setBusy(true)
-            setError(null)
-            try {
-              await api.post(`/api/invites/${token}/accept`)
-              navigate('/')
-            } catch (err) {
-              setError(err)
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          Accetta invito
-        </button>
-      ) : (
-        <div className="space-y-2">
-          <p className="text-sm text-ink-500">Accedi con l'indirizzo invitato per accettare.</p>
-          <Link className="btn-primary w-full" to="/accedi">
-            Accedi
-          </Link>
-          <Link className="btn-ghost w-full" to="/registrati">
-            Crea un account
-          </Link>
-        </div>
-      )}
+    <Shell title="Ti hanno invitato">
+      <div className="grid gap-3">
+        <ErrorBanner error={error} />
+        {preview && (
+          <div className="rounded-row bg-surface-container p-4">
+            <p className="text-body-large font-medium">{preview.tracker_name}</p>
+            <p className="text-body-small text-on-surface-variant">
+              Invito per {preview.invited_email} · ruolo {preview.role}
+            </p>
+          </div>
+        )}
+        {user ? (
+          <button
+            type="button"
+            className="btn-filled w-full"
+            disabled={busy || !preview}
+            onClick={async () => {
+              setBusy(true)
+              setError(null)
+              try {
+                await api.post(`/api/invites/${token}/accept`)
+                navigate('/')
+              } catch (err) {
+                setError(err)
+              } finally {
+                setBusy(false)
+              }
+            }}
+          >
+            <Icon name="check" size={20} />
+            Accetta invito
+          </button>
+        ) : (
+          <div className="grid gap-2">
+            <p className="text-body-medium text-on-surface-variant">
+              Accedi con l'indirizzo invitato per accettare.
+            </p>
+            <Link className="btn-filled w-full" to="/accedi">
+              Accedi
+            </Link>
+            <Link className="btn-outlined w-full" to="/registrati">
+              Crea un account
+            </Link>
+          </div>
+        )}
+      </div>
     </Shell>
   )
 }
