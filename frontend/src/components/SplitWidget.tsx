@@ -1,9 +1,11 @@
 import clsx from 'clsx'
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { allocate, formatMoney, fromCents, toCents } from '../lib/money'
+import { formatMoney } from '../lib/money'
+import { allocate, fromCents, toCents } from '../lib/money'
+import { memberColor } from '../lib/icons'
 import type { Membership, SplitInput, UUID } from '../lib/types'
-import { Avatar } from './ui'
+import { Avatar, Icon } from './ui'
 
 export type SplitMode = 'personal' | 'default' | 'percent' | 'amount'
 
@@ -79,36 +81,69 @@ function normalizeDecimal(value: string): string {
   return fromCents(toCents(value))
 }
 
+/** Il form usa questo per bloccare il salvataggio quando le quote non quadrano. */
+export function splitResidualCents(
+  state: SplitState,
+  members: Membership[],
+  amount: string,
+): number {
+  if (state.mode !== 'amount') return 0
+  const total = toCents(amount)
+  const allocated = members.reduce((sum, m) => sum + toCents(state.amounts[m.user!.id] ?? '0'), 0)
+  return total - allocated
+}
+
+/** Etichetta della chip "di default": mostra le percentuali vere del tracker. */
+function defaultModeLabel(members: Membership[]): string {
+  const parts = members.map((m) => Math.round(Number(m.default_share_pct)))
+  const sum = parts.reduce((a, b) => a + b, 0)
+  if (!sum) return 'Di default'
+  return `${parts.join('/')} di default`
+}
+
 interface Props {
   members: Membership[]
   amount: string
   value: SplitState
   onChange: (state: SplitState) => void
   currency?: string
+  compact?: boolean
 }
 
-const MODES: { id: SplitMode; label: string; hint: string }[] = [
-  { id: 'personal', label: 'Personale', hint: 'Tutto a carico di una persona' },
-  { id: 'default', label: 'Gruppo, default', hint: 'Percentuali salvate nel tracker' },
-  { id: 'percent', label: 'Percentuali', hint: 'Percentuali su misura' },
-  { id: 'amount', label: 'Importi esatti', hint: 'Digiti tu ogni quota' },
-]
-
-export function SplitWidget({ members, amount, value, onChange, currency = 'EUR' }: Props) {
+export function SplitWidget({
+  members,
+  amount,
+  value,
+  onChange,
+  currency = 'EUR',
+  compact,
+}: Props) {
   const totalCents = toCents(amount)
+  const barRef = useRef<HTMLDivElement>(null)
+  const [dragging, setDragging] = useState<number | null>(null)
 
-  // In modalita' "default" le percentuali sono quelle del tracker: si
-  // riallineano se un membro cambia la sua quota di default.
+  // In "default" le percentuali sono quelle del tracker: si riallineano se un
+  // membro cambia la sua quota.
   useEffect(() => {
     if (value.mode !== 'default') return
-    const fresh = Object.fromEntries(members.map((m) => [m.user!.id, m.default_share_pct]))
     const changed = members.some((m) => value.percentages[m.user!.id] !== m.default_share_pct)
-    if (changed) onChange({ ...value, percentages: fresh as Record<UUID, string> })
+    if (!changed) return
+    onChange({
+      ...value,
+      percentages: Object.fromEntries(
+        members.map((m) => [m.user!.id, m.default_share_pct]),
+      ) as Record<UUID, string>,
+    })
   }, [value.mode, members]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const visibleMembers = value.mode === 'personal' ? members : members
+
+  /** Quote in centesimi, calcolate con lo stesso algoritmo del backend. */
   const preview = useMemo(() => {
     if (value.mode === 'personal') {
-      return { [value.personalUser]: totalCents } as Record<UUID, number>
+      return Object.fromEntries(
+        members.map((m) => [m.user!.id, m.user!.id === value.personalUser ? totalCents : 0]),
+      ) as Record<UUID, number>
     }
     if (value.mode === 'amount') {
       return Object.fromEntries(
@@ -122,156 +157,261 @@ export function SplitWidget({ members, amount, value, onChange, currency = 'EUR'
 
   const allocated = Object.values(preview).reduce((a, b) => a + b, 0)
   const residual = totalCents - allocated
-  const weightsSum =
-    value.mode === 'percent' || value.mode === 'default'
-      ? members.reduce((sum, m) => sum + toCents(value.percentages[m.user!.id] ?? '0'), 0)
-      : 0
+
+  /**
+   * Chi riceve il centesimo dispari. Deriva da allocate(): la quota assegnata
+   * supera la parte intera della divisione esatta.
+   */
+  const oddCentHolder = useMemo(() => {
+    if (value.mode === 'personal' || value.mode === 'amount' || totalCents === 0) return null
+    const weights = members.map((m) => toCents(value.percentages[m.user!.id] ?? '0'))
+    const sum = weights.reduce((a, b) => a + b, 0)
+    if (sum <= 0) return null
+    for (let i = 0; i < members.length; i += 1) {
+      const exact = (totalCents * weights[i]) / sum
+      if (preview[members[i].user!.id] > Math.floor(exact)) return members[i]
+    }
+    return null
+  }, [members, preview, totalCents, value])
+
+  /* --- trascinamento della maniglia fra due segmenti --- */
+  const handleDrag = useCallback(
+    (index: number, clientX: number) => {
+      const bar = barRef.current
+      if (!bar || members.length < 2) return
+      const rect = bar.getBoundingClientRect()
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+
+      const current = members.map((m) => Number(value.percentages[m.user!.id] ?? 0))
+      const total = current.reduce((a, b) => a + b, 0) || 100
+      // Somma delle quote fino al segmento trascinato, come frazione del totale.
+      const before = current.slice(0, index).reduce((a, b) => a + b, 0)
+      const pair = current[index] + current[index + 1]
+      const target = Math.min(pair, Math.max(0, ratio * total - before))
+
+      const next = [...current]
+      next[index] = target
+      next[index + 1] = pair - target
+
+      onChange({
+        ...value,
+        mode: 'percent',
+        percentages: Object.fromEntries(
+          members.map((m, i) => [m.user!.id, next[i].toFixed(2)]),
+        ) as Record<UUID, string>,
+      })
+    },
+    [members, onChange, value],
+  )
+
+  useEffect(() => {
+    if (dragging === null) return
+    const move = (event: PointerEvent) => handleDrag(dragging, event.clientX)
+    const up = () => setDragging(null)
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+  }, [dragging, handleDrag])
+
+  const barHeight = compact ? 32 : 40
+  const modes: { id: SplitMode; label: string }[] = [
+    { id: 'personal', label: 'Solo mia' },
+    { id: 'default', label: defaultModeLabel(members) },
+    { id: 'percent', label: 'Percentuali' },
+    { id: 'amount', label: 'Importi esatti' },
+  ]
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-1" role="tablist" aria-label="Modalita' di divisione">
-        {MODES.map((mode) => (
-          <button
-            key={mode.id}
-            type="button"
-            role="tab"
-            aria-selected={value.mode === mode.id}
-            title={mode.hint}
-            onClick={() => onChange({ ...value, mode: mode.id })}
-            className={clsx(
-              'rounded-lg px-3 py-1.5 text-xs font-medium transition',
-              value.mode === mode.id
-                ? 'bg-indigo-600 text-white'
-                : 'border border-ink-300 hover:bg-ink-100 dark:border-ink-600 dark:hover:bg-ink-700',
-            )}
-          >
-            {mode.label}
-          </button>
-        ))}
-      </div>
-
-      {value.mode === 'personal' ? (
-        <div className="space-y-1">
-          <span className="label">A carico di</span>
-          <div className="flex flex-wrap gap-2">
-            {members.map((member) => (
-              <button
-                key={member.id}
-                type="button"
-                onClick={() => onChange({ ...value, personalUser: member.user!.id })}
-                className={clsx(
-                  'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm',
-                  value.personalUser === member.user!.id
-                    ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
-                    : 'border-ink-300 dark:border-ink-600',
-                )}
-              >
-                <Avatar name={member.display_name} size={22} />
-                {member.display_name}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {members.map((member) => {
-            const uid = member.user!.id
-            return (
-              <div key={member.id} className="flex items-center gap-3">
-                <Avatar name={member.display_name} />
-                <span className="min-w-0 flex-1 truncate text-sm">{member.display_name}</span>
-                {value.mode === 'amount' ? (
-                  <input
-                    className="input w-28 text-right amount"
-                    inputMode="decimal"
-                    value={value.amounts[uid] ?? '0.00'}
-                    onChange={(event) =>
-                      onChange({
-                        ...value,
-                        amounts: { ...value.amounts, [uid]: event.target.value },
-                      })
-                    }
-                    aria-label={`Importo di ${member.display_name}`}
-                  />
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      disabled={value.mode === 'default'}
-                      value={Number(value.percentages[uid] ?? 0)}
-                      onChange={(event) =>
-                        onChange({
-                          ...value,
-                          mode: 'percent',
-                          percentages: {
-                            ...value.percentages,
-                            [uid]: Number(event.target.value).toFixed(2),
-                          },
-                        })
-                      }
-                      className="w-24 accent-indigo-600"
-                      aria-label={`Percentuale di ${member.display_name}`}
-                    />
-                    <input
-                      className="input w-20 text-right amount"
-                      inputMode="decimal"
-                      disabled={value.mode === 'default'}
-                      value={value.percentages[uid] ?? '0.00'}
-                      onChange={(event) =>
-                        onChange({
-                          ...value,
-                          mode: 'percent',
-                          percentages: { ...value.percentages, [uid]: event.target.value },
-                        })
-                      }
-                    />
-                    <span className="text-xs text-ink-500">%</span>
-                  </div>
-                )}
-                <span className="amount w-24 text-right text-sm text-ink-500">
-                  {formatMoney(fromCents(preview[uid] ?? 0), currency)}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between border-t border-ink-200 pt-2 text-xs dark:border-ink-700">
-        <span className="text-ink-500">
-          {value.mode === 'percent' || value.mode === 'default'
-            ? `Somma percentuali: ${(weightsSum / 100).toFixed(2)}%`
-            : 'Somma quote'}
-        </span>
+    <div className={clsx('rounded-card bg-surface-container-low', compact ? 'p-4' : 'p-5')}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-body-large font-medium">Come si divide</p>
         <span
           className={clsx(
-            'amount font-medium',
-            residual === 0 ? 'text-emerald-600' : 'text-amber-600',
+            'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-body-medium font-medium',
+            residual === 0
+              ? 'bg-secondary-container text-on-secondary-container'
+              : 'bg-warning-container text-on-warning-container',
           )}
         >
+          <Icon name={residual === 0 ? 'check_circle' : 'balance'} size={18} />
           {residual === 0
             ? `Quadra: ${formatMoney(fromCents(allocated), currency)}`
             : `Residuo ${formatMoney(fromCents(residual), currency)}`}
         </span>
       </div>
+
+      <div className="mb-4 flex flex-wrap gap-2">
+        {modes.map((mode) => (
+          <button
+            key={mode.id}
+            type="button"
+            onClick={() => onChange({ ...value, mode: mode.id })}
+            aria-pressed={value.mode === mode.id}
+            className={value.mode === mode.id ? 'chip-selected' : 'chip-outlined'}
+          >
+            {value.mode === mode.id && <Icon name="check" size={18} />}
+            {mode.label}
+          </button>
+        ))}
+      </div>
+
+      {value.mode === 'amount' ? (
+        <div className="grid gap-2">
+          {visibleMembers.map((member, index) => (
+            <div key={member.id} className="field flex items-center gap-3">
+              <Avatar name={member.display_name} size={28} color={memberColor(index)} />
+              <span className="min-w-0 flex-1 truncate text-body-medium">
+                {member.display_name}
+              </span>
+              <input
+                className="field-input amount w-28 text-right"
+                inputMode="decimal"
+                value={value.amounts[member.user!.id] ?? '0.00'}
+                onChange={(event) =>
+                  onChange({
+                    ...value,
+                    amounts: { ...value.amounts, [member.user!.id]: event.target.value },
+                  })
+                }
+                aria-label={`Importo di ${member.display_name}`}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <div
+            ref={barRef}
+            className="relative flex w-full select-none overflow-visible"
+            style={{ height: barHeight, gap: 3 }}
+          >
+            {visibleMembers.map((member, index) => {
+              const cents = preview[member.user!.id] ?? 0
+              const share = totalCents > 0 ? cents : index === 0 ? 1 : 0
+              return (
+                <div
+                  key={member.id}
+                  className="flex min-w-0 items-center justify-center overflow-hidden"
+                  style={{
+                    flexGrow: Math.max(share, 0.0001),
+                    flexBasis: 0,
+                    background: memberColor(index),
+                    borderRadius: barHeight / 2,
+                  }}
+                  title={`${member.display_name}: ${formatMoney(fromCents(cents), currency)}`}
+                >
+                  <span className="amount truncate px-2 text-[14px] font-semibold text-white">
+                    {compact
+                      ? formatMoney(fromCents(cents), currency)
+                      : `${initialsOf(member.display_name)} ${formatMoney(fromCents(cents), currency)}`}
+                  </span>
+                </div>
+              )
+            })}
+
+            {/* maniglie: una fra ogni coppia di segmenti */}
+            {value.mode !== 'personal' &&
+              visibleMembers.slice(0, -1).map((member, index) => {
+                const left = cumulativeRatio(visibleMembers, preview, index, totalCents)
+                return (
+                  <button
+                    key={`handle-${member.id}`}
+                    type="button"
+                    aria-label={`Sposta la quota fra ${member.display_name} e ${
+                      visibleMembers[index + 1].display_name
+                    }`}
+                    onPointerDown={(event) => {
+                      event.preventDefault()
+                      setDragging(index)
+                    }}
+                    className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize rounded-pill bg-white shadow-fab"
+                    style={{ left: `${left * 100}%`, width: 8, height: barHeight - 10 }}
+                  />
+                )
+              })}
+          </div>
+
+          {!compact && (
+            <div className="mt-2 flex items-center justify-between text-body-small text-on-surface-variant">
+              <span>
+                {visibleMembers[0]?.display_name}{' '}
+                {value.mode === 'personal'
+                  ? value.personalUser === visibleMembers[0]?.user?.id
+                    ? '100%'
+                    : '0%'
+                  : `${Math.round(Number(value.percentages[visibleMembers[0]?.user?.id ?? ''] ?? 0))}%`}
+              </span>
+              {value.mode !== 'personal' && members.length > 1 && (
+                <span className="text-outline">trascina la maniglia per cambiare</span>
+              )}
+              {visibleMembers.length > 1 && (
+                <span>
+                  {visibleMembers[visibleMembers.length - 1].display_name}{' '}
+                  {value.mode === 'personal'
+                    ? value.personalUser === visibleMembers[visibleMembers.length - 1].user?.id
+                      ? '100%'
+                      : '0%'
+                    : `${Math.round(
+                        Number(
+                          value.percentages[
+                            visibleMembers[visibleMembers.length - 1].user?.id ?? ''
+                          ] ?? 0,
+                        ),
+                      )}%`}
+                </span>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      {value.mode === 'personal' && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {members.map((member, index) => (
+            <button
+              key={member.id}
+              type="button"
+              onClick={() => onChange({ ...value, personalUser: member.user!.id })}
+              aria-pressed={value.personalUser === member.user!.id}
+              className={value.personalUser === member.user!.id ? 'chip-selected' : 'chip-outlined'}
+            >
+              <Avatar name={member.display_name} size={22} color={memberColor(index)} />
+              {member.display_name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!compact && oddCentHolder && (
+        <p className="mt-3 text-body-small text-on-surface-variant">
+          Il centesimo dispari va a {oddCentHolder.display_name}: la somma delle quote è sempre
+          esattamente il totale.
+        </p>
+      )}
     </div>
   )
 }
 
-/** Il form usa questo per bloccare il salvataggio quando le quote non quadrano. */
-export function splitResidualCents(
-  state: SplitState,
+function initialsOf(name: string): string {
+  return name
+    .split(/[\s@.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function cumulativeRatio(
   members: Membership[],
-  amount: string,
+  preview: Record<UUID, number>,
+  index: number,
+  totalCents: number,
 ): number {
-  if (state.mode !== 'amount') return 0
-  const total = toCents(amount)
-  const allocated = members.reduce(
-    (sum, m) => sum + toCents(state.amounts[m.user!.id] ?? '0'),
-    0,
-  )
-  return total - allocated
+  if (totalCents <= 0) return (index + 1) / members.length
+  let sum = 0
+  for (let i = 0; i <= index; i += 1) sum += preview[members[i].user!.id] ?? 0
+  return sum / totalCents
 }
