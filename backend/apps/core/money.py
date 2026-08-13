@@ -30,6 +30,17 @@ def quantize(value: Decimal | int | float | str) -> Decimal:
     return value.quantize(CENTS, rounding=ROUND_HALF_UP)
 
 
+def money_str(value: Decimal) -> str:
+    """Rappresentazione JSON di un importo: sempre stringa, mai numero.
+
+    Un numero JSON e' un float: serializzare cosi' un importo reintrodurrebbe
+    al confine dell'API proprio l'approssimazione binaria che il resto del
+    codice evita. I ModelSerializer DRF lo fanno gia' da soli; le risposte
+    costruite a mano (saldi, riepiloghi, riconciliazione) devono passare da qui.
+    """
+    return str(quantize(value))
+
+
 def to_cents(value: Decimal) -> int:
     return int(quantize(value) * 100)
 

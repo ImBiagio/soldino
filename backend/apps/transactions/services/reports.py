@@ -12,7 +12,7 @@ from decimal import Decimal
 from django.db.models import Sum
 
 from apps.accounts.models import Account, PendingItem
-from apps.core.money import ZERO, quantize
+from apps.core.money import ZERO, money_str, quantize
 from apps.transactions.models import Transaction, TransactionSplit
 
 
@@ -74,7 +74,7 @@ def summary(tracker_id, *, year: int | None = None, month: int | None = None) ->
             "category_name": row["category__name"] or "Senza categoria",
             "color": row["category__color"] or "#94a3b8",
             "type": row["type"],
-            "total": quantize(row["total"]),
+            "total": money_str(row["total"]),
             "count": row["count"],
         }
         for row in qs.values("category_id", "category__name", "category__color", "type")
@@ -90,7 +90,7 @@ def summary(tracker_id, *, year: int | None = None, month: int | None = None) ->
         {
             "user_id": str(row["user_id"]),
             "type": row["transaction__type"],
-            "total": quantize(row["total"]),
+            "total": money_str(row["total"]),
         }
         for row in splits.values("user_id", "transaction__type")
         .annotate(total=Sum("share_amount"))
@@ -102,7 +102,7 @@ def summary(tracker_id, *, year: int | None = None, month: int | None = None) ->
             "month": row["date__month"],
             "year": row["date__year"],
             "type": row["type"],
-            "total": quantize(row["total"]),
+            "total": money_str(row["total"]),
         }
         for row in qs.values("date__year", "date__month", "type")
         .annotate(total=Sum("amount"))
@@ -112,9 +112,9 @@ def summary(tracker_id, *, year: int | None = None, month: int | None = None) ->
     return {
         "year": year,
         "month": month,
-        "total_expense": total_expense,
-        "total_income": total_income,
-        "net": quantize(total_income - total_expense),
+        "total_expense": money_str(total_expense),
+        "total_income": money_str(total_income),
+        "net": money_str(total_income - total_expense),
         "transaction_count": qs.count(),
         "by_category": by_category,
         "by_user": by_user,

@@ -10,6 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.money import money_str
 from apps.core.permissions import IsTrackerMember, IsTrackerOwner
 from apps.core.scoping import TrackerScopedMixin
 from apps.transactions.services.debts import compute_balances, minimize_transfers
@@ -98,11 +99,11 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
                             "display_name": by_id[b.user_id].display_name,
                             "email": by_id[b.user_id].user.email,
                         },
-                        "paid": b.paid,
-                        "owed": b.owed,
-                        "settlements_sent": b.settlements_sent,
-                        "settlements_received": b.settlements_received,
-                        "net": b.net,
+                        "paid": money_str(b.paid),
+                        "owed": money_str(b.owed),
+                        "settlements_sent": money_str(b.settlements_sent),
+                        "settlements_received": money_str(b.settlements_received),
+                        "net": money_str(b.net),
                     }
                     for b in balances
                 ],
@@ -116,7 +117,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
                             "id": t.to_user_id,
                             "display_name": by_id[t.to_user_id].display_name,
                         },
-                        "amount": t.amount,
+                        "amount": money_str(t.amount),
                     }
                     for t in transfers
                 ],
@@ -139,11 +140,11 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         result = reconcile(tracker.pk)
         return Response(
             {
-                "accounts_balance": result.accounts_balance,
-                "pending_total": result.pending_total,
-                "available_balance": result.available_balance,
-                "transactions_balance": result.transactions_balance,
-                "delta": result.delta,
+                "accounts_balance": money_str(result.accounts_balance),
+                "pending_total": money_str(result.pending_total),
+                "available_balance": money_str(result.available_balance),
+                "transactions_balance": money_str(result.transactions_balance),
+                "delta": money_str(result.delta),
             }
         )
 

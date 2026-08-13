@@ -157,7 +157,7 @@ def test_saldi_endpoint(api, user, tracker, partner, make_expense):
     )
     data = api(user).get(reverse("tracker-balances", args=[tracker.pk])).data
     assert sum(D(b["net"]) for b in data["balances"]) == D("0.00")
-    assert data["suggested_transfers"][0]["amount"] == D("50.00")
+    assert data["suggested_transfers"][0]["amount"] == "50.00"
 
 
 def test_riconciliazione(api, user, tracker, make_expense):
@@ -168,11 +168,11 @@ def test_riconciliazione(api, user, tracker, make_expense):
     make_expense(tracker, paid_by=user, amount="100.00")
 
     data = api(user).get(reverse("tracker-reconciliation", args=[tracker.pk])).data
-    assert data["accounts_balance"] == D("1000.00")
-    assert data["pending_total"] == D("-700.00")
-    assert data["available_balance"] == D("300.00")
-    assert data["transactions_balance"] == D("-100.00")
-    assert data["delta"] == D("400.00")
+    assert data["accounts_balance"] == "1000.00"
+    assert data["pending_total"] == "-700.00"
+    assert data["available_balance"] == "300.00"
+    assert data["transactions_balance"] == "-100.00"
+    assert data["delta"] == "400.00"
 
 
 def test_summary(api, user, tracker, make_expense):
@@ -183,5 +183,38 @@ def test_summary(api, user, tracker, make_expense):
     data = api(user).get(
         reverse("tracker-summary", args=[tracker.pk]), {"year": 2026, "month": 3}
     ).data
-    assert data["total_expense"] == D("30.00")
+    assert data["total_expense"] == "30.00"
     assert data["transaction_count"] == 1
+
+
+def test_gli_importi_escono_come_stringhe_mai_come_numeri_json(
+    api, user, tracker, partner, make_expense
+):
+    """Un numero JSON e' un float: gli importi devono restare stringhe decimali."""
+    make_expense(
+        tracker,
+        paid_by=user,
+        amount="100.01",
+        splits=[
+            {"user": user.pk, "share_pct": D(50)},
+            {"user": partner.pk, "share_pct": D(50)},
+        ],
+    )
+    client = api(user)
+
+    balances = client.get(reverse("tracker-balances", args=[tracker.pk])).data
+    for row in balances["balances"]:
+        for field in ("paid", "owed", "settlements_sent", "settlements_received", "net"):
+            assert isinstance(row[field], str), field
+    for transfer in balances["suggested_transfers"]:
+        assert isinstance(transfer["amount"], str)
+
+    reconciliation = client.get(reverse("tracker-reconciliation", args=[tracker.pk])).data
+    for field, value in reconciliation.items():
+        assert isinstance(value, str), field
+
+    summary = client.get(reverse("tracker-summary", args=[tracker.pk])).data
+    for field in ("total_expense", "total_income", "net"):
+        assert isinstance(summary[field], str), field
+    for row in summary["by_category"] + summary["by_user"] + summary["by_month"]:
+        assert isinstance(row["total"], str)
