@@ -20,12 +20,7 @@ function Shell({
     <div className="flex min-h-screen items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md rounded-panel bg-primary p-6 text-on-primary sm:p-8">
         <div className="mb-6 flex items-center gap-3">
-          <span
-            className="flex items-center justify-center rounded-row bg-primary-container text-on-primary-container"
-            style={{ width: 52, height: 52 }}
-          >
-            <Icon name="savings" size={28} />
-          </span>
+          <img src="/logo-mark.png" alt="" width={64} height={48} className="h-12 w-auto" />
           <div>
             <p className="text-[34px] font-semibold leading-none">Soldino</p>
             <p className="mt-1 text-body-medium text-primary-container">

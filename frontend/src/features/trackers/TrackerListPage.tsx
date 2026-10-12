@@ -31,12 +31,7 @@ export function TrackerListPage() {
       <div className="panel p-6 md:p-7">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <span
-              className="flex items-center justify-center rounded-row bg-primary-container text-on-primary-container"
-              style={{ width: 48, height: 48 }}
-            >
-              <Icon name="savings" size={26} />
-            </span>
+            <img src="/logo.png" alt="" width={48} height={48} />
             <div>
               <h1 className="text-title-large">Soldino</h1>
               <p className="text-body-medium text-on-surface-variant">Ciao {user?.display_name}</p>
