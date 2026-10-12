@@ -25,7 +25,7 @@ import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney, toCents } from '../../lib/money'
 import type { Account, Category, Tracker, Transaction } from '../../lib/types'
-import { NewEntryChooser } from '../../components/NewEntryChooser'
+import { NewEntryMenuButton } from '../../components/FabMenu'
 import { TransactionForm } from './TransactionForm'
 
 // Il contratto della URL resta quello di prima: cambia solo il controllo.
@@ -48,7 +48,6 @@ export function TransactionsPage() {
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [choosing, setChoosing] = useState(false)
 
   // Il FAB della shell apre il form passando da ?new=1: nessuno stato globale.
   const formOpen = params.get('new') === '1' || editing !== null
@@ -115,14 +114,7 @@ export function TransactionsPage() {
             onChange={(event) => setFilter('q', event.target.value)}
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setChoosing(true)}
-          className="btn-filled hidden md:inline-flex"
-        >
-          <Icon name="add" size={20} />
-          Nuovo movimento
-        </button>
+        <NewEntryMenuButton tracker={tracker} className="hidden md:block" />
       </div>
 
       {/* --- filter chips: sostituiscono i sette select --- */}
@@ -262,7 +254,6 @@ export function TransactionsPage() {
           onClose={closeForm}
         />
       )}
-      <NewEntryChooser tracker={tracker} open={choosing} onClose={() => setChoosing(false)} />
     </div>
   )
 }

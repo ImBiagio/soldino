@@ -6,7 +6,7 @@ import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/icons'
 import type { Membership, Tracker } from '../lib/types'
-import { NewEntryChooser } from './NewEntryChooser'
+import { FabMenu } from './FabMenu'
 import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 
 const DESTINATIONS = [
@@ -32,7 +32,6 @@ export function TrackerLayout() {
   const { data: tracker, isLoading } = useTracker(trackerId)
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [chooserOpen, setChooserOpen] = useState(false)
 
   if (isLoading || !tracker) {
     return (
@@ -46,8 +45,6 @@ export function TrackerLayout() {
     )
   }
 
-  // Il "+" chiede come inserire: a mano o dallo Scan dell'estratto conto.
-  const openNewTransaction = () => setChooserOpen(true)
   const section = location.pathname.split('/')[3] ?? ''
   const inMenuSection = MENU_DESTINATIONS.some((destination) => destination.to === section)
 
@@ -56,7 +53,7 @@ export function TrackerLayout() {
       {/* --- navigation rail (desktop) --- */}
       <nav
         aria-label="Sezioni"
-        className="sticky top-0 hidden h-screen w-24 shrink-0 flex-col items-center bg-surface-container-low py-3 md:flex"
+        className="sticky top-0 z-40 hidden h-screen w-24 shrink-0 flex-col items-center bg-surface-container-low py-3 md:flex"
       >
         <button
           type="button"
@@ -67,15 +64,7 @@ export function TrackerLayout() {
           <Icon name="menu" />
         </button>
 
-        <button
-          type="button"
-          onClick={openNewTransaction}
-          aria-label="Nuovo movimento"
-          className="state mt-2 flex items-center justify-center rounded-row bg-primary-container text-on-primary-container shadow-fab"
-          style={{ width: 60, height: 60 }}
-        >
-          <Icon name="add" size={26} />
-        </button>
+        <FabMenu tracker={tracker} placement="rail" />
 
         <div className="mt-6 flex flex-col items-center gap-3.5">
           {DESTINATIONS.map((destination) => (
@@ -98,15 +87,7 @@ export function TrackerLayout() {
       </div>
 
       {/* --- bottom bar + FAB (mobile) --- */}
-      <button
-        type="button"
-        onClick={openNewTransaction}
-        aria-label="Nuovo movimento"
-        className="state fixed right-[18px] z-30 flex items-center justify-center rounded-fab bg-primary-container text-on-primary-container shadow-fab-mobile md:hidden"
-        style={{ width: 64, height: 64, bottom: 96 }}
-      >
-        <Icon name="add" size={28} />
-      </button>
+      <FabMenu tracker={tracker} placement="mobile" />
 
       <nav
         aria-label="Sezioni"
@@ -144,7 +125,6 @@ export function TrackerLayout() {
       </nav>
 
       <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} tracker={tracker} />
-      <NewEntryChooser tracker={tracker} open={chooserOpen} onClose={() => setChooserOpen(false)} />
     </div>
   )
 }
