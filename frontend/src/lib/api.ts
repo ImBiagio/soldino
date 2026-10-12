@@ -85,14 +85,17 @@ async function refreshAccessToken(): Promise<boolean> {
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, params, skipRefresh } = options
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  // Un FormData (upload di file) va lasciato al browser: e' lui a mettere il
+  // Content-Type multipart col suo boundary.
+  const isForm = body instanceof FormData
+  const headers: Record<string, string> = isForm ? {} : { 'Content-Type': 'application/json' }
   if (accessToken) headers.Authorization = `Bearer ${accessToken}`
 
   const response = await fetch(buildUrl(path, params), {
     method,
     credentials: 'include',
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
   })
 
   if (response.status === 401 && !skipRefresh) {

@@ -13,6 +13,7 @@ const DESTINATIONS = [
   { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
   { to: 'conti', label: 'Conti', icon: 'account_balance' },
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
+  { to: 'scan', label: 'Scan', icon: 'document_scanner', menuOnMobile: true },
   { to: 'grafici', label: 'Grafici', icon: 'bar_chart', menuOnMobile: true },
   { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew', menuOnMobile: true },
   { to: 'impostazioni', label: 'Setup', icon: 'tune', menuOnMobile: true },

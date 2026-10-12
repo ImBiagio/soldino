@@ -198,6 +198,12 @@ EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBac
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@soldino.local")
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")
 
+# --- Scan estratto conto (Gemini) ---
+# Senza chiave lo scan fallisce con un messaggio chiaro, il resto dell'app va.
+GEMINI_API_KEY = env("GEMINI_API_KEY", "")
+GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
+STATEMENT_MAX_BYTES = int(env("STATEMENT_MAX_BYTES", str(15 * 1024 * 1024)))
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173")
 

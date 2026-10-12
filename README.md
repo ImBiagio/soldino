@@ -76,7 +76,10 @@ task X" e risponde subito; il `worker` lo prende ed esegue per conto suo; `beat`
 è la sveglia che accoda i task a orario (non li esegue: accoda soltanto, per
 questo servono due processi distinti).
 
-**Oggi fanno poco** — un solo job, `materialize_due_rules` alle 3:00, che
+**Lo Scan dell'estratto conto** gira nel `worker` (`scan_statement`): la lettura
+con Gemini richiede 10–30 secondi e non può stare dentro una richiesta.
+
+**Il beat ha un solo job**, `materialize_due_rules` alle 3:00, che
 scrive le occorrenze scadute delle ricorrenze con `auto_commit`. Le altre
 restano proposte finché qualcuno non le approva o le salta dalla UI. Sono qui da subito perché
 il piano li vuole in compose dall'inizio (§1.2) e perché la fase 3 li rende
@@ -240,7 +243,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-113 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+129 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -279,6 +282,15 @@ che porta giù anche le membership, perché le rotte annidate controllano quelle
 (`?vista=tutti`): chi deve cosa, mese, categorie e riconciliazione seguono la
 vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
 iniziale e confronto atteso/reale di ciascuno.
+
+**Scan estratto conto** (`/t/:id/scan`, [ADR 0008](docs/decisions/0008-scan-estratto-conto.md)).
+Si carica il PDF, un task Celery lo fa leggere a Gemini (`GEMINI_API_KEY`,
+`GEMINI_MODEL` nel `.env`) e le righe finiscono in una bozza da rivedere in
+tabella: data, titolo, importo, tipo, categoria, chi paga, divisione; si
+eliminano e aggiungono righe. Solo "Registra" le scrive nei movimenti
+(`source=scan`). La categoria viene prima dallo storico dell'esercente, poi da
+Gemini che legge le **descrizioni** delle categorie. I possibili doppioni sono
+segnalati. Il PDF si cancella appena letto.
 
 **Andamento dei soldi** (`GET /trackers/{id}/balance-history?date_from&date_to&user_id`):
 il saldo per cassa giorno per giorno, come la riconciliazione. In Grafici è una

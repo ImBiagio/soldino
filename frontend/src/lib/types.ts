@@ -199,6 +199,42 @@ export interface ReconciliationFigures {
   delta: Money
 }
 
+export type StatementStatus = 'processing' | 'ready' | 'failed' | 'committed'
+export type CategorySource = 'history' | 'ai' | 'manual' | ''
+
+export interface StatementLine {
+  id?: UUID
+  date: string
+  title: string
+  amount: Money
+  type: TransactionType
+  category: UUID | null
+  category_source?: CategorySource
+  paid_by: UUID
+  split_mode: 'personal' | 'default'
+  duplicate_of?: UUID | null
+  transaction?: UUID | null
+}
+
+/** Scan di un estratto conto: righe in bozza finche' non si conferma (ADR 0008). */
+export interface StatementImport {
+  id: UUID
+  filename: string
+  account: UUID | null
+  account_name: string | null
+  default_payer: UUID
+  status: StatementStatus
+  error: string
+  model_name: string
+  period_start: string | null
+  period_end: string | null
+  committed_at: string | null
+  uploaded_by_detail: User
+  line_count: number
+  lines: StatementLine[]
+  created_at: string
+}
+
 /** `GET /trackers/{id}/balance-history`: saldo per cassa giorno per giorno. */
 export interface BalanceHistory {
   start_balance: Money

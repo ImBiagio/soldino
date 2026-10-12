@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 
 import {
   useAccounts,
@@ -113,6 +113,10 @@ export function TransactionsPage() {
             onChange={(event) => setFilter('q', event.target.value)}
           />
         </div>
+        <Link to="../scan" relative="path" className="btn-tonal hidden md:inline-flex">
+          <Icon name="document_scanner" size={20} />
+          Scan estratto conto
+        </Link>
         <button
           type="button"
           onClick={() => setParams(withParam(params, 'new', '1'), { replace: true })}

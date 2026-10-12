@@ -4,6 +4,8 @@ import { api } from '../lib/api'
 import type {
   Account,
   BalanceHistory,
+  StatementImport,
+  StatementLine,
   BalancesResponse,
   Category,
   Membership,
@@ -280,6 +282,65 @@ export function useSummary(trackerId: UUID, params: SummaryParams) {
     queryFn: () => api.get<Summary>(`${trackerBase(trackerId)}/summary`, { ...params }),
     placeholderData: (previous) => previous,
   })
+}
+
+/* ---------------------------------------------------- scan estratto conto -- */
+
+const statementsBase = (trackerId: UUID) => `${trackerBase(trackerId)}/statements`
+
+export function useStatements(trackerId: UUID) {
+  return useQuery({
+    queryKey: ['trackers', trackerId, 'statements'] as const,
+    queryFn: () => api.get<Paginated<StatementImport>>(statementsBase(trackerId)),
+    // Finche' qualcosa e' in lettura la lista si aggiorna da sola.
+    refetchInterval: (query) =>
+      query.state.data?.results.some((s) => s.status === 'processing') ? 2500 : false,
+  })
+}
+
+export function useStatement(trackerId: UUID, statementId: UUID | undefined) {
+  return useQuery({
+    queryKey: ['trackers', trackerId, 'statements', statementId] as const,
+    queryFn: () => api.get<StatementImport>(`${statementsBase(trackerId)}/${statementId}`),
+    enabled: Boolean(statementId),
+    refetchInterval: (query) => (query.state.data?.status === 'processing' ? 2500 : false),
+  })
+}
+
+export function useUploadStatement(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: ({ file, account }: { file: File; account?: UUID | null }) => {
+      const form = new FormData()
+      form.append('file', file)
+      if (account) form.append('account', account)
+      return api.post<StatementImport>(statementsBase(trackerId), form)
+    },
+    onSuccess: invalidate,
+  })
+}
+
+export function useStatementAction(trackerId: UUID, statementId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  const base = `${statementsBase(trackerId)}/${statementId}`
+  return {
+    save: useMutation({
+      mutationFn: (lines: StatementLine[]) => api.put<StatementImport>(`${base}/lines`, { lines }),
+      onSuccess: invalidate,
+    }),
+    commit: useMutation({
+      mutationFn: () => api.post<StatementImport>(`${base}/commit`),
+      onSuccess: invalidate,
+    }),
+    retry: useMutation({
+      mutationFn: () => api.post<StatementImport>(`${base}/retry`),
+      onSuccess: invalidate,
+    }),
+    discard: useMutation({
+      mutationFn: () => api.delete<void>(base),
+      onSuccess: invalidate,
+    }),
+  }
 }
 
 export function useBalanceHistory(

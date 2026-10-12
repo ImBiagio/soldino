@@ -10,6 +10,8 @@ import {
 } from './features/auth/AuthPages'
 import { AccountsPage } from './features/accounts/AccountsPage'
 import { ChartsPage } from './features/charts/ChartsPage'
+import { ScanPage } from './features/scan/ScanPage'
+import { ScanReviewPage } from './features/scan/ScanReviewPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { PendingPage } from './features/pending/PendingPage'
 import { SubscriptionsPage } from './features/recurring/SubscriptionsPage'
@@ -52,6 +54,8 @@ export default function App() {
         <Route path="movimenti" element={<TransactionsPage />} />
         <Route path="grafici" element={<ChartsPage />} />
         <Route path="conti" element={<AccountsPage />} />
+        <Route path="scan" element={<ScanPage />} />
+        <Route path="scan/:statementId" element={<ScanReviewPage />} />
         <Route path="attese" element={<PendingPage />} />
         <Route path="abbonamenti" element={<SubscriptionsPage />} />
         <Route path="impostazioni" element={<SettingsPage />} />
