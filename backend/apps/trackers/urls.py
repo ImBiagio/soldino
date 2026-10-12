@@ -18,6 +18,10 @@ tracker_detail = TrackerViewSet.as_view(
 urlpatterns = [
     path("trackers", tracker_list, name="tracker-list"),
     path("trackers/<uuid:pk>", tracker_detail, name="tracker-detail"),
+    path("trackers/<uuid:pk>/archive", TrackerViewSet.as_view({"post": "archive"}),
+         name="tracker-archive"),
+    path("trackers/<uuid:pk>/unarchive", TrackerViewSet.as_view({"post": "unarchive"}),
+         name="tracker-unarchive"),
     path("trackers/<uuid:pk>/invite", TrackerViewSet.as_view({"post": "invite"}),
          name="tracker-invite"),
     path("trackers/<uuid:pk>/balances", TrackerViewSet.as_view({"get": "balances"}),

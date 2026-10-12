@@ -1,9 +1,11 @@
 import clsx from 'clsx'
 import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 
 import {
+  useArchiveTracker,
   useCategories,
+  useDeleteTracker,
   useDeleteCategory,
   useInvite,
   useRemoveMember,
@@ -32,8 +34,104 @@ export function SettingsPage() {
         <h1 className="text-title-large">Setup del tracker</h1>
         <MembersSection tracker={tracker} isOwner={isOwner} />
         <CategoriesSection tracker={tracker} />
+        {isOwner && <LifecycleSection tracker={tracker} />}
       </div>
     </div>
+  )
+}
+
+/* --------------------------------------------- archivio ed eliminazione -- */
+
+function LifecycleSection({ tracker }: { tracker: Tracker }) {
+  const navigate = useNavigate()
+  const archive = useArchiveTracker(tracker.id)
+  const remove = useDeleteTracker(tracker.id)
+  const [confirming, setConfirming] = useState(false)
+  const [typed, setTyped] = useState('')
+  const archived = Boolean(tracker.archived_at)
+
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <h2 className="text-body-large font-medium">Archivio ed eliminazione</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <div>
+          <p className="text-body-medium font-medium">
+            {archived ? 'Tracker archiviato' : 'Archivia'}
+          </p>
+          <p className="mb-3 text-body-small text-on-surface-variant">
+            {archived
+              ? 'È nel gruppo degli archiviati e non riceve ricorrenze automatiche. Ripristinalo per riportarlo fra gli attivi.'
+              : 'Per un anno chiuso o un tracker che non usi più: resta consultabile, finisce fra gli archiviati e non riceve più ricorrenze automatiche.'}
+          </p>
+          <button
+            type="button"
+            className="btn-tonal btn-sm"
+            disabled={archive.isPending}
+            onClick={async () => {
+              await archive.mutateAsync(!archived)
+              if (!archived) navigate('/')
+            }}
+          >
+            <Icon name={archived ? 'unarchive' : 'archive'} size={18} />
+            {archived ? 'Ripristina' : 'Archivia'}
+          </button>
+        </div>
+        <div>
+          <p className="text-body-medium font-medium text-error">Elimina</p>
+          <p className="mb-3 text-body-small text-on-surface-variant">
+            Sparisce per tutti i membri, con movimenti, conti e ricorrenze. Se vuoi solo toglierlo
+            di mezzo, archivialo.
+          </p>
+          <button
+            type="button"
+            className="state inline-flex items-center gap-2 rounded-pill border border-error px-4 py-2 text-body-medium font-medium text-error"
+            onClick={() => setConfirming(true)}
+          >
+            <Icon name="delete" size={18} />
+            Elimina tracker
+          </button>
+        </div>
+      </div>
+      <ErrorBanner error={archive.error} />
+
+      <Modal
+        open={confirming}
+        onClose={() => {
+          setConfirming(false)
+          setTyped('')
+        }}
+        title="Eliminare il tracker?"
+      >
+        <form
+          className="grid gap-3"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            await remove.mutateAsync()
+            navigate('/', { replace: true })
+          }}
+        >
+          <ErrorBanner error={remove.error} />
+          <p className="text-body-medium">
+            Spariranno per tutti i {activeMembers(tracker).length} membri i movimenti, i conti, le
+            voci in attesa e le ricorrenze di <strong>{tracker.name}</strong>.
+          </p>
+          <Field label={`Scrivi «${tracker.name}» per confermare`}>
+            <input
+              className="field-input"
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoFocus
+            />
+          </Field>
+          <button
+            className="state w-full rounded-pill bg-error px-5 py-3 text-body-medium font-medium text-on-primary disabled:opacity-40"
+            disabled={typed.trim() !== tracker.name.trim() || remove.isPending}
+          >
+            {remove.isPending ? 'Elimino…' : 'Elimina definitivamente'}
+          </button>
+        </form>
+      </Modal>
+    </section>
   )
 }
 

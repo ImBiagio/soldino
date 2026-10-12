@@ -24,7 +24,10 @@ export function TrackerListPage() {
   const create = useCreateTracker()
   const [open, setOpen] = useState(false)
 
+  const [showArchived, setShowArchived] = useState(false)
   const trackers = data?.results ?? []
+  const active = trackers.filter((tracker) => !tracker.archived_at)
+  const archived = trackers.filter((tracker) => tracker.archived_at)
 
   return (
     <div className="mx-auto max-w-3xl p-5 md:p-7">
@@ -65,9 +68,40 @@ export function TrackerListPage() {
           />
         ) : (
           <div className="grid gap-2">
-            {trackers.map((tracker) => (
+            {active.map((tracker) => (
               <TrackerRow key={tracker.id} tracker={tracker} />
             ))}
+            {active.length === 0 && (
+              <p className="px-1 py-4 text-body-medium text-on-surface-variant">
+                Nessun tracker attivo.
+              </p>
+            )}
+          </div>
+        )}
+
+        {archived.length > 0 && (
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowArchived(!showArchived)}
+              aria-expanded={showArchived}
+              className="state mb-2 flex w-full items-center gap-2 rounded-row px-1 py-2 text-left text-body-medium font-medium text-on-surface-variant"
+            >
+              <Icon name="archive" size={20} />
+              Archiviati · {archived.length}
+              <Icon
+                name={showArchived ? 'expand_less' : 'expand_more'}
+                size={20}
+                className="ml-auto"
+              />
+            </button>
+            {showArchived && (
+              <div className="grid gap-2">
+                {archived.map((tracker) => (
+                  <TrackerRow key={tracker.id} tracker={tracker} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>

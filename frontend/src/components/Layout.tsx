@@ -83,6 +83,15 @@ export function TrackerLayout() {
       </nav>
 
       <div className="min-w-0 flex-1 pb-28 md:pb-0">
+        {tracker.archived_at && (
+          <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-surface-container-high px-4 py-3 text-body-medium md:mx-7">
+            <Icon name="archive" size={20} className="text-on-surface-variant" />
+            <span className="flex-1">Tracker archiviato: niente ricorrenze automatiche.</span>
+            <NavLink to="impostazioni" className="font-medium text-primary">
+              Gestisci
+            </NavLink>
+          </div>
+        )}
         <Outlet context={tracker} />
       </div>
 

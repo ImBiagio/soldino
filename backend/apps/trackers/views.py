@@ -38,12 +38,41 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         "memberships__user"
     )
 
-    def perform_destroy(self, instance):
-        membership = self.request.user.memberships.filter(tracker=instance).first()
+    def _require_owner(self, tracker, verb: str) -> None:
+        membership = self.request.user.memberships.filter(tracker=tracker).first()
         if not membership or membership.role != Membership.Role.OWNER:
-            self.permission_denied(self.request, message="Solo il proprietario puo' archiviare.")
-        instance.archived_at = timezone.now()
-        instance.save(update_fields=["archived_at", "updated_at"])
+            self.permission_denied(self.request, message=f"Solo il proprietario puo' {verb}.")
+
+    @db_transaction.atomic
+    def perform_destroy(self, instance):
+        """Eliminazione vera (soft delete con audit), non piu' un'archiviazione.
+
+        Le membership vanno giu' insieme al tracker: le rotte annidate
+        controllano l'appartenenza, e con le membership vive i movimenti di un
+        tracker eliminato resterebbero leggibili.
+        """
+        self._require_owner(instance, "eliminare il tracker")
+        instance.memberships.all().delete()
+        instance.delete()
+
+    @extend_schema(request=None, responses={200: TrackerSerializer})
+    @action(detail=True, methods=["post"])
+    def archive(self, request, pk=None):
+        """Archiviato: resta consultabile, finisce in fondo alla lista."""
+        tracker = self.get_object()
+        self._require_owner(tracker, "archiviare il tracker")
+        tracker.archived_at = timezone.now()
+        tracker.save(update_fields=["archived_at", "updated_at"])
+        return Response(self.get_serializer(tracker).data)
+
+    @extend_schema(request=None, responses={200: TrackerSerializer})
+    @action(detail=True, methods=["post"])
+    def unarchive(self, request, pk=None):
+        tracker = self.get_object()
+        self._require_owner(tracker, "ripristinare il tracker")
+        tracker.archived_at = None
+        tracker.save(update_fields=["archived_at", "updated_at"])
+        return Response(self.get_serializer(tracker).data)
 
     @extend_schema(request=InviteSerializer, responses={201: MembershipSerializer})
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsTrackerOwner])

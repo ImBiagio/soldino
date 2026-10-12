@@ -59,6 +59,27 @@ export function useTracker(trackerId: UUID | undefined) {
   })
 }
 
+/** Archivia o ripristina: il tracker resta, cambia solo gruppo nella lista. */
+export function useArchiveTracker(trackerId: UUID) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (archived: boolean) =>
+      api.post<Tracker>(`${trackerBase(trackerId)}/${archived ? 'archive' : 'unarchive'}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.trackers }),
+  })
+}
+
+export function useDeleteTracker(trackerId: UUID) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete<void>(trackerBase(trackerId)),
+    onSuccess: () => {
+      client.removeQueries({ queryKey: keys.tracker(trackerId) })
+      return client.invalidateQueries({ queryKey: keys.trackers, exact: true })
+    },
+  })
+}
+
 export function useCreateTracker() {
   const client = useQueryClient()
   return useMutation({

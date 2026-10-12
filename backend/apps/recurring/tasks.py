@@ -22,7 +22,11 @@ def materialize_due_rules(today=None) -> dict:
     today = today or timezone.localdate()
     created, failed = 0, 0
 
-    for rule in RecurringRule.objects.filter(active=True, auto_commit=True, next_run__lte=today):
+    # Un tracker archiviato non riceve piu' movimenti automatici.
+    rules = RecurringRule.objects.filter(
+        active=True, auto_commit=True, next_run__lte=today, tracker__archived_at__isnull=True
+    )
+    for rule in rules:
         while is_due(rule, today):
             try:
                 write_occurrence(rule, created_by=rule.paid_by)
