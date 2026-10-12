@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 from dateutil.relativedelta import relativedelta
@@ -72,8 +72,9 @@ class RecurringRule(BaseModel):
             return from_date + relativedelta(months=1)
         if self.frequency == self.Frequency.YEARLY:
             return from_date + relativedelta(years=1)
-        occurrences = rrulestr(self.rrule, dtstart=from_date)
-        following = occurrences.after(from_date)
+        # rrule lavora in datetime: con un date il confronto interno esplode.
+        start = datetime.combine(from_date, datetime.min.time())
+        following = rrulestr(self.rrule, dtstart=start).after(start)
         if following is None:
             raise ValidationError({"rrule": ["La rrule non produce occorrenze successive."]})
         return following.date()

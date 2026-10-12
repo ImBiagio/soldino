@@ -296,11 +296,23 @@ export function useSaveRecurringRule(trackerId: UUID) {
  */
 export function useRecurringProposals(trackerId: UUID) {
   const query = useRecurringRules(trackerId)
-  const today = new Date().toISOString().slice(0, 10)
-  const proposals = (query.data?.results ?? []).filter(
-    (rule) => rule.active && !rule.auto_commit && rule.next_run <= today,
-  )
+  const proposals = (query.data?.results ?? []).filter((rule) => rule.is_due && !rule.auto_commit)
   return { ...query, proposals }
+}
+
+/**
+ * Approva o salta l'occorrenza `next_run` di una ricorrenza. Una sola chiamata
+ * atomica lato backend; `occurrence` evita che un doppio clic scriva due volte.
+ */
+export function useRecurringOccurrence(trackerId: UUID, action: 'approve' | 'skip') {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: (rule: Pick<RecurringRule, 'id' | 'next_run'>) =>
+      api.post<unknown>(`${trackerBase(trackerId)}/recurring-rules/${rule.id}/${action}`, {
+        occurrence: rule.next_run,
+      }),
+    onSuccess: invalidate,
+  })
 }
 
 export function useDeleteRecurringRule(trackerId: UUID) {

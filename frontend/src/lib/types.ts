@@ -194,6 +194,8 @@ export interface RecurringRule {
   active: boolean
   monthly_cost: Money
   yearly_cost: Money
+  /** Calcolato dal backend col suo fuso: c'e' un'occorrenza da approvare o saltare. */
+  is_due: boolean
 }
 
 export interface Paginated<T> {

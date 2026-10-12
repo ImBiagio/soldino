@@ -8,10 +8,18 @@ import {
   useDeleteRecurringRule,
   useRecurringProposals,
   useRecurringRules,
+  useRecurringOccurrence,
   useSaveRecurringRule,
-  useSaveTransaction,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import {
+  SplitWidget,
+  initialSplitState,
+  splitResidualBasisPoints,
+  splitResidualCents,
+  toSplitPayload,
+  type SplitState,
+} from '../../components/SplitWidget'
 import {
   EmptyState,
   ErrorBanner,
@@ -25,7 +33,6 @@ import {
 import { formatDate, todayIso } from '../../lib/format'
 import { categoryIcon } from '../../lib/icons'
 import { formatMoney, toCents } from '../../lib/money'
-import { canAdvanceClientSide, nextRun } from '../../lib/recurrence'
 import type { RecurringRule, Tracker } from '../../lib/types'
 
 const FREQUENCY_LABEL: Record<string, string> = {
@@ -152,54 +159,20 @@ export function SubscriptionsPage() {
         </div>
       </div>
 
-      <RuleForm tracker={tracker} open={formOpen} onClose={() => setFormOpen(false)} />
+      {formOpen && <RuleForm tracker={tracker} open onClose={() => setFormOpen(false)} />}
     </div>
   )
 }
 
-/**
- * Riga di proposta. L'approvazione scrive la transazione e sposta `next_run`:
- * due chiamate non atomiche, perché manca l'endpoint dedicato lato backend.
- */
+/** Riga di proposta: approvare scrive il movimento, saltare passa alla prossima. */
 function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule }) {
-  const createTransaction = useSaveTransaction(tracker.id)
-  const saveRule = useSaveRecurringRule(tracker.id)
-  const [busy, setBusy] = useState(false)
-  const canApprove = canAdvanceClientSide(rule)
-
-  const approve = async () => {
-    const following = nextRun(rule)
-    if (!following) return
-    setBusy(true)
-    try {
-      await createTransaction.mutateAsync({
-        type: rule.type,
-        date: rule.next_run,
-        title: rule.title,
-        amount: rule.amount,
-        category: rule.category,
-        account: rule.account,
-        paid_by: rule.paid_by,
-        splits_input:
-          rule.split_template && rule.split_template.length > 0
-            ? rule.split_template
-            : [{ user: rule.paid_by, share_pct: '100.00' }],
-      })
-      await saveRule.mutateAsync({ id: rule.id, next_run: following })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const skip = async () => {
-    const following = nextRun(rule)
-    if (!following) return
-    await saveRule.mutateAsync({ id: rule.id, next_run: following })
-  }
+  const approve = useRecurringOccurrence(tracker.id, 'approve')
+  const skip = useRecurringOccurrence(tracker.id, 'skip')
+  const busy = approve.isPending || skip.isPending
 
   return (
     <div className="rounded-card bg-warning-container px-5 py-4 text-on-warning-container">
-      <ErrorBanner error={createTransaction.error ?? saveRule.error} />
+      <ErrorBanner error={approve.error ?? skip.error} />
       <div className="flex flex-wrap items-center gap-4">
         <Icon name="inbox" size={24} />
         <div className="min-w-0 flex-1">
@@ -208,30 +181,23 @@ function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule 
           </p>
           <p className="text-body-small">Proposta per il {formatDate(rule.next_run)}</p>
         </div>
-        {canApprove ? (
-          <>
-            <button
-              type="button"
-              onClick={approve}
-              disabled={busy}
-              className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
-            >
-              {busy ? 'Approvo…' : 'Approva'}
-            </button>
-            <button
-              type="button"
-              onClick={skip}
-              aria-label="Salta questa occorrenza"
-              className="state flex h-9 w-9 items-center justify-center rounded-pill"
-            >
-              <Icon name="close" size={20} />
-            </button>
-          </>
-        ) : (
-          <p className="text-body-small">
-            Ricorrenza personalizzata: va approvata a mano creando il movimento.
-          </p>
-        )}
+        <button
+          type="button"
+          onClick={() => approve.mutate(rule)}
+          disabled={busy}
+          className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
+        >
+          {approve.isPending ? 'Approvo…' : 'Approva'}
+        </button>
+        <button
+          type="button"
+          onClick={() => skip.mutate(rule)}
+          disabled={busy}
+          aria-label="Salta questa occorrenza"
+          className="state flex h-9 w-9 items-center justify-center rounded-pill disabled:opacity-50"
+        >
+          <Icon name="close" size={20} />
+        </button>
       </div>
     </div>
   )
@@ -250,6 +216,14 @@ function RuleForm({
   const categories = useCategories(tracker.id)
   const accounts = useAccounts(tracker.id)
   const members = activeMembers(tracker)
+  const [amount, setAmount] = useState('')
+  const [paidBy, setPaidBy] = useState(members[0]?.user?.id ?? '')
+  const [split, setSplit] = useState<SplitState>(() =>
+    initialSplitState(members, members[0]?.user?.id ?? ''),
+  )
+  const splitOk =
+    splitResidualCents(split, members, amount || '0') === 0 &&
+    splitResidualBasisPoints(split, members) === 0
 
   return (
     <Modal open={open} onClose={onClose} title="Nuova ricorrenza">
@@ -261,10 +235,15 @@ function RuleForm({
           await save.mutateAsync({
             type: form.get('type') as never,
             title: String(form.get('title')),
-            amount: String(form.get('amount')).replace(',', '.'),
+            amount,
             frequency: form.get('frequency') as never,
             next_run: String(form.get('next_run')),
-            paid_by: String(form.get('paid_by')),
+            paid_by: paidBy,
+            // "Solo mia" resta vuoto: il backend usa chi paga, anche se cambia dopo.
+            split_template:
+              split.mode === 'personal' && split.personalUser === paidBy
+                ? []
+                : toSplitPayload(split, members).splits_input,
             category: (form.get('category') as string) || null,
             account: (form.get('account') as string) || null,
             is_subscription: form.get('is_subscription') === 'on',
@@ -279,7 +258,14 @@ function RuleForm({
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Importo">
-            <input className="field-input amount text-right" name="amount" required />
+            <input
+              className="field-input amount text-right"
+              name="amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+              required
+            />
           </Field>
           <Field label="Tipo">
             <select className="field-input" name="type" defaultValue="expense">
@@ -298,7 +284,18 @@ function RuleForm({
             <input className="field-input" type="date" name="next_run" defaultValue={todayIso()} />
           </Field>
           <Field label="A carico di">
-            <select className="field-input" name="paid_by" required>
+            <select
+              className="field-input"
+              name="paid_by"
+              value={paidBy}
+              onChange={(event) => {
+                setPaidBy(event.target.value)
+                if (split.mode === 'personal') {
+                  setSplit({ ...split, personalUser: event.target.value })
+                }
+              }}
+              required
+            >
               {members.map((member) => (
                 <option key={member.id} value={member.user!.id}>
                   {member.display_name}
@@ -327,13 +324,23 @@ function RuleForm({
             ))}
           </select>
         </Field>
+        {members.length > 1 && (
+          <SplitWidget
+            members={members}
+            amount={amount || '0'}
+            value={split}
+            onChange={setSplit}
+            currency={tracker.currency}
+            compact
+          />
+        )}
         <label className="flex items-center gap-2 px-1 text-body-medium">
           <input type="checkbox" name="is_subscription" /> È un abbonamento
         </label>
         <label className="flex items-center gap-2 px-1 text-body-medium">
           <input type="checkbox" name="auto_commit" /> Conferma automatica (scrive senza chiedere)
         </label>
-        <button className="btn-filled w-full" disabled={save.isPending}>
+        <button className="btn-filled w-full" disabled={save.isPending || !splitOk}>
           Crea
         </button>
       </form>
