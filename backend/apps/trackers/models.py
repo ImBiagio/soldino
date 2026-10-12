@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from simple_history.models import HistoricalRecords
 
@@ -58,7 +59,8 @@ class Membership(BaseModel):
         max_digits=5,
         decimal_places=2,
         default=Decimal("50.00"),
-        help_text="Percentuale proposta di default negli split di gruppo.",
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+        help_text="Peso proposto di default negli split di gruppo, fra 0 e 100.",
     )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
 

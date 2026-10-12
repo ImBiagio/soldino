@@ -14,6 +14,7 @@ import {
   useUpdateMember,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { defaultPercentages, formatPct } from '../../components/SplitWidget'
 import {
   Avatar,
   ErrorBanner,
@@ -61,6 +62,8 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
 
   const visible = tracker.members.filter((member) => member.status !== 'revoked')
   const maxWeight = Math.max(...visible.map((member) => Number(member.default_share_pct)), 1)
+  // Quanto pesa davvero ciascuno nella divisione "di default": contano solo i membri attivi.
+  const effective = defaultPercentages(activeMembers(tracker))
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
@@ -105,16 +108,24 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
               </div>
 
               <input
-                className="field-input amount w-[60px] text-right"
+                key={member.default_share_pct}
+                className="field-input amount w-[72px] text-right"
+                inputMode="decimal"
                 defaultValue={member.default_share_pct}
                 disabled={!isOwner}
-                onBlur={(event) =>
-                  event.target.value !== member.default_share_pct &&
-                  update.mutate({ id: member.id, default_share_pct: event.target.value })
-                }
+                onBlur={(event) => {
+                  const value = event.target.value.replace(',', '.').trim()
+                  if (value && value !== member.default_share_pct) {
+                    update.mutate({ id: member.id, default_share_pct: value })
+                  }
+                }}
                 aria-label={`Peso di ${member.display_name}`}
               />
-              <span className="text-body-small text-on-surface-variant">%</span>
+              <span className="w-24 text-body-small text-on-surface-variant">
+                {member.user && effective[member.user.id] !== undefined
+                  ? `= ${formatPct(effective[member.user.id])}%`
+                  : 'conta da attivo'}
+              </span>
 
               {isOwner && member.role !== 'owner' && (
                 <>
@@ -145,7 +156,8 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
       </div>
 
       <p className="mt-4 text-body-small text-on-surface-variant">
-        Sono pesi, non deve fare 100: la ripartizione a centesimi quadra comunque.
+        Pesi fra 0 e 100, non devono fare 100: a destra la percentuale che ne risulta nella
+        divisione di default.
       </p>
       <ErrorBanner error={update.error ?? remove.error} />
 

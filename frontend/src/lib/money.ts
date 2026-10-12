@@ -13,30 +13,44 @@ export function fromCents(cents: number): string {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`
 }
 
-/** Stesso algoritmo del backend (largest remainder): l'anteprima non mente. */
+/**
+ * Stesso algoritmo del backend (largest remainder): l'anteprima non mente.
+ *
+ * Tutto in interi (BigInt): con i float `4/3 - 1` e `1/3` non sono uguali, e a
+ * parita' di resto l'ordine cambierebbe rispetto al Decimal del backend. I pesi
+ * negativi non esistono per il backend: qui contano zero, cosi' l'anteprima non
+ * mostra mai quote che sommano piu' del totale.
+ */
 export function allocate(totalCents: number, weights: number[]): number[] {
   if (totalCents < 0) return allocate(-totalCents, weights).map((c) => -c)
-  const sum = weights.reduce((a, b) => a + b, 0)
-  if (sum <= 0) return weights.map(() => 0)
+  const w = weights.map((weight) => BigInt(Math.max(0, Math.round(weight))))
+  const sum = w.reduce((a, b) => a + b, 0n)
+  if (sum <= 0n) return weights.map(() => 0)
 
-  const floors: number[] = []
-  const remainders: number[] = []
-  for (const weight of weights) {
-    const exact = (totalCents * weight) / sum
-    const floor = Math.floor(exact)
-    floors.push(floor)
-    remainders.push(exact - floor)
-  }
-  let leftover = totalCents - floors.reduce((a, b) => a + b, 0)
+  const total = BigInt(totalCents)
+  const floors = w.map((weight) => (total * weight) / sum)
+  // Il resto di ciascuno ha lo stesso denominatore (sum): basta il numeratore.
+  const remainders = w.map((weight) => (total * weight) % sum)
+  let leftover = total - floors.reduce((a, b) => a + b, 0n)
   const order = remainders
     .map((remainder, index) => ({ remainder, index }))
-    .sort((a, b) => b.remainder - a.remainder || a.index - b.index)
+    .sort((a, b) =>
+      a.remainder === b.remainder ? a.index - b.index : a.remainder > b.remainder ? -1 : 1,
+    )
   for (const { index } of order) {
-    if (leftover <= 0) break
-    floors[index] += 1
-    leftover -= 1
+    if (leftover <= 0n) break
+    floors[index] += 1n
+    leftover -= 1n
   }
-  return floors
+  return floors.map(Number)
+}
+
+/**
+ * Pesi -> percentuali che sommano esattamente 100,00: la stessa ripartizione a
+ * centesimi applicata a 10000 "centesimi di punto". 100/50 diventa 66,67/33,33.
+ */
+export function normalizePercentages(weights: number[]): string[] {
+  return allocate(10000, weights).map(fromCents)
 }
 
 export function formatMoney(value: string | number, currency = 'EUR'): string {

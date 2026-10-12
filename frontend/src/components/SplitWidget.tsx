@@ -1,8 +1,7 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { formatMoney } from '../lib/money'
-import { allocate, fromCents, toCents } from '../lib/money'
+import { allocate, formatMoney, fromCents, normalizePercentages, toCents } from '../lib/money'
 import { memberColor } from '../lib/icons'
 import type { Membership, SplitInput, UUID } from '../lib/types'
 import { Avatar, Icon } from './ui'
@@ -13,19 +12,27 @@ export interface SplitState {
   mode: SplitMode
   /** In modalita' personale: l'unico beneficiario. */
   personalUser: UUID
-  /** Percentuali per utente, come stringhe (mode = default | percent). */
+  /** Percentuali per utente, come stringhe che sommano a 100 (mode = default | percent). */
   percentages: Record<UUID, string>
   /** Importi esatti per utente, come stringhe (mode = amount). */
   amounts: Record<UUID, string>
+}
+
+/**
+ * Le quote di default del tracker sono pesi (100/50 e' lecito): qui diventano
+ * percentuali vere. Pesi tutti a zero = parti uguali, come fa il backend.
+ */
+export function defaultPercentages(members: Membership[]): Record<UUID, string> {
+  const weights = members.map((m) => toCents(m.default_share_pct))
+  const pcts = normalizePercentages(weights.some((w) => w > 0) ? weights : members.map(() => 1))
+  return Object.fromEntries(members.map((m, i) => [m.user!.id, pcts[i]])) as Record<UUID, string>
 }
 
 export function initialSplitState(members: Membership[], paidBy: UUID): SplitState {
   return {
     mode: 'personal',
     personalUser: paidBy,
-    percentages: Object.fromEntries(
-      members.map((m) => [m.user!.id, m.default_share_pct]),
-    ) as Record<UUID, string>,
+    percentages: defaultPercentages(members),
     amounts: Object.fromEntries(members.map((m) => [m.user!.id, '0.00'])) as Record<UUID, string>,
   }
 }
@@ -34,23 +41,27 @@ export function splitStateFromTransaction(
   members: Membership[],
   splits: { user: UUID; share_pct: string; share_amount: string }[],
   paidBy: UUID,
+  amount: string,
 ): SplitState {
   const base = initialSplitState(members, paidBy)
   if (splits.length === 1) {
     return { ...base, mode: 'personal', personalUser: splits[0].user }
   }
-  return {
-    ...base,
-    mode: 'percent',
-    percentages: {
-      ...base.percentages,
-      ...Object.fromEntries(splits.map((s) => [s.user, s.share_pct])),
-    },
-    amounts: {
-      ...base.amounts,
-      ...Object.fromEntries(splits.map((s) => [s.user, s.share_amount])),
-    },
-  }
+  const byUser = new Map(splits.map((s) => [s.user, s]))
+  const percentages = Object.fromEntries(
+    members.map((m) => [m.user!.id, byUser.get(m.user!.id)?.share_pct ?? '0.00']),
+  ) as Record<UUID, string>
+  const amounts = Object.fromEntries(
+    members.map((m) => [m.user!.id, byUser.get(m.user!.id)?.share_amount ?? '0.00']),
+  ) as Record<UUID, string>
+
+  // Le percentuali salvate hanno due decimali: 333,33 su 1000 e' 33,33%, che
+  // riapplicato da' 333,30. Se non riproducono gli importi si riapre a importi
+  // esatti, altrimenti un salvataggio qualsiasi sposterebbe dei centesimi.
+  const weights = members.map((m) => toCents(percentages[m.user!.id]))
+  const replay = allocate(toCents(amount), weights)
+  const faithful = members.every((m, i) => replay[i] === toCents(amounts[m.user!.id]))
+  return { ...base, mode: faithful ? 'percent' : 'amount', percentages, amounts }
 }
 
 /** Traduce lo stato del widget nel payload accettato dall'API. */
@@ -93,12 +104,25 @@ export function splitResidualCents(
   return total - allocated
 }
 
-/** Etichetta della chip "di default": mostra le percentuali vere del tracker. */
+/** Centesimi di punto che mancano a 100% (negativo se si sfora). Solo in "percentuali". */
+export function splitResidualBasisPoints(state: SplitState, members: Membership[]): number {
+  if (state.mode !== 'percent') return 0
+  return 10000 - members.reduce((sum, m) => sum + pctToBp(state.percentages[m.user!.id]), 0)
+}
+
+function pctToBp(value: string | undefined): number {
+  return Math.max(0, toCents(value ?? '0'))
+}
+
+/** "50", "66,67": niente decimali inutili. */
+export function formatPct(value: string | number): string {
+  return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(Number(value) || 0)
+}
+
+/** Etichetta della chip "di default": le percentuali effettive, non i pesi grezzi. */
 function defaultModeLabel(members: Membership[]): string {
-  const parts = members.map((m) => Math.round(Number(m.default_share_pct)))
-  const sum = parts.reduce((a, b) => a + b, 0)
-  if (!sum) return 'Di default'
-  return `${parts.join('/')} di default`
+  const pcts = defaultPercentages(members)
+  return `${members.map((m) => Math.round(Number(pcts[m.user!.id]))).join('/')} di default`
 }
 
 interface Props {
@@ -126,14 +150,10 @@ export function SplitWidget({
   // membro cambia la sua quota.
   useEffect(() => {
     if (value.mode !== 'default') return
-    const changed = members.some((m) => value.percentages[m.user!.id] !== m.default_share_pct)
+    const defaults = defaultPercentages(members)
+    const changed = members.some((m) => value.percentages[m.user!.id] !== defaults[m.user!.id])
     if (!changed) return
-    onChange({
-      ...value,
-      percentages: Object.fromEntries(
-        members.map((m) => [m.user!.id, m.default_share_pct]),
-      ) as Record<UUID, string>,
-    })
+    onChange({ ...value, percentages: defaults })
   }, [value.mode, members]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleMembers = value.mode === 'personal' ? members : members
@@ -157,6 +177,19 @@ export function SplitWidget({
 
   const allocated = Object.values(preview).reduce((a, b) => a + b, 0)
   const residual = totalCents - allocated
+  const residualBp = splitResidualBasisPoints(value, members)
+  const balanced = residual === 0 && residualBp === 0
+
+  /** Con due persone l'altra quota si adegua da sola; da tre in su decide l'utente. */
+  const setPercentage = (userId: UUID, raw: string) => {
+    const percentages = { ...value.percentages, [userId]: raw.replace(',', '.') }
+    if (members.length === 2) {
+      const other = members.find((m) => m.user!.id !== userId)!
+      const bp = Math.min(10000, pctToBp(percentages[userId]))
+      percentages[other.user!.id] = fromCents(10000 - bp)
+    }
+    onChange({ ...value, mode: 'percent', percentages })
+  }
 
   /**
    * Chi riceve il centesimo dispari. Deriva da allocate(): la quota assegnata
@@ -182,12 +215,13 @@ export function SplitWidget({
       const rect = bar.getBoundingClientRect()
       const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
 
-      const current = members.map((m) => Number(value.percentages[m.user!.id] ?? 0))
-      const total = current.reduce((a, b) => a + b, 0) || 100
-      // Somma delle quote fino al segmento trascinato, come frazione del totale.
+      // In centesimi di punto interi: la coppia trascinata conserva la sua
+      // somma esatta, senza che toFixed() sui float aggiunga o tolga 0,01.
+      const current = members.map((m) => pctToBp(value.percentages[m.user!.id]))
+      const total = current.reduce((a, b) => a + b, 0) || 10000
       const before = current.slice(0, index).reduce((a, b) => a + b, 0)
       const pair = current[index] + current[index + 1]
-      const target = Math.min(pair, Math.max(0, ratio * total - before))
+      const target = Math.min(pair, Math.max(0, Math.round(ratio * total) - before))
 
       const next = [...current]
       next[index] = target
@@ -197,7 +231,7 @@ export function SplitWidget({
         ...value,
         mode: 'percent',
         percentages: Object.fromEntries(
-          members.map((m, i) => [m.user!.id, next[i].toFixed(2)]),
+          members.map((m, i) => [m.user!.id, fromCents(next[i])]),
         ) as Record<UUID, string>,
       })
     },
@@ -231,15 +265,19 @@ export function SplitWidget({
         <span
           className={clsx(
             'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-body-medium font-medium',
-            residual === 0
+            balanced
               ? 'bg-secondary-container text-on-secondary-container'
               : 'bg-warning-container text-on-warning-container',
           )}
         >
-          <Icon name={residual === 0 ? 'check_circle' : 'balance'} size={18} />
-          {residual === 0
-            ? `Quadra: ${formatMoney(fromCents(allocated), currency)}`
-            : `Residuo ${formatMoney(fromCents(residual), currency)}`}
+          <Icon name={balanced ? 'check_circle' : 'balance'} size={18} />
+          {residualBp !== 0
+            ? residualBp > 0
+              ? `Manca il ${formatPct(fromCents(residualBp))}%`
+              : `Oltre di ${formatPct(fromCents(-residualBp))}%`
+            : residual === 0
+              ? `Quadra: ${formatMoney(fromCents(allocated), currency)}`
+              : `Residuo ${formatMoney(fromCents(residual), currency)}`}
         </span>
       </div>
 
@@ -342,7 +380,7 @@ export function SplitWidget({
                   ? value.personalUser === visibleMembers[0]?.user?.id
                     ? '100%'
                     : '0%'
-                  : `${Math.round(Number(value.percentages[visibleMembers[0]?.user?.id ?? ''] ?? 0))}%`}
+                  : `${formatPct(value.percentages[visibleMembers[0]?.user?.id ?? ''] ?? 0)}%`}
               </span>
               {value.mode !== 'personal' && members.length > 1 && (
                 <span className="text-outline">trascina la maniglia per cambiare</span>
@@ -354,18 +392,37 @@ export function SplitWidget({
                     ? value.personalUser === visibleMembers[visibleMembers.length - 1].user?.id
                       ? '100%'
                       : '0%'
-                    : `${Math.round(
-                        Number(
-                          value.percentages[
-                            visibleMembers[visibleMembers.length - 1].user?.id ?? ''
-                          ] ?? 0,
-                        ),
+                    : `${formatPct(
+                        value.percentages[
+                          visibleMembers[visibleMembers.length - 1].user?.id ?? ''
+                        ] ?? 0,
                       )}%`}
                 </span>
               )}
             </div>
           )}
         </>
+      )}
+
+      {value.mode === 'percent' && (
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {members.map((member, index) => (
+            <div key={member.id} className="field flex items-center gap-3">
+              <Avatar name={member.display_name} size={28} color={memberColor(index)} />
+              <span className="min-w-0 flex-1 truncate text-body-medium">
+                {member.display_name}
+              </span>
+              <input
+                className="field-input amount w-20 text-right"
+                inputMode="decimal"
+                value={value.percentages[member.user!.id] ?? '0'}
+                onChange={(event) => setPercentage(member.user!.id, event.target.value)}
+                aria-label={`Percentuale di ${member.display_name}`}
+              />
+              <span className="text-body-medium text-on-surface-variant">%</span>
+            </div>
+          ))}
+        </div>
       )}
 
       {value.mode === 'personal' && (

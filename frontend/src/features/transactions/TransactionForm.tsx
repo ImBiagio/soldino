@@ -6,6 +6,7 @@ import { activeMembers } from '../../components/Layout'
 import {
   SplitWidget,
   initialSplitState,
+  splitResidualBasisPoints,
   splitResidualCents,
   splitStateFromTransaction,
   toSplitPayload,
@@ -39,7 +40,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   const [noteOpen, setNoteOpen] = useState(Boolean(editing?.note))
   const [split, setSplit] = useState<SplitState>(() =>
     editing
-      ? splitStateFromTransaction(members, editing.splits, editing.paid_by)
+      ? splitStateFromTransaction(members, editing.splits, editing.paid_by, editing.amount)
       : initialSplitState(members, defaultPayer),
   )
 
@@ -48,7 +49,8 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   const save = useSaveTransaction(tracker.id)
 
   const residual = splitResidualCents(split, members, amount || '0')
-  const canSave = Boolean(title && amount && paidBy) && residual === 0
+  const residualBp = splitResidualBasisPoints(split, members)
+  const canSave = Boolean(title && amount && paidBy) && residual === 0 && residualBp === 0
 
   const accountName = (accounts.data?.results ?? []).find((a) => a.id === account)?.name
 
@@ -234,6 +236,11 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
         {residual !== 0 && (
           <p className="text-body-small text-warning">
             Le quote non quadrano: manca {formatMoney(residual / 100, tracker.currency)}.
+          </p>
+        )}
+        {residualBp !== 0 && (
+          <p className="text-body-small text-warning">
+            Le percentuali devono fare 100%.
           </p>
         )}
       </form>

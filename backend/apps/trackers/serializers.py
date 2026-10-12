@@ -65,7 +65,9 @@ class TrackerSerializer(serializers.ModelSerializer):
             user=user,
             role=Membership.Role.OWNER,
             status=Membership.Status.ACTIVE,
-            default_share_pct="100.00",
+            # Stesso default di chi viene invitato: in due fa 50/50. Con 100 qui
+            # la divisione "di default" usciva 66,67/33,33.
+            default_share_pct="50.00",
         )
         _seed_default_categories(tracker)
         return tracker
@@ -136,7 +138,7 @@ class InviteSerializer(serializers.Serializer):
         choices=Membership.Role.choices, default=Membership.Role.EDITOR
     )
     default_share_pct = serializers.DecimalField(
-        max_digits=5, decimal_places=2, default="50.00"
+        max_digits=5, decimal_places=2, default="50.00", min_value=0, max_value=100
     )
 
 

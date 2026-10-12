@@ -22,10 +22,11 @@ from .services.splits import (
 class SplitInputSerializer(serializers.Serializer):
     user = serializers.UUIDField()
     share_pct = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False, allow_null=True
+        max_digits=5, decimal_places=2, required=False, allow_null=True,
+        min_value=0, max_value=100,
     )
     share_amount = serializers.DecimalField(
-        max_digits=12, decimal_places=2, required=False, allow_null=True
+        max_digits=12, decimal_places=2, required=False, allow_null=True, min_value=0
     )
 
 
@@ -158,10 +159,11 @@ class TransactionSerializer(serializers.ModelSerializer):
         instance.save()
 
         if items is None and amount_changed:
-            # L'importo e' cambiato ma non gli split: si riproporziona sulle
-            # percentuali esistenti, cosi' la quadratura non si rompe mai.
+            # L'importo e' cambiato ma non gli split: si riproporziona sugli
+            # importi esistenti, non sulle percentuali arrotondate a 2 decimali
+            # (333,33/666,67 riportati a 33,33%/66,67% su 1000 darebbero 333,30).
             items = [
-                {"user": s.user_id, "share_pct": s.share_pct} for s in instance.splits.all()
+                {"user": s.user_id, "share_pct": s.share_amount} for s in instance.splits.all()
             ]
         if items is not None:
             validate_split_users(tracker, items)

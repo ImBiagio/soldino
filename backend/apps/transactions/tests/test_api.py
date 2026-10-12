@@ -218,3 +218,93 @@ def test_gli_importi_escono_come_stringhe_mai_come_numeri_json(
         assert isinstance(summary[field], str), field
     for row in summary["by_category"] + summary["by_user"] + summary["by_month"]:
         assert isinstance(row["total"], str)
+
+
+def test_tracker_creato_da_api_divide_a_meta_col_primo_invitato(api, user):
+    """Il proprietario nasceva a 100 contro il 50 degli invitati: 66,67/33,33."""
+    from apps.trackers.models import Membership
+
+    from ...conftest import UserFactory
+
+    created = api(user).post(reverse("tracker-list"), {"name": "Casa"}, format="json").data
+    partner = UserFactory()
+    Membership.objects.create(
+        tracker_id=created["id"], user=partner, status=Membership.Status.ACTIVE
+    )
+    response = api(user).post(
+        reverse("transaction-list", args=[created["id"]]),
+        _payload(user, split_mode="default", amount="100.00"),
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    assert [s["share_amount"] for s in response.data["splits"]] == ["50.00", "50.00"]
+
+
+def test_le_percentuali_salvate_sono_quelle_effettive(api, user, tracker, partner):
+    response = api(user).post(
+        reverse("transaction-list", args=[tracker.pk]),
+        _payload(
+            user,
+            amount="90.00",
+            splits_input=[
+                {"user": str(user.pk), "share_pct": "70.00"},
+                {"user": str(partner.pk), "share_pct": "70.00"},
+            ],
+        ),
+        format="json",
+    )
+    assert response.status_code == 201, response.data
+    assert [s["share_pct"] for s in response.data["splits"]] == ["50.00", "50.00"]
+    assert [s["share_amount"] for s in response.data["splits"]] == ["45.00", "45.00"]
+
+
+def test_riproporzione_sugli_importi_non_sulle_percentuali_arrotondate(
+    api, user, tracker, partner
+):
+    client = api(user)
+    created = client.post(
+        reverse("transaction-list", args=[tracker.pk]),
+        _payload(
+            user,
+            amount="1000.00",
+            splits_input=[
+                {"user": str(user.pk), "share_amount": "333.33"},
+                {"user": str(partner.pk), "share_amount": "666.67"},
+            ],
+        ),
+        format="json",
+    ).data
+    detail = reverse("transaction-detail", args=[tracker.pk, created["id"]])
+
+    renamed = client.patch(detail, {"title": "Solo il titolo"}, format="json").data
+    assert [s["share_amount"] for s in renamed["splits"]] == ["333.33", "666.67"]
+
+    doubled = client.patch(detail, {"amount": "2000.00"}, format="json").data
+    assert [s["share_amount"] for s in doubled["splits"]] == ["666.66", "1333.34"]
+
+
+@pytest.mark.parametrize("pct", ["-10.00", "100.01"])
+def test_percentuale_fuori_intervallo_rifiutata(api, user, tracker, partner, pct):
+    response = api(user).post(
+        reverse("transaction-list", args=[tracker.pk]),
+        _payload(
+            user,
+            splits_input=[
+                {"user": str(user.pk), "share_pct": pct},
+                {"user": str(partner.pk), "share_pct": "50.00"},
+            ],
+        ),
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize("pct", ["-10.00", "150.00"])
+def test_peso_di_default_fuori_intervallo_rifiutato(api, user, tracker, pct):
+    membership = tracker.memberships.get(user=user)
+    response = api(user).patch(
+        reverse("membership-detail", args=[tracker.pk, membership.pk]),
+        {"default_share_pct": pct},
+        format="json",
+    )
+    assert response.status_code == 400

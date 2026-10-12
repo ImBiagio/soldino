@@ -80,7 +80,10 @@ def resolve_split_amounts(total: Decimal, items: list[dict]) -> list[dict]:
         if sum(weights, ZERO) <= 0:
             raise ValidationError({"splits": ["Almeno una percentuale deve essere positiva."]})
         amounts = allocate(total, weights)
-        pcts = [quantize(w) for w in weights]
+        # I pesi in ingresso possono essere 70/70 o 100/50: si salva la
+        # percentuale effettiva, cosi' ovunque si legga "50/50" e non "70/70".
+        weight_sum = sum(weights, ZERO)
+        pcts = [quantize(w * 100 / weight_sum) for w in weights]
     else:
         raise ValidationError(
             {"splits": ["Usa o solo percentuali o solo importi esatti, non entrambi."]}
