@@ -24,6 +24,7 @@ import {
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { monthLabel, todayIso } from '../../lib/format'
+import { rangeFor } from '../../lib/period'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney, formatSigned, toCents } from '../../lib/money'
 import type { BalancesResponse, Tracker } from '../../lib/types'
@@ -37,11 +38,15 @@ export function DashboardPage() {
   const now = new Date()
   const [period, setPeriod] = useState<Period>('month')
 
+  // "Trimestre" chiedeva l'anno intero: ora e' il trimestre in corso.
+  const quarter = rangeFor('quarter', todayIso())
   const summary = useSummary(
     tracker.id,
     period === 'month'
       ? { year: now.getFullYear(), month: now.getMonth() + 1 }
-      : { year: now.getFullYear() },
+      : period === 'quarter'
+        ? { date_from: quarter.from, date_to: quarter.to }
+        : { year: now.getFullYear() },
   )
   const balances = useBalances(tracker.id)
   const reconciliation = useReconciliation(tracker.id)
@@ -426,6 +431,14 @@ function SpendingCard({
           ))}
         </div>
       </div>
+
+      <Link
+        to={`/t/${tracker.id}/grafici?periodo=${period}`}
+        className="state mb-4 inline-flex items-center gap-1 rounded-pill text-body-medium font-medium text-primary"
+      >
+        Grafici, persone e filtri
+        <Icon name="chevron_right" size={18} />
+      </Link>
 
       {loading ? (
         <Skeleton className="h-[26px] rounded-pill" />

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
 from rest_framework import serializers
@@ -144,3 +146,28 @@ class InviteSerializer(serializers.Serializer):
 
 class InviteAcceptSerializer(serializers.Serializer):
     token = serializers.CharField()
+
+
+class SummaryQuerySerializer(serializers.Serializer):
+    """Filtri del riepilogo. Valori malformati sono un 400, non un filtro ignorato."""
+
+    year = serializers.IntegerField(required=False, min_value=1900, max_value=9999)
+    month = serializers.IntegerField(required=False, min_value=1, max_value=12)
+    date_from = serializers.DateField(required=False)
+    date_to = serializers.DateField(required=False)
+    user_id = serializers.UUIDField(required=False)
+    category = serializers.CharField(required=False)
+
+    def validate_category(self, value: str) -> str:
+        if value == "none":
+            return value
+        try:
+            return str(UUID(value))
+        except ValueError:
+            raise serializers.ValidationError("Categoria non valida.") from None
+
+    def validate(self, attrs):
+        start, end = attrs.get("date_from"), attrs.get("date_to")
+        if start and end and start > end:
+            raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
+        return attrs

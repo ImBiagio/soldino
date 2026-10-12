@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useState } from 'react'
-import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
@@ -11,13 +11,15 @@ import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 const DESTINATIONS = [
   { to: '', label: 'Oggi', icon: 'dashboard', end: true },
   { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
+  { to: 'grafici', label: 'Grafici', icon: 'bar_chart', menuOnMobile: true },
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
   { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
-  { to: 'impostazioni', label: 'Setup', icon: 'tune' },
+  { to: 'impostazioni', label: 'Setup', icon: 'tune', menuOnMobile: true },
 ]
 
-/** Sul mobile la bottom bar tiene quattro voci: Setup passa nel menu. */
-const MOBILE_DESTINATIONS = DESTINATIONS.slice(0, 4)
+/** Sul mobile la bottom bar tiene quattro voci: le altre passano nel menu. */
+const MOBILE_DESTINATIONS = DESTINATIONS.filter((destination) => !destination.menuOnMobile)
+const MENU_DESTINATIONS = DESTINATIONS.filter((destination) => destination.menuOnMobile)
 
 export function activeMembers(tracker: Tracker): Membership[] {
   return tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user)
@@ -27,6 +29,7 @@ export function TrackerLayout() {
   const { trackerId } = useParams()
   const { data: tracker, isLoading } = useTracker(trackerId)
   const navigate = useNavigate()
+  const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
   if (isLoading || !tracker) {
@@ -42,6 +45,8 @@ export function TrackerLayout() {
   }
 
   const openNewTransaction = () => navigate(`/t/${tracker.id}/movimenti?new=1`)
+  const section = location.pathname.split('/')[3] ?? ''
+  const inMenuSection = MENU_DESTINATIONS.some((destination) => destination.to === section)
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -98,6 +103,32 @@ export function TrackerLayout() {
         {MOBILE_DESTINATIONS.map((destination) => (
           <BottomItem key={destination.label} {...destination} />
         ))}
+        {/* Senza questa voce il menu (e quindi Grafici e Setup) su mobile non si apriva. */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen(true)}
+          className="flex flex-1 flex-col items-center gap-1"
+        >
+          <span
+            className={clsx(
+              'state flex items-center justify-center transition-colors duration-200 ease-m3',
+              inMenuSection
+                ? 'bg-secondary-container text-on-secondary-container'
+                : 'text-on-surface-variant',
+            )}
+            style={{ width: 56, height: 32, borderRadius: 16 }}
+          >
+            <Icon name="more_horiz" size={24} filled={inMenuSection} />
+          </span>
+          <span
+            className={clsx(
+              'text-label-small',
+              inMenuSection ? 'text-on-surface' : 'text-on-surface-variant',
+            )}
+          >
+            Altro
+          </span>
+        </button>
       </nav>
 
       <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} tracker={tracker} />
@@ -226,17 +257,20 @@ function MenuSheet({
         ))}
 
         <div className="mt-2 grid gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              navigate(`/t/${tracker.id}/impostazioni`)
-              onClose()
-            }}
-            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left md:hidden"
-          >
-            <Icon name="tune" size={22} />
-            <span className="flex-1 text-body-large">Setup del tracker</span>
-          </button>
+          {MENU_DESTINATIONS.map((destination) => (
+            <button
+              key={destination.to}
+              type="button"
+              onClick={() => {
+                navigate(`/t/${tracker.id}/${destination.to}`)
+                onClose()
+              }}
+              className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left md:hidden"
+            >
+              <Icon name={destination.icon} size={22} />
+              <span className="flex-1 text-body-large">{destination.label}</span>
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => {

@@ -149,6 +149,16 @@ export interface BalancesResponse {
   }[]
 }
 
+/** Filtri di `GET /trackers/{id}/summary`. Con `user_id` i totali sono la sua quota. */
+export interface SummaryParams {
+  year?: number
+  month?: number
+  date_from?: string
+  date_to?: string
+  user_id?: UUID
+  category?: UUID | 'none'
+}
+
 export interface Summary {
   year: number | null
   month: number | null
@@ -160,6 +170,7 @@ export interface Summary {
     category_id: UUID | null
     category_name: string
     color: string
+    icon: string
     type: TransactionType
     total: Money
     count: number

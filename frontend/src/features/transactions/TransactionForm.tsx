@@ -239,9 +239,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
           </p>
         )}
         {residualBp !== 0 && (
-          <p className="text-body-small text-warning">
-            Le percentuali devono fare 100%.
-          </p>
+          <p className="text-body-small text-warning">Le percentuali devono fare 100%.</p>
         )}
       </form>
     </Modal>

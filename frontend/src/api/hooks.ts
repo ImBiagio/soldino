@@ -12,6 +12,7 @@ import type {
   RecurringRule,
   Settlement,
   Summary,
+  SummaryParams,
   Tracker,
   Transaction,
   TransactionPayload,
@@ -251,10 +252,11 @@ export function useCreateSettlement(trackerId: UUID) {
   })
 }
 
-export function useSummary(trackerId: UUID, period: { year?: number; month?: number }) {
+export function useSummary(trackerId: UUID, params: SummaryParams) {
   return useQuery({
-    queryKey: keys.summary(trackerId, period),
-    queryFn: () => api.get<Summary>(`${trackerBase(trackerId)}/summary`, period),
+    queryKey: keys.summary(trackerId, params),
+    queryFn: () => api.get<Summary>(`${trackerBase(trackerId)}/summary`, { ...params }),
+    placeholderData: (previous) => previous,
   })
 }
 

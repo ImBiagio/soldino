@@ -22,6 +22,7 @@ from .serializers import (
     CategorySerializer,
     InviteSerializer,
     MembershipSerializer,
+    SummaryQuerySerializer,
     TrackerSerializer,
 )
 
@@ -124,15 +125,14 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
             }
         )
 
+    @extend_schema(parameters=[SummaryQuerySerializer])
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
     def summary(self, request, pk=None):
         tracker = self.get_object()
 
-        def _int(name):
-            raw = request.query_params.get(name)
-            return int(raw) if raw and raw.isdigit() else None
-
-        return Response(summary(tracker.pk, year=_int("year"), month=_int("month")))
+        params = SummaryQuerySerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        return Response(summary(tracker.pk, **params.validated_data))
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
     def reconciliation(self, request, pk=None):

@@ -308,3 +308,54 @@ def test_peso_di_default_fuori_intervallo_rifiutato(api, user, tracker, pct):
         format="json",
     )
     assert response.status_code == 400
+
+
+def test_summary_per_persona_conta_la_quota_non_il_totale(
+    api, user, tracker, partner, make_expense
+):
+    from datetime import date
+
+    half = [{"user": user.pk, "share_pct": D(50)}, {"user": partner.pk, "share_pct": D(50)}]
+    make_expense(tracker, paid_by=user, amount="100.00", splits=half, tx_date=date(2026, 3, 1))
+    make_expense(tracker, paid_by=user, amount="40.00", tx_date=date(2026, 3, 2))
+    zero = [{"user": user.pk, "share_pct": D(100)}, {"user": partner.pk, "share_pct": D(0)}]
+    make_expense(tracker, paid_by=user, amount="10.00", splits=zero, tx_date=date(2026, 3, 3))
+
+    url = reverse("tracker-summary", args=[tracker.pk])
+    mine = api(user).get(url, {"user_id": str(user.pk)}).data
+    theirs = api(user).get(url, {"user_id": str(partner.pk)}).data
+    assert mine["total_expense"] == "100.00"
+    assert mine["transaction_count"] == 3
+    assert theirs["total_expense"] == "50.00"
+    assert theirs["transaction_count"] == 1
+    assert theirs["by_month"] == [{"month": 3, "year": 2026, "type": "expense", "total": "50.00"}]
+    # by_user resta su tutto il tracker, anche filtrando per persona.
+    assert {r["total"] for r in theirs["by_user"]} == {"100.00", "50.00"}
+
+
+def test_summary_per_intervallo_e_categoria(api, user, tracker, make_expense):
+    from datetime import date
+
+    from ...conftest import CategoryFactory
+
+    food = CategoryFactory(tracker=tracker, name="Spesa")
+    make_expense(tracker, paid_by=user, amount="30.00", tx_date=date(2026, 1, 15), category=food)
+    make_expense(tracker, paid_by=user, amount="20.00", tx_date=date(2026, 4, 1))
+    url = reverse("tracker-summary", args=[tracker.pk])
+
+    quarter = api(user).get(url, {"date_from": "2026-01-01", "date_to": "2026-03-31"}).data
+    assert quarter["total_expense"] == "30.00"
+    assert quarter["by_category"][0]["category_name"] == "Spesa"
+
+    assert api(user).get(url, {"category": str(food.pk)}).data["total_expense"] == "30.00"
+    assert api(user).get(url, {"category": "none"}).data["total_expense"] == "20.00"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{"month": 13}, {"date_from": "ieri"}, {"category": "x"},
+     {"date_from": "2026-05-01", "date_to": "2026-04-01"}],
+)
+def test_summary_filtri_malformati_sono_400(api, user, tracker, params):
+    response = api(user).get(reverse("tracker-summary", args=[tracker.pk]), params)
+    assert response.status_code == 400
