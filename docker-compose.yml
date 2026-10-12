@@ -38,13 +38,22 @@ services:
              gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     ports:
       - "8000:8000"
+    # Risponde solo dopo migrate: worker e beat aspettano questo, non il
+    # semplice avvio del container (beat crasha se le sue tabelle mancano).
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/admin/login/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   worker:
     build:
       context: ./backend
     env_file: .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     command: celery -A config worker -l info
 
   beat:
@@ -52,7 +61,8 @@ services:
       context: ./backend
     env_file: .env
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 
   frontend:
