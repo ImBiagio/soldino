@@ -16,7 +16,13 @@ import { activeMembers } from '../../components/Layout'
 import { defaultPercentages, formatPct } from '../../components/SplitWidget'
 import { Avatar, ErrorBanner, Field, Icon, IconCircle, Modal, Skeleton } from '../../components/ui'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
-import type { Category, Tracker } from '../../lib/types'
+import type { Category, Tracker, TransactionType } from '../../lib/types'
+
+/** Gli stessi del backend (`Category.DEFAULT_COLORS`): verde entrate, rosso uscite. */
+const DEFAULT_CATEGORY_COLOR: Record<TransactionType, string> = {
+  expense: '#ba1a1a',
+  income: '#1b6c2f',
+}
 
 const ROLE_LABEL: Record<string, string> = {
   owner: 'Proprietario',
@@ -308,38 +314,74 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
   const save = useSaveCategory(tracker.id)
   const remove = useDeleteCategory(tracker.id)
   const [editing, setEditing] = useState<Category | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState<TransactionType | null>(null)
+  const [formType, setFormType] = useState<TransactionType>('expense')
+  const [formColor, setFormColor] = useState(DEFAULT_CATEGORY_COLOR.expense)
 
   const categories = data?.results ?? []
 
+  const openForm = (category: Category | null, type: TransactionType) => {
+    setEditing(category)
+    setCreating(category ? null : type)
+    setFormType(category?.type ?? type)
+    setFormColor(category?.color ?? DEFAULT_CATEGORY_COLOR[type])
+  }
+
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-body-large font-medium">Categorie</h2>
-        <button type="button" className="btn-tonal btn-sm" onClick={() => setCreating(true)}>
-          <Icon name="add" size={18} />
-          Categoria
-        </button>
-      </div>
+      <h2 className="mb-4 text-body-large font-medium">Categorie</h2>
 
       {isLoading ? (
         <Skeleton className="h-10" />
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {categories.map((category, index) => (
-            <button
-              key={category.id}
-              type="button"
-              onClick={() => setEditing(category)}
-              className="state inline-flex items-center gap-2 rounded-pill bg-surface py-1.5 pl-1.5 pr-4 text-body-medium"
+        <div className="grid gap-4 md:grid-cols-2">
+          {(['expense', 'income'] as const).map((type) => (
+            <div
+              key={type}
+              className={clsx(
+                'rounded-nested p-4',
+                type === 'expense' ? 'bg-error-container' : 'bg-secondary-container',
+              )}
             >
-              <IconCircle
-                name={categoryIcon(category)}
-                color={categoryColor(category, index)}
-                size={22}
-              />
-              {category.name}
-            </button>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p
+                  className={clsx(
+                    'inline-flex items-center gap-1.5 text-body-medium font-medium',
+                    type === 'expense' ? 'text-error' : 'text-primary',
+                  )}
+                >
+                  <Icon name={type === 'expense' ? 'trending_down' : 'trending_up'} size={20} />
+                  {type === 'expense' ? 'Uscite' : 'Entrate'}
+                </p>
+                <button
+                  type="button"
+                  className="btn-text btn-sm"
+                  onClick={() => openForm(null, type)}
+                >
+                  <Icon name="add" size={18} />
+                  Categoria
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {categories
+                  .filter((category) => category.type === type)
+                  .map((category, index) => (
+                    <button
+                      key={category.id}
+                      type="button"
+                      onClick={() => openForm(category, type)}
+                      className="state inline-flex items-center gap-2 rounded-pill bg-surface py-1.5 pl-1.5 pr-4 text-body-medium"
+                    >
+                      <IconCircle
+                        name={categoryIcon(category)}
+                        color={categoryColor(category, index)}
+                        size={22}
+                      />
+                      {category.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -355,9 +397,15 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
           open
           onClose={() => {
             setEditing(null)
-            setCreating(false)
+            setCreating(null)
           }}
-          title={editing ? `Categoria “${editing.name}”` : 'Nuova categoria'}
+          title={
+            editing
+              ? `Categoria “${editing.name}”`
+              : creating === 'income'
+                ? 'Nuova categoria di entrata'
+                : 'Nuova categoria di uscita'
+          }
         >
           <form
             className="grid gap-3"
@@ -367,13 +415,13 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
               await save.mutateAsync({
                 id: editing?.id,
                 name: String(form.get('name')),
-                type: (form.get('type') as never) ?? editing?.type,
+                type: formType,
                 description: String(form.get('description') ?? ''),
-                color: String(form.get('color')),
+                color: formColor,
                 icon: String(form.get('icon') ?? ''),
               })
               setEditing(null)
-              setCreating(false)
+              setCreating(null)
             }}
           >
             <Field label="Nome">
@@ -390,7 +438,15 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                 <select
                   className="field-input"
                   name="type"
-                  defaultValue={editing?.type ?? 'expense'}
+                  value={formType}
+                  onChange={(event) => {
+                    const next = event.target.value as TransactionType
+                    // Se il colore e' ancora quello di default, segue il tipo.
+                    if (formColor === DEFAULT_CATEGORY_COLOR[formType]) {
+                      setFormColor(DEFAULT_CATEGORY_COLOR[next])
+                    }
+                    setFormType(next)
+                  }}
                 >
                   <option value="expense">Spesa</option>
                   <option value="income">Entrata</option>
@@ -401,7 +457,8 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                   className="field-input h-8 p-0"
                   type="color"
                   name="color"
-                  defaultValue={editing?.color ?? '#1b6c2f'}
+                  value={formColor}
+                  onChange={(event) => setFormColor(event.target.value)}
                 />
               </Field>
             </div>

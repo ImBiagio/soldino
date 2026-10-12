@@ -28,6 +28,8 @@ urlpatterns = [
          name="tracker-balances"),
     path("trackers/<uuid:pk>/summary", TrackerViewSet.as_view({"get": "summary"}),
          name="tracker-summary"),
+    path("trackers/<uuid:pk>/balance-history",
+         TrackerViewSet.as_view({"get": "balance_history"}), name="tracker-balance-history"),
     path("trackers/<uuid:pk>/reconciliation",
          TrackerViewSet.as_view({"get": "reconciliation"}), name="tracker-reconciliation"),
     path("invites/<str:token>", InvitePreviewView.as_view(), name="invite-preview"),

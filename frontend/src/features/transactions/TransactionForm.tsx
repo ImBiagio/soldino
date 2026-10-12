@@ -100,10 +100,19 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
         <ErrorBanner error={save.error} />
 
         {/* --- blocco importo: l'importo prima di tutto --- */}
-        <div className="rounded-card bg-secondary-container px-6 py-6 text-center text-on-secondary-container">
-          <p className="text-[13px] font-semibold uppercase tracking-wide">Importo</p>
+        <div
+          className={clsx(
+            'rounded-card px-6 py-6 text-center transition-colors duration-200',
+            type === 'expense'
+              ? 'bg-error-container text-on-error-container'
+              : 'bg-primary-container text-on-primary-container',
+          )}
+        >
+          <p className="text-[13px] font-semibold uppercase tracking-wide">
+            {type === 'expense' ? 'Spesa' : 'Entrata'}
+          </p>
           <input
-            className="amount w-full border-none bg-transparent text-center text-[44px] font-semibold leading-tight text-on-primary-container outline-none placeholder:text-on-secondary-container/50 sm:text-display-medium"
+            className="amount w-full border-none bg-transparent text-center text-[44px] font-semibold leading-tight text-inherit outline-none placeholder:text-current placeholder:opacity-40 sm:text-display-medium"
             inputMode="decimal"
             placeholder="0,00"
             value={amount}

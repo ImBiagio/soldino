@@ -199,6 +199,13 @@ export interface ReconciliationFigures {
   delta: Money
 }
 
+/** `GET /trackers/{id}/balance-history`: saldo per cassa giorno per giorno. */
+export interface BalanceHistory {
+  start_balance: Money
+  end_balance: Money
+  points: { date: string; balance: Money; income: Money; expense: Money }[]
+}
+
 export interface Reconciliation extends ReconciliationFigures {
   people: (ReconciliationFigures & { user: User; opening_date: string | null })[]
 }

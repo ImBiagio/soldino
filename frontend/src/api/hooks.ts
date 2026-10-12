@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@ta
 import { api } from '../lib/api'
 import type {
   Account,
+  BalanceHistory,
   BalancesResponse,
   Category,
   Membership,
@@ -277,6 +278,18 @@ export function useSummary(trackerId: UUID, params: SummaryParams) {
   return useQuery({
     queryKey: keys.summary(trackerId, params),
     queryFn: () => api.get<Summary>(`${trackerBase(trackerId)}/summary`, { ...params }),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useBalanceHistory(
+  trackerId: UUID,
+  params: { date_from: string; date_to: string; user_id?: UUID },
+) {
+  return useQuery({
+    queryKey: ['trackers', trackerId, 'balance-history', params] as const,
+    queryFn: () =>
+      api.get<BalanceHistory>(`${trackerBase(trackerId)}/balance-history`, { ...params }),
     placeholderData: (previous) => previous,
   })
 }

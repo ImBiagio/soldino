@@ -404,7 +404,8 @@ export function SplitWidget({
         </>
       )}
 
-      {value.mode === 'percent' && (
+      {/* Anche in "di default": si vede la percentuale e, toccandola, si passa a "Percentuali". */}
+      {(value.mode === 'percent' || value.mode === 'default') && (
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {members.map((member, index) => (
             <div key={member.id} className="field flex items-center gap-3">

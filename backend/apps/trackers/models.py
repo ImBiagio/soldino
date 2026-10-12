@@ -121,7 +121,9 @@ class Category(BaseModel):
         help_text="Descrizione operativa: e' cio' che viene passato all'LLM in fase 3.",
     )
     type = models.CharField(max_length=10, choices=Type.choices, default=Type.EXPENSE)
-    # Default della palette tonale M3 dell'app (seed #1b6c2f).
+    # Default della palette M3: verde (primary) per le entrate, rosso (error)
+    # per le uscite, gli stessi colori di importi e grafici.
+    DEFAULT_COLORS = {"expense": "#ba1a1a", "income": "#1b6c2f"}
     color = models.CharField(max_length=9, default="#1b6c2f")
     icon = models.CharField(max_length=40, blank=True)
     archived = models.BooleanField(default=False)

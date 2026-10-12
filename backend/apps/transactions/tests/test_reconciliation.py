@@ -137,3 +137,35 @@ def test_conto_intestato_a_un_estraneo_rifiutato(api, user, tracker, other_user)
         format="json",
     )
     assert response.status_code == 400
+
+
+def test_curva_del_saldo_per_cassa(api, user, tracker, partner, make_expense):
+    _set_opening(tracker, user, "1000.00")
+    _set_opening(tracker, partner, "200.00")
+    half = [{"user": user.pk, "share_pct": D(50)}, {"user": partner.pk, "share_pct": D(50)}]
+    make_expense(tracker, paid_by=user, amount="100.00", splits=half, tx_date=date(2026, 3, 1))
+    make_expense(tracker, paid_by=user, amount="40.00", tx_date=date(2026, 3, 3))
+    Settlement.objects.create(
+        tracker=tracker, from_user=partner, to_user=user, amount=D("50.00"), date=date(2026, 3, 3)
+    )
+    url = reverse("tracker-balance-history", args=[tracker.pk])
+
+    mine = api(user).get(
+        url, {"date_from": "2026-03-02", "date_to": "2026-03-04", "user_id": str(user.pk)}
+    ).data
+    # La spesa del 1/3 e' prima dell'intervallo: entra nel punto di partenza.
+    assert [p["balance"] for p in mine["points"]] == ["900.00", "910.00", "910.00"]
+    assert mine["points"][1]["expense"] == "40.00"
+
+    everyone = api(user).get(url, {"date_from": "2026-03-01", "date_to": "2026-03-03"}).data
+    # Il pareggio sposta soldi fra loro: sul totale non si vede.
+    assert [p["balance"] for p in everyone["points"]] == ["1100.00", "1100.00", "1060.00"]
+    assert everyone["end_balance"] == "1060.00"
+
+
+def test_curva_del_saldo_intervallo_non_valido(api, user, tracker):
+    url = reverse("tracker-balance-history", args=[tracker.pk])
+    backwards = {"date_from": "2026-03-02", "date_to": "2026-03-01"}
+    too_long = {"date_from": "2020-01-01", "date_to": "2026-03-01"}
+    assert api(user).get(url, backwards).status_code == 400
+    assert api(user).get(url, too_long).status_code == 400

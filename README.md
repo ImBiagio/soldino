@@ -240,7 +240,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-111 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+113 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -279,6 +279,12 @@ che porta giù anche le membership, perché le rotte annidate controllano quelle
 (`?vista=tutti`): chi deve cosa, mese, categorie e riconciliazione seguono la
 vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
 iniziale e confronto atteso/reale di ciascuno.
+
+**Andamento dei soldi** (`GET /trackers/{id}/balance-history?date_from&date_to&user_id`):
+il saldo per cassa giorno per giorno, come la riconciliazione. In Grafici è una
+curva che si ferma a oggi, col punto "oggi sui conti" per vedere lo scarto; in
+dashboard la riconciliazione è un grafico a cascata (saldo iniziale → entrate →
+uscite → atteso → scarto → reale).
 
 **Grafici** (`/t/:id/grafici`). Entrate e
 uscite degli ultimi 12 mesi, ripartizione per categoria e per persona, filtri

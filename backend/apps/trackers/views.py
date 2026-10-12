@@ -14,12 +14,13 @@ from apps.core.money import money_str
 from apps.core.permissions import IsTrackerMember, IsTrackerOwner
 from apps.core.scoping import TrackerScopedMixin
 from apps.transactions.services.debts import compute_balances, minimize_transfers
-from apps.transactions.services.reports import reconcile, summary
+from apps.transactions.services.reports import balance_history, reconcile, summary
 from apps.users.serializers import UserBriefSerializer
 
 from .invites import read_invite_token, send_invite_email
 from .models import Category, Membership, Tracker
 from .serializers import (
+    BalanceHistoryQuerySerializer,
     CategorySerializer,
     InviteSerializer,
     MembershipSerializer,
@@ -163,6 +164,14 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         params = SummaryQuerySerializer(data=request.query_params)
         params.is_valid(raise_exception=True)
         return Response(summary(tracker.pk, **params.validated_data))
+
+    @extend_schema(parameters=[BalanceHistoryQuerySerializer])
+    @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
+    def balance_history(self, request, pk=None):
+        tracker = self.get_object()
+        params = BalanceHistoryQuerySerializer(data=request.query_params)
+        params.is_valid(raise_exception=True)
+        return Response(balance_history(tracker.pk, **params.validated_data))
 
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
     def reconciliation(self, request, pk=None):

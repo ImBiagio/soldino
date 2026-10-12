@@ -252,3 +252,74 @@ def summary(
         "by_user": by_user,
         "by_month": by_month,
     }
+
+
+def balance_history(tracker_id, *, date_from, date_to, user_id=None) -> dict:
+    """Andamento dei soldi giorno per giorno, per cassa come la riconciliazione.
+
+    saldo(d) = saldo iniziale + entrate incassate - spese pagate +/- pareggi,
+    contati dalla data di partenza di ciascuno fino a ``d`` compreso. Con
+    ``user_id`` e' la curva di quella persona, altrimenti la somma di tutti.
+    Prima della propria data di partenza una persona vale il saldo iniziale.
+    """
+    from datetime import timedelta
+
+    from apps.trackers.models import Membership
+
+    memberships = Membership.objects.filter(tracker_id=tracker_id, user__isnull=False)
+    if user_id:
+        memberships = memberships.filter(user_id=user_id)
+
+    base = ZERO
+    income: dict = {}
+    expense: dict = {}
+    settled: dict = {}
+
+    def add(target: dict, rows, sign=1) -> None:
+        for row in rows:
+            target[row["date"]] = target.get(row["date"], ZERO) + sign * row["total"]
+
+    for membership in memberships:
+        base += membership.opening_balance
+        txs = Transaction.objects.filter(tracker_id=tracker_id, paid_by_id=membership.user_id)
+        settlements = Settlement.objects.filter(tracker_id=tracker_id)
+        if membership.opening_date:
+            txs = txs.filter(date__gte=membership.opening_date)
+            settlements = settlements.filter(date__gte=membership.opening_date)
+        txs = txs.filter(date__lte=date_to)
+        settlements = settlements.filter(date__lte=date_to)
+
+        def daily(qs):
+            return qs.values("date").annotate(total=Sum("amount"))
+
+        add(income, daily(txs.filter(type=Transaction.Type.INCOME)))
+        add(expense, daily(txs.filter(type=Transaction.Type.EXPENSE)))
+        add(settled, daily(settlements.filter(to_user_id=membership.user_id)))
+        add(settled, daily(settlements.filter(from_user_id=membership.user_id)), sign=-1)
+
+    def net(day) -> Decimal:
+        return income.get(day, ZERO) - expense.get(day, ZERO) + settled.get(day, ZERO)
+
+    # Tutto cio' che e' successo prima dell'intervallo entra nel punto di partenza.
+    before = {*income, *expense, *settled}
+    running = base + sum((net(day) for day in before if day < date_from), ZERO)
+
+    points = []
+    day = date_from
+    while day <= date_to:
+        running += net(day)
+        points.append(
+            {
+                "date": day.isoformat(),
+                "balance": money_str(running),
+                "income": money_str(income.get(day, ZERO)),
+                "expense": money_str(expense.get(day, ZERO)),
+            }
+        )
+        day += timedelta(days=1)
+
+    return {
+        "start_balance": points[0]["balance"] if points else money_str(running),
+        "end_balance": money_str(running),
+        "points": points,
+    }

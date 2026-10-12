@@ -10,7 +10,8 @@ import {
   useRecurringProposals,
   useSummary,
 } from '../../api/hooks'
-import { DeltaChip, PersonFormula } from '../accounts/AccountsPage'
+import { DeltaChip } from '../accounts/AccountsPage'
+import { ReconciliationWaterfall } from './ReconciliationWaterfall'
 import { AppBar, activeMembers } from '../../components/Layout'
 import {
   Avatar,
@@ -92,8 +93,13 @@ export function DashboardPage() {
         {balances.isLoading || !balances.data ? (
           <DashboardSkeleton />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-            <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.35fr]">
+            <div className="grid content-start gap-4">
+              <MonthCard tracker={tracker} person={person} />
+              <ProposalsCard tracker={tracker} />
+            </div>
+
+            <div className="grid content-start gap-4">
               {transfers.length === 0 ? (
                 <SettledCard balances={balances.data} tracker={tracker} person={person} />
               ) : (
@@ -106,11 +112,6 @@ export function DashboardPage() {
                   />
                 ))
               )}
-            </div>
-
-            <div className="grid content-start gap-4">
-              <ProposalsCard tracker={tracker} />
-              <MonthCard tracker={tracker} person={person} />
             </div>
           </div>
         )}
@@ -600,68 +601,71 @@ function ReconciliationCard({
           <h2 className="text-title-medium">
             Riconciliazione{person && ` · ${person.display_name}`}
           </h2>
-          <p className="mt-1 text-body-medium text-on-surface-variant">
-            Saldo iniziale + entrate − uscite deve essere uguale a conti + in attesa. Si contano i
-            soldi che passano davvero dai conti: le spese pagate e le entrate incassate, non le
-            quote.
+          <p className="mt-1 text-body-small text-on-surface-variant">
+            Saldo iniziale + entrate − uscite deve fare conti + in attesa. Contano i soldi che
+            passano davvero dai conti: spese pagate ed entrate incassate, non le quote.
           </p>
         </div>
         <DeltaChip tracker={tracker} delta={figures.delta} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
-        <PersonFormula tracker={tracker} figures={figures} />
+      <p className="mb-5 max-w-2xl text-body-medium">
+        {delta === 0
+          ? 'I conti tornano con i movimenti segnati.'
+          : delta < 0
+            ? `Sui conti ci sono ${formatMoney(-delta / 100, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
+            : `Sui conti ci sono ${formatMoney(delta / 100, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
+      </p>
 
-        <div className="grid content-start gap-3">
-          <p className="text-body-medium">
-            {delta === 0
-              ? 'I conti tornano con i movimenti segnati.'
-              : delta < 0
-                ? `Sui conti ci sono ${formatMoney(-delta / 100, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
-                : `Sui conti ci sono ${formatMoney(delta / 100, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
-          </p>
-          {noOpening && (
-            <p className="rounded-nested bg-warning-container p-3 text-body-small text-on-warning-container">
-              Saldo iniziale a zero: se all&apos;inizio sui conti c&apos;erano già dei soldi, lo
-              scarto viene da lì.{' '}
-              <Link to={`/t/${tracker.id}/conti`} className="font-medium underline">
-                Impostalo in Conti
-              </Link>
-              .
-            </p>
-          )}
+      <ReconciliationWaterfall figures={figures} currency={tracker.currency} />
 
-          {people && (
-            <div className="grid gap-1">
-              {people.map((row, index) => (
-                <button
-                  key={row.user.id}
-                  type="button"
-                  onClick={() => onPerson(row.user.id)}
-                  className="state flex items-center gap-3 rounded-row bg-surface px-3 py-2 text-left"
-                >
-                  <Avatar name={row.user.display_name} size={28} color={memberColor(index)} />
-                  <span className="min-w-0 flex-1 truncate text-body-medium">
-                    {row.user.display_name}
+      {noOpening && (
+        <p className="mt-5 rounded-nested bg-warning-container p-3 text-body-small text-on-warning-container">
+          Saldo iniziale a zero: se all&apos;inizio sui conti c&apos;erano già dei soldi, lo scarto
+          viene da lì.{' '}
+          <Link to={`/t/${tracker.id}/conti`} className="font-medium underline">
+            Impostalo in Conti
+          </Link>
+          .
+        </p>
+      )}
+
+      {people && (
+        <div className="mt-5 grid gap-2 md:grid-cols-2">
+          {people.map((row, index) => {
+            const rowDelta = toCents(row.delta)
+            return (
+              <button
+                key={row.user.id}
+                type="button"
+                onClick={() => onPerson(row.user.id)}
+                className="state flex items-center gap-3 rounded-row bg-surface px-3 py-2.5 text-left"
+              >
+                <Avatar name={row.user.display_name} size={32} color={memberColor(index)} />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="truncate text-body-medium font-medium">
+                      {row.user.display_name}
+                    </span>
+                    <span
+                      className={clsx(
+                        'amount shrink-0 text-body-medium font-medium',
+                        rowDelta === 0 ? 'text-primary' : 'text-warning',
+                      )}
+                    >
+                      {rowDelta === 0 ? 'quadra' : formatSigned(row.delta, tracker.currency)}
+                    </span>
                   </span>
-                  <span className="amount text-body-small text-on-surface-variant">
-                    {formatMoney(row.available_balance, tracker.currency)} su{' '}
+                  <span className="amount block truncate text-body-small text-on-surface-variant">
+                    reale {formatMoney(row.available_balance, tracker.currency)} · atteso{' '}
                     {formatMoney(row.expected_balance, tracker.currency)}
                   </span>
-                  <span
-                    className={clsx(
-                      'amount w-24 text-right text-body-medium font-medium',
-                      toCents(row.delta) !== 0 && 'text-warning',
-                    )}
-                  >
-                    {formatSigned(row.delta, tracker.currency)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+                </span>
+              </button>
+            )
+          })}
         </div>
-      </div>
+      )}
     </section>
   )
 }

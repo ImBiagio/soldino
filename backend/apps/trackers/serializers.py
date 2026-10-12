@@ -81,26 +81,26 @@ class TrackerSerializer(serializers.ModelSerializer):
 # Colore e icona sono dati, non decorazione del client: la UI li legge da qui.
 DEFAULT_CATEGORIES = [
     ("Supermarket", "expense", "Spesa alimentare, discount, alimentari",
-     "#1b6c2f", "shopping_basket"),
+     "#ba1a1a", "shopping_basket"),
     ("Home", "expense", "Casa: affitto, mutuo, utenze, manutenzione, arredamento",
-     "#38656a", "home"),
+     "#ba1a1a", "home"),
     ("Transport", "expense", "Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto",
-     "#7d5700", "directions_car"),
+     "#ba1a1a", "directions_car"),
     ("Eating out", "expense", "Ristoranti, bar, caffe', asporto, delivery",
-     "#74796f", "local_bar"),
+     "#ba1a1a", "local_bar"),
     ("Health", "expense", "Farmacia, visite mediche, esami, dentista",
-     "#1b6c2f", "local_hospital"),
+     "#ba1a1a", "local_hospital"),
     ("Shopping", "expense", "Abbigliamento, elettronica, oggetti per la persona",
-     "#38656a", "redeem"),
+     "#ba1a1a", "redeem"),
     ("Subscriptions", "expense", "Abbonamenti ricorrenti: streaming, cloud, software",
-     "#7d5700", "live_tv"),
+     "#ba1a1a", "live_tv"),
     ("Leisure", "expense", "Cinema, viaggi, eventi, sport, hobby",
-     "#74796f", "beach_access"),
-    ("Gifts", "expense", "Regali e donazioni", "#1b6c2f", "redeem"),
-    ("Other", "expense", "Tutto cio' che non rientra altrove", "#74796f", "payments"),
+     "#ba1a1a", "beach_access"),
+    ("Gifts", "expense", "Regali e donazioni", "#ba1a1a", "redeem"),
+    ("Other", "expense", "Tutto cio' che non rientra altrove", "#ba1a1a", "payments"),
     ("Salary", "income", "Stipendio e compensi da lavoro", "#1b6c2f", "payments"),
-    ("Refund", "income", "Rimborsi e storni", "#38656a", "savings"),
-    ("Other income", "income", "Altre entrate", "#74796f", "payments"),
+    ("Refund", "income", "Rimborsi e storni", "#1b6c2f", "savings"),
+    ("Other income", "income", "Altre entrate", "#1b6c2f", "payments"),
 ]
 
 
@@ -134,6 +134,13 @@ class CategorySerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+    def create(self, validated_data):
+        # Senza un colore scelto, quello del tipo: rosso uscite, verde entrate.
+        if not validated_data.get("color"):
+            kind = validated_data.get("type", Category.Type.EXPENSE)
+            validated_data["color"] = Category.DEFAULT_COLORS[kind]
+        return super().create(validated_data)
 
 
 class InviteSerializer(serializers.Serializer):
@@ -172,4 +179,18 @@ class SummaryQuerySerializer(serializers.Serializer):
         start, end = attrs.get("date_from"), attrs.get("date_to")
         if start and end and start > end:
             raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
+        return attrs
+
+
+class BalanceHistoryQuerySerializer(serializers.Serializer):
+    date_from = serializers.DateField()
+    date_to = serializers.DateField()
+    user_id = serializers.UUIDField(required=False)
+
+    def validate(self, attrs):
+        span = (attrs["date_to"] - attrs["date_from"]).days
+        if span < 0:
+            raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
+        if span > 366 * 3:
+            raise serializers.ValidationError("Al massimo tre anni per volta.")
         return attrs
