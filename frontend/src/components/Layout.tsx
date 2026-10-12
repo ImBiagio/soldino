@@ -6,6 +6,7 @@ import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/icons'
 import type { Membership, Tracker } from '../lib/types'
+import { NewEntryChooser } from './NewEntryChooser'
 import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 
 const DESTINATIONS = [
@@ -13,7 +14,6 @@ const DESTINATIONS = [
   { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
   { to: 'conti', label: 'Conti', icon: 'account_balance' },
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
-  { to: 'scan', label: 'Scan', icon: 'document_scanner', menuOnMobile: true },
   { to: 'grafici', label: 'Grafici', icon: 'bar_chart', menuOnMobile: true },
   { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew', menuOnMobile: true },
   { to: 'impostazioni', label: 'Setup', icon: 'tune', menuOnMobile: true },
@@ -30,9 +30,9 @@ export function activeMembers(tracker: Tracker): Membership[] {
 export function TrackerLayout() {
   const { trackerId } = useParams()
   const { data: tracker, isLoading } = useTracker(trackerId)
-  const navigate = useNavigate()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [chooserOpen, setChooserOpen] = useState(false)
 
   if (isLoading || !tracker) {
     return (
@@ -46,7 +46,8 @@ export function TrackerLayout() {
     )
   }
 
-  const openNewTransaction = () => navigate(`/t/${tracker.id}/movimenti?new=1`)
+  // Il "+" chiede come inserire: a mano o dallo Scan dell'estratto conto.
+  const openNewTransaction = () => setChooserOpen(true)
   const section = location.pathname.split('/')[3] ?? ''
   const inMenuSection = MENU_DESTINATIONS.some((destination) => destination.to === section)
 
@@ -143,6 +144,7 @@ export function TrackerLayout() {
       </nav>
 
       <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} tracker={tracker} />
+      <NewEntryChooser tracker={tracker} open={chooserOpen} onClose={() => setChooserOpen(false)} />
     </div>
   )
 }

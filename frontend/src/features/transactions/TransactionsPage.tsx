@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 
 import {
   useAccounts,
@@ -25,6 +25,7 @@ import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney, toCents } from '../../lib/money'
 import type { Account, Category, Tracker, Transaction } from '../../lib/types'
+import { NewEntryChooser } from '../../components/NewEntryChooser'
 import { TransactionForm } from './TransactionForm'
 
 // Il contratto della URL resta quello di prima: cambia solo il controllo.
@@ -47,6 +48,7 @@ export function TransactionsPage() {
   const [params, setParams] = useSearchParams()
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [choosing, setChoosing] = useState(false)
 
   // Il FAB della shell apre il form passando da ?new=1: nessuno stato globale.
   const formOpen = params.get('new') === '1' || editing !== null
@@ -113,13 +115,9 @@ export function TransactionsPage() {
             onChange={(event) => setFilter('q', event.target.value)}
           />
         </div>
-        <Link to="../scan" relative="path" className="btn-tonal hidden md:inline-flex">
-          <Icon name="document_scanner" size={20} />
-          Scan estratto conto
-        </Link>
         <button
           type="button"
-          onClick={() => setParams(withParam(params, 'new', '1'), { replace: true })}
+          onClick={() => setChoosing(true)}
           className="btn-filled hidden md:inline-flex"
         >
           <Icon name="add" size={20} />
@@ -264,6 +262,7 @@ export function TransactionsPage() {
           onClose={closeForm}
         />
       )}
+      <NewEntryChooser tracker={tracker} open={choosing} onClose={() => setChoosing(false)} />
     </div>
   )
 }
