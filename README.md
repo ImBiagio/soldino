@@ -240,7 +240,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-105 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+111 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -269,12 +269,18 @@ schermate (§2.6): login/registrazione/invito, lista tracker, lista movimenti co
 filtri persistiti in URL e modifica inline di importo e categoria, form con
 widget di split a quattro modalità, dashboard, impostazioni, BTA.
 
+**Ciclo di vita del tracker** (Setup, solo proprietario): archivia e ripristina
+(`POST /trackers/{id}/archive` · `/unarchive`): l'archiviato resta consultabile,
+finisce nel gruppo "Archiviati" della lista e non riceve ricorrenze automatiche.
+Elimina (`DELETE /trackers/{id}`, conferma scrivendo il nome) è un soft delete
+che porta giù anche le membership, perché le rotte annidate controllano quelle.
+
 **Dashboard per persona** (`?vista=<id>`, di default la propria) e globale
 (`?vista=tutti`): chi deve cosa, mese, categorie e riconciliazione seguono la
 vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
 iniziale e confronto atteso/reale di ciascuno.
 
-**Grafici** (`/t/:id/grafici`, branch `feature/dashboard-charts`). Entrate e
+**Grafici** (`/t/:id/grafici`). Entrate e
 uscite degli ultimi 12 mesi, ripartizione per categoria e per persona, filtri
 per periodo (mese, trimestre, anno, date libere), persona e categoria, tutti
 nell'URL. Con una persona selezionata ogni totale è la sua **quota** dagli split,
