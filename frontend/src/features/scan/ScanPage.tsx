@@ -47,7 +47,7 @@ export function ScanPage() {
   }
 
   return (
-    <div className="grid gap-5 p-5 md:p-7">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
         <h1 className="text-title-large">Scan estratto conto</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">

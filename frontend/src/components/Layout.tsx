@@ -87,7 +87,8 @@ export function TrackerLayout() {
       </div>
 
       {/* --- bottom bar + FAB (mobile) --- */}
-      <FabMenu tracker={tracker} placement="mobile" />
+      {/* Durante la revisione di uno scan il "+" coprirebbe i pulsanti in basso. */}
+      {section !== 'scan' && <FabMenu tracker={tracker} placement="mobile" />}
 
       <nav
         aria-label="Sezioni"

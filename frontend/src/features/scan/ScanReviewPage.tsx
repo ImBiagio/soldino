@@ -7,28 +7,19 @@ import { activeMembers } from '../../components/Layout'
 import { ErrorBanner, Icon, Skeleton } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
 import { formatMoney, toCents } from '../../lib/money'
-import type {
-  Category,
-  StatementImport,
-  StatementLine,
-  Tracker,
-  TransactionType,
-} from '../../lib/types'
+import type { StatementImport, StatementLine, Tracker, TransactionType } from '../../lib/types'
+import { ReviewRow, SelectChip, type Row } from './ReviewRow'
 import { STATUS_LABEL } from './ScanPage'
-
-/** Riga in revisione: `key` resta stabile anche per le righe aggiunte a mano. */
-type Row = StatementLine & { key: string }
 
 let counter = 0
 const newKey = () => `nuova-${++counter}`
 
-const SOURCE_BADGE: Record<string, { icon: string; label: string }> = {
-  history: {
-    icon: 'history',
-    label: 'Dallo storico: questo esercente era già in questa categoria',
-  },
-  ai: { icon: 'auto_awesome', label: 'Suggerita leggendo le descrizioni delle categorie' },
-}
+/** In tabella gli importi si leggono all'italiana (45,30); al salvataggio torna il punto. */
+const toRow = (line: StatementLine): Row => ({
+  ...line,
+  amount: String(line.amount).replace('.', ','),
+  key: line.id ?? newKey(),
+})
 
 export function ScanReviewPage() {
   const tracker = useOutletContext<Tracker>()
@@ -36,7 +27,7 @@ export function ScanReviewPage() {
   const { data: statement, isLoading, error } = useStatement(tracker.id, statementId)
 
   return (
-    <div className="grid gap-5 p-5 md:p-7">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:gap-5 sm:p-5 md:p-7">
       <div className="flex flex-wrap items-center gap-3">
         <Link
           to=".."
@@ -156,9 +147,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
   const categories = useCategories(tracker.id).data?.results ?? []
   const { save, commit, discard } = useStatementAction(tracker.id, statement.id)
 
-  const [rows, setRows] = useState<Row[]>(() =>
-    statement.lines.map((line) => ({ ...line, key: line.id ?? newKey() })),
-  )
+  const [rows, setRows] = useState<Row[]>(() => statement.lines.map(toRow))
   const [dirty, setDirty] = useState(false)
 
   // Non perdere le modifiche chiudendo la scheda per sbaglio.
@@ -223,47 +212,43 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
 
   const saveDraft = async () => {
     const saved = await save.mutateAsync(payload())
-    setRows(saved.lines.map((line) => ({ ...line, key: line.id ?? newKey() })))
+    setRows(saved.lines.map(toRow))
     setDirty(false)
   }
 
   return (
     <>
-      <section className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-panel bg-surface-container-low px-5 py-3 text-body-medium">
-        <span className="font-medium">Per tutte le righe:</span>
-        <label className="inline-flex items-center gap-2">
-          chi paga
-          <select
-            className="field-input w-auto py-1.5"
-            value=""
-            onChange={(event) => event.target.value && setAll({ paid_by: event.target.value })}
-          >
-            <option value="">—</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.user!.id}>
-                {m.display_name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="inline-flex items-center gap-2">
-          divisione
-          <select
-            className="field-input w-auto py-1.5"
-            value=""
-            onChange={(event) =>
-              event.target.value && setAll({ split_mode: event.target.value as Row['split_mode'] })
-            }
-          >
-            <option value="">—</option>
-            <option value="personal">Solo di chi paga</option>
-            <option value="default">Di default</option>
-          </select>
-        </label>
+      <section className="flex flex-wrap items-center gap-2 rounded-panel bg-surface-container-low px-4 py-3">
+        <span className="mr-1 text-body-medium text-on-surface-variant">Applica a tutte</span>
+        <SelectChip
+          ariaLabel="Chi paga, per tutte le righe"
+          value=""
+          onChange={(value) => value && setAll({ paid_by: value })}
+          options={[
+            { value: '', label: 'Chi paga…' },
+            ...members.map((m) => ({ value: m.user!.id, label: `Paga ${m.display_name}` })),
+          ]}
+          leading={<Icon name="person" size={16} />}
+          label="Chi paga"
+        />
+        <SelectChip
+          ariaLabel="Divisione, per tutte le righe"
+          value=""
+          onChange={(value) => value && setAll({ split_mode: value as Row['split_mode'] })}
+          options={[
+            { value: '', label: 'Divisione…' },
+            { value: 'personal', label: 'Solo di chi paga' },
+            { value: 'default', label: 'Divisa di default' },
+          ]}
+          leading={<Icon name="group" size={16} />}
+          label="Divisione"
+        />
         {duplicates > 0 && (
-          <span className="inline-flex flex-wrap items-center gap-2 text-warning">
-            <Icon name="content_copy" size={18} />
-            {duplicates} {duplicates === 1 ? 'possibile doppione' : 'possibili doppioni'}
+          <span className="ml-auto inline-flex flex-wrap items-center gap-1">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-warning-container px-3 text-[13px] font-medium text-on-warning-container">
+              <Icon name="content_copy" size={15} />
+              {duplicates} {duplicates === 1 ? 'possibile doppione' : 'possibili doppioni'}
+            </span>
             <button
               type="button"
               className="btn-text btn-sm"
@@ -279,15 +264,14 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         )}
       </section>
 
-      <section className="rounded-panel bg-surface-container-low p-2 md:p-3">
-        <div className="grid gap-1.5">
+      <section className="rounded-panel bg-surface-container-low p-1.5 sm:p-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-1">
           {rows.map((row) => (
-            <LineRow
+            <ReviewRow
               key={row.key}
               row={row}
               categories={categories}
               members={members}
-              currency={tracker.currency}
               onChange={(patch) => update(row.key, patch)}
               onRemove={() => remove(row.key)}
             />
@@ -305,7 +289,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         </button>
       </section>
 
-      <section className="sticky bottom-24 z-20 flex flex-wrap items-center gap-3 rounded-panel bg-surface-container px-5 py-4 shadow-fab md:bottom-4">
+      <section className="sticky bottom-24 z-20 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-panel bg-surface-container px-4 py-3 shadow-fab sm:px-5 sm:py-4 md:bottom-4">
         <span className="text-body-medium">
           <strong>{rows.length}</strong> righe ·{' '}
           <span className="amount text-error">
@@ -321,10 +305,10 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             {invalid.length} {invalid.length === 1 ? 'riga incompleta' : 'righe incomplete'}
           </span>
         )}
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="flex w-full items-center gap-1 sm:ml-auto sm:w-auto sm:gap-2">
           <button
             type="button"
-            className="btn-text"
+            className="btn-text px-3 sm:px-4"
             onClick={async () => {
               if (!window.confirm("Scartare l'estratto conto e tutte le righe?")) return
               await discard.mutateAsync()
@@ -335,15 +319,21 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
           </button>
           <button
             type="button"
-            className="btn-tonal"
+            className="btn-tonal px-4 sm:px-6"
             disabled={!dirty || save.isPending || invalid.length > 0}
             onClick={saveDraft}
           >
-            {save.isPending ? 'Salvo…' : 'Salva bozza'}
+            {save.isPending ? (
+              'Salvo…'
+            ) : (
+              <>
+                Salva<span className="hidden sm:inline">bozza</span>
+              </>
+            )}
           </button>
           <button
             type="button"
-            className="btn-filled"
+            className="btn-filled ml-auto px-4 sm:ml-0 sm:px-6"
             disabled={rows.length === 0 || invalid.length > 0 || commit.isPending || save.isPending}
             onClick={async () => {
               if (dirty) await saveDraft()
@@ -351,9 +341,16 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             }}
           >
             <Icon name="check" size={20} />
-            {commit.isPending
-              ? 'Registro…'
-              : `Registra ${rows.length} ${rows.length === 1 ? 'movimento' : 'movimenti'}`}
+            {commit.isPending ? (
+              'Registro…'
+            ) : (
+              <>
+                Registra {rows.length}
+                <span className="hidden sm:inline">
+                  {rows.length === 1 ? 'movimento' : 'movimenti'}
+                </span>
+              </>
+            )}
           </button>
         </div>
         <div className="w-full">
@@ -361,155 +358,5 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         </div>
       </section>
     </>
-  )
-}
-
-function LineRow({
-  row,
-  categories,
-  members,
-  currency,
-  onChange,
-  onRemove,
-}: {
-  row: Row
-  categories: Category[]
-  members: ReturnType<typeof activeMembers>
-  currency: string
-  onChange: (patch: Partial<Row>) => void
-  onRemove: () => void
-}) {
-  const options = categories.filter((c) => c.type === row.type && !c.archived)
-  const badge = SOURCE_BADGE[row.category_source ?? '']
-  const amountOk = toCents(row.amount) > 0
-
-  const date = (className: string) => (
-    <input
-      type="date"
-      className={clsx('field-input py-1.5', className)}
-      value={row.date}
-      onChange={(event) => onChange({ date: event.target.value })}
-      aria-label="Data"
-    />
-  )
-
-  // Due livelli: sopra quello che si legge (data, segno, importo, descrizione),
-  // sotto quello che si decide (categoria, chi paga, divisione).
-  return (
-    <div
-      className={clsx(
-        'grid gap-2 rounded-row border-l-4 bg-surface p-2',
-        row.type === 'expense' ? 'border-error' : 'border-primary',
-      )}
-    >
-      <div className="grid grid-cols-[40px_minmax(0,1fr)_96px_36px] items-center gap-2 sm:grid-cols-[136px_40px_104px_minmax(0,1fr)_36px]">
-        {date('hidden sm:block')}
-        <button
-          type="button"
-          onClick={() =>
-            onChange({ type: row.type === 'expense' ? 'income' : 'expense', category: null })
-          }
-          className={clsx(
-            'state h-9 rounded-pill text-title-medium font-semibold',
-            row.type === 'expense'
-              ? 'bg-error-container text-on-error-container'
-              : 'bg-secondary-container text-on-secondary-container',
-          )}
-          title={
-            row.type === 'expense'
-              ? 'Uscita: tocca per farla entrata'
-              : 'Entrata: tocca per farla uscita'
-          }
-          aria-label={row.type === 'expense' ? 'Uscita' : 'Entrata'}
-        >
-          {row.type === 'expense' ? '−' : '+'}
-        </button>
-        <input
-          className={clsx(
-            'field-input amount py-1.5 text-right sm:order-none',
-            !amountOk && 'outline outline-1 outline-error',
-            'order-3',
-          )}
-          inputMode="decimal"
-          value={row.amount}
-          onChange={(event) => onChange({ amount: event.target.value })}
-          aria-label={`Importo in ${currency}`}
-        />
-        <div className="order-2 flex min-w-0 items-center gap-1.5 sm:order-none">
-          {row.duplicate_of && (
-            <span
-              title="Possibile doppione di un movimento già registrato"
-              className="text-warning"
-            >
-              <Icon name="content_copy" size={18} />
-            </span>
-          )}
-          <input
-            className="field-input min-w-0 flex-1 py-1.5 font-medium"
-            value={row.title}
-            onChange={(event) => onChange({ title: event.target.value })}
-            placeholder="Descrizione"
-            aria-label="Descrizione"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="state order-4 flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant sm:order-none"
-          aria-label={`Elimina ${row.title || 'riga'}`}
-        >
-          <Icon name="delete" size={20} />
-        </button>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-        {date('sm:hidden')}
-        <div className="flex min-w-0 items-center gap-1">
-          <select
-            className="field-input min-w-0 flex-1 py-1.5"
-            value={row.category ?? ''}
-            onChange={(event) =>
-              onChange({ category: event.target.value || null, category_source: 'manual' })
-            }
-            aria-label="Categoria"
-          >
-            <option value="">Senza categoria</option>
-            {options.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          {badge && row.category && (
-            <span title={badge.label} className="text-on-surface-variant">
-              <Icon name={badge.icon} size={18} />
-            </span>
-          )}
-        </div>
-        <select
-          className="field-input py-1.5"
-          value={row.paid_by}
-          onChange={(event) => onChange({ paid_by: event.target.value })}
-          aria-label="Chi paga"
-          title="Chi paga"
-        >
-          {members.map((m) => (
-            <option key={m.id} value={m.user!.id}>
-              Paga {m.display_name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="field-input py-1.5"
-          value={row.split_mode}
-          onChange={(event) => onChange({ split_mode: event.target.value as Row['split_mode'] })}
-          aria-label="Divisione"
-          title="Divisione"
-        >
-          <option value="personal">Solo sua</option>
-          <option value="default">Divisa di default</option>
-        </select>
-      </div>
-    </div>
   )
 }
