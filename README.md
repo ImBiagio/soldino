@@ -77,7 +77,8 @@ task X" e risponde subito; il `worker` lo prende ed esegue per conto suo; `beat`
 questo servono due processi distinti).
 
 **Oggi fanno poco** — un solo job, `materialize_due_rules` alle 3:00, che
-materializza le occorrenze delle ricorrenze scadute. Sono qui da subito perché
+scrive le occorrenze scadute delle ricorrenze con `auto_commit`. Le altre
+restano proposte finché qualcuno non le approva o le salta dalla UI. Sono qui da subito perché
 il piano li vuole in compose dall'inizio (§1.2) e perché la fase 3 li rende
 indispensabili: lo Scan di un estratto conto (estrazione testo → OCR → chiamata
 LLM) è decine di secondi e non può stare dentro una view.
@@ -148,9 +149,17 @@ col metodo del resto maggiore, tie-break deterministico sull'indice: la somma
 delle quote è **esattamente** il totale, sempre. Arrotondare ogni riga
 separatamente perde o crea centesimi, e un centesimo perso rompe l'invariante.
 
-Lo stesso algoritmo è replicato in `frontend/src/lib/money.ts` perché
-l'anteprima del widget di split non deve mai divergere dal risultato salvato —
-100,01 € al 50/50 mostra 50,01 / 50,00 e salva 50,01 / 50,00.
+Lo stesso algoritmo è replicato in `frontend/src/lib/money.ts` (in `BigInt`,
+così anche l'ordine dei resti coincide col `Decimal`) perché l'anteprima del
+widget di split non deve mai divergere dal risultato salvato — 100,01 € al
+50/50 mostra 50,01 / 50,00 e salva 50,01 / 50,00.
+
+L'API accetta **pesi** (70/70 è lecito, fra 0 e 100) ma `share_pct` salva la
+percentuale effettiva; la verità contabile resta `share_amount`. Le percentuali
+a due decimali non bastano a ricostruire gli importi (333,33 su 1000 è 33,33%,
+che riapplicato dà 333,30): per questo se cambia l'importo il backend
+riproporziona sugli importi salvati, e il form riapre a importi esatti un
+movimento che le percentuali non riproducono.
 
 ### La riconciliazione
 
@@ -224,7 +233,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-71 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+92 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -236,6 +245,10 @@ docker compose run --rm --no-deps frontend npm run api:generate
 - Un `Settlement` azzera i debiti senza comparire nelle statistiche per categoria
 - Un possibile duplicato viene **segnalato, non bloccato**: nel foglio esistono
   righe legittimamente identiche
+- Modificare un movimento senza toccare gli split non sposta centesimi;
+  cambiarne l'importo riproporziona sugli importi, non sulle percentuali
+- Una ricorrenza senza `auto_commit` non avanza da sola, e un doppio "Approva"
+  non scrive due volte (`apps/recurring/tests/`)
 
 ---
 
@@ -250,8 +263,9 @@ filtri persistiti in URL e modifica inline di importo e categoria, form con
 widget di split a quattro modalità, dashboard, impostazioni, BTA.
 
 **Fase 2 — parziale.** `RecurringRule` con costo mensilizzato e annualizzato,
-task beat giornaliero, vista Abbonamenti. Con `auto_commit=False` la ricorrenza
-propone soltanto.
+task beat giornaliero, vista Ricorrenze con divisione fra i membri. Con
+`auto_commit=False` la ricorrenza propone soltanto: `POST …/recurring-rules/{id}/approve`
+e `…/skip` gestiscono la proposta in una sola transazione.
 
 ### Cosa manca
 
@@ -261,9 +275,4 @@ propone soltanto.
   di atterraggio dell'import.
 - **Togliere le città dal normalizzatore merchant.** Serve un gazetteer, si fa in
   fase 2 sui dati veri. Vedi [ADR 0005](docs/decisions/0005-normalizzatore-merchant.md).
-- **Endpoint di approvazione delle ricorrenze.** L'interfaccia elenca e approva
-  le proposte, ma lo fa con due chiamate non atomiche e replicando
-  `RecurringRule.advance()` in `frontend/src/lib/recurrence.ts`. Serve
-  `GET /trackers/{id}/recurring/pending` + `POST …/{occurrence}/approve`:
-  quando ci sarà, quel file va cancellato.
 - **Fasi 3-5.** Scope non toccato, come da piano.
