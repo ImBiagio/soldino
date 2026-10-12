@@ -233,7 +233,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-92 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+98 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -261,6 +261,14 @@ estensioni Postgres, pre-commit, schema OpenAPI.
 schermate (§2.6): login/registrazione/invito, lista tracker, lista movimenti con
 filtri persistiti in URL e modifica inline di importo e categoria, form con
 widget di split a quattro modalità, dashboard, impostazioni, BTA.
+
+**Grafici** (`/t/:id/grafici`, branch `feature/dashboard-charts`). Entrate e
+uscite degli ultimi 12 mesi, ripartizione per categoria e per persona, filtri
+per periodo (mese, trimestre, anno, date libere), persona e categoria, tutti
+nell'URL. Con una persona selezionata ogni totale è la sua **quota** dagli split,
+non l'importo pieno: `GET /trackers/{id}/summary?user_id=…&date_from=…&date_to=…&category=…`.
+Entrate e uscite usano solo `primary` ed `error`, con legenda e tabella: la
+coppia verde/rosso regge ai daltonici solo con un secondo indizio.
 
 **Fase 2 — parziale.** `RecurringRule` con costo mensilizzato e annualizzato,
 task beat giornaliero, vista Ricorrenze con divisione fra i membri. Con
