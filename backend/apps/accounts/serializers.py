@@ -2,9 +2,20 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.trackers.models import Membership
 from apps.users.serializers import UserBriefSerializer
 
 from .models import Account, PendingItem
+
+
+def validate_member_owner(serializer, user):
+    """Conti e BTA di un non membro sfuggirebbero alla riconciliazione per persona."""
+    tracker = serializer.context["view"].get_tracker()
+    if not Membership.objects.filter(
+        tracker=tracker, user=user, status=Membership.Status.ACTIVE
+    ).exists():
+        raise serializers.ValidationError("Deve essere un membro attivo del tracker.")
+    return user
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -24,6 +35,9 @@ class AccountSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "owner_detail", "balance_updated_at", "created_at"]
+
+    def validate_owner(self, user):
+        return validate_member_owner(self, user)
 
     def _touch_balance(self, instance, validated_data):
         from django.utils import timezone
@@ -65,6 +79,9 @@ class PendingItemSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "owner_detail", "status", "converted_transaction", "created_at"]
+
+    def validate_owner(self, user):
+        return validate_member_owner(self, user)
 
 
 class PendingItemConvertSerializer(serializers.Serializer):

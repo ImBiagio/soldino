@@ -13,7 +13,7 @@ from django.db.models import Count, Sum
 
 from apps.accounts.models import Account, PendingItem
 from apps.core.money import ZERO, money_str, quantize
-from apps.transactions.models import Transaction, TransactionSplit
+from apps.transactions.models import Settlement, Transaction, TransactionSplit
 
 
 def _sum(qs, field: str) -> Decimal:
@@ -22,36 +22,128 @@ def _sum(qs, field: str) -> Decimal:
 
 @dataclass(frozen=True)
 class Reconciliation:
+    """Cassa attesa contro cassa reale (ADR 0007).
+
+    atteso = saldo iniziale + entrate incassate - spese pagate +/- pareggi
+    reale  = conti + in attesa (BTA, anche negativo)
+    delta  = reale - atteso: quanto i conti si discostano da cio' che e' segnato.
+    """
+
+    opening_balance: Decimal
+    income: Decimal
+    expense: Decimal
+    settlements_net: Decimal
     accounts_balance: Decimal
     pending_total: Decimal
-    available_balance: Decimal
-    transactions_balance: Decimal
-    delta: Decimal
+
+    @property
+    def transactions_balance(self) -> Decimal:
+        return quantize(self.income - self.expense)
+
+    @property
+    def expected_balance(self) -> Decimal:
+        return quantize(self.opening_balance + self.transactions_balance + self.settlements_net)
+
+    @property
+    def available_balance(self) -> Decimal:
+        return quantize(self.accounts_balance + self.pending_total)
+
+    @property
+    def delta(self) -> Decimal:
+        return quantize(self.available_balance - self.expected_balance)
+
+    def __add__(self, other: Reconciliation) -> Reconciliation:
+        return Reconciliation(
+            *(
+                quantize(getattr(self, f) + getattr(other, f))
+                for f in (
+                    "opening_balance",
+                    "income",
+                    "expense",
+                    "settlements_net",
+                    "accounts_balance",
+                    "pending_total",
+                )
+            )
+        )
+
+    def as_dict(self) -> dict:
+        return {
+            name: money_str(getattr(self, name))
+            for name in (
+                "opening_balance",
+                "income",
+                "expense",
+                "settlements_net",
+                "transactions_balance",
+                "expected_balance",
+                "accounts_balance",
+                "pending_total",
+                "available_balance",
+                "delta",
+            )
+        }
 
 
-def reconcile(tracker_id) -> Reconciliation:
-    accounts_balance = _sum(
-        Account.objects.filter(tracker_id=tracker_id, include_in_totals=True), "current_balance"
-    )
-    pending_total = _sum(
-        PendingItem.objects.filter(tracker_id=tracker_id, status=PendingItem.Status.OPEN), "amount"
-    )
-    income = _sum(
-        Transaction.objects.filter(tracker_id=tracker_id, type=Transaction.Type.INCOME), "amount"
-    )
-    expense = _sum(
-        Transaction.objects.filter(tracker_id=tracker_id, type=Transaction.Type.EXPENSE), "amount"
-    )
+EMPTY = Reconciliation(ZERO, ZERO, ZERO, ZERO, ZERO, ZERO)
 
-    available = quantize(accounts_balance + pending_total)
-    transactions_balance = quantize(income - expense)
+
+def reconcile_person(membership) -> Reconciliation:
+    """Per cassa: conta chi ha pagato e chi ha incassato, non le quote degli split.
+
+    Una cena da 100 divisa a meta' toglie 100 dal conto di chi paga: la meta'
+    che gli devono sta nei debiti e rientra col pareggio, che qui si conta.
+    """
+    tracker_id, user_id = membership.tracker_id, membership.user_id
+    since = membership.opening_date
+
+    txs = Transaction.objects.filter(tracker_id=tracker_id, paid_by_id=user_id)
+    settlements = Settlement.objects.filter(tracker_id=tracker_id)
+    if since:
+        txs = txs.filter(date__gte=since)
+        settlements = settlements.filter(date__gte=since)
+
+    received = _sum(settlements.filter(to_user_id=user_id), "amount")
+    sent = _sum(settlements.filter(from_user_id=user_id), "amount")
+
     return Reconciliation(
-        accounts_balance=accounts_balance,
-        pending_total=pending_total,
-        available_balance=available,
-        transactions_balance=transactions_balance,
-        delta=quantize(available - transactions_balance),
+        opening_balance=quantize(membership.opening_balance),
+        income=_sum(txs.filter(type=Transaction.Type.INCOME), "amount"),
+        expense=_sum(txs.filter(type=Transaction.Type.EXPENSE), "amount"),
+        settlements_net=quantize(received - sent),
+        accounts_balance=_sum(
+            Account.objects.filter(
+                tracker_id=tracker_id, owner_id=user_id, include_in_totals=True
+            ),
+            "current_balance",
+        ),
+        pending_total=_sum(
+            PendingItem.objects.filter(
+                tracker_id=tracker_id, owner_id=user_id, status=PendingItem.Status.OPEN
+            ),
+            "amount",
+        ),
     )
+
+
+def reconcile(tracker_id) -> tuple[Reconciliation, list]:
+    """Totale del tracker e dettaglio per persona.
+
+    Il totale e' la somma delle persone, revocate comprese (i loro movimenti
+    restano): cosi' i pareggi fra membri si annullano e ognuno conta dalla
+    propria data di partenza. Il dettaglio elenca solo i membri attivi.
+    """
+    from apps.trackers.models import Membership
+
+    memberships = list(
+        Membership.objects.filter(tracker_id=tracker_id, user__isnull=False).select_related(
+            "user"
+        )
+    )
+    people = [(m, reconcile_person(m)) for m in memberships]
+    total = sum((result for _, result in people), EMPTY)
+    active = [(m, r) for m, r in people if m.status == Membership.Status.ACTIVE]
+    return total, active
 
 
 def summary(

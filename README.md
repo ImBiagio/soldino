@@ -164,12 +164,19 @@ movimento che le percentuali non riproducono.
 ### La riconciliazione
 
 ```
-saldo conti + in attesa (BTA) = disponibile
-disponibile − saldo dalle transazioni = delta
+atteso = saldo iniziale + entrate incassate − spese pagate ± pareggi
+reale  = conti + in attesa (BTA, anche negativo)
+delta  = reale − atteso
 ```
 
+Per persona e per **cassa**: contano le spese che uno ha pagato e le entrate che
+ha incassato, non le quote (una cena da 100 divisa a metà toglie 100 dal conto
+di chi paga; l'altra metà è un credito che rientra col pareggio). Il saldo
+iniziale e la data da cui contare stanno sul membro. Il totale del tracker è la
+somma delle persone. Vedi [ADR 0007](docs/decisions/0007-riconciliazione-per-persona.md).
+
 È la funzione più preziosa del foglio, quindi ha un endpoint suo e sta in cima
-alla dashboard, non sepolta in fondo.
+alla dashboard (globale e per persona) e nella tab Conti.
 
 ---
 
@@ -233,7 +240,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-98 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+105 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -261,6 +268,11 @@ estensioni Postgres, pre-commit, schema OpenAPI.
 schermate (§2.6): login/registrazione/invito, lista tracker, lista movimenti con
 filtri persistiti in URL e modifica inline di importo e categoria, form con
 widget di split a quattro modalità, dashboard, impostazioni, BTA.
+
+**Dashboard per persona** (`?vista=<id>`, di default la propria) e globale
+(`?vista=tutti`): chi deve cosa, mese, categorie e riconciliazione seguono la
+vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
+iniziale e confronto atteso/reale di ciascuno.
 
 **Grafici** (`/t/:id/grafici`, branch `feature/dashboard-charts`). Entrate e
 uscite degli ultimi 12 mesi, ripartizione per categoria e per persona, filtri

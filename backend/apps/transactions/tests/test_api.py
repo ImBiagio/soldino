@@ -172,6 +172,7 @@ def test_riconciliazione(api, user, tracker, make_expense):
     assert data["pending_total"] == "-700.00"
     assert data["available_balance"] == "300.00"
     assert data["transactions_balance"] == "-100.00"
+    assert data["expected_balance"] == "-100.00"
     assert data["delta"] == "400.00"
 
 
@@ -210,8 +211,11 @@ def test_gli_importi_escono_come_stringhe_mai_come_numeri_json(
         assert isinstance(transfer["amount"], str)
 
     reconciliation = client.get(reverse("tracker-reconciliation", args=[tracker.pk])).data
-    for field, value in reconciliation.items():
-        assert isinstance(value, str), field
+    people = reconciliation.pop("people")
+    for row in [reconciliation, *people]:
+        for field, value in row.items():
+            if field not in ("user", "opening_date"):
+                assert isinstance(value, str), field
 
     summary = client.get(reverse("tracker-summary", args=[tracker.pk])).data
     for field in ("total_expense", "total_income", "net"):

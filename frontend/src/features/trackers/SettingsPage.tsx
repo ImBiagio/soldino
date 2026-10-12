@@ -3,30 +3,17 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import {
-  useAccounts,
   useCategories,
-  useDeleteAccount,
   useDeleteCategory,
   useInvite,
   useRemoveMember,
-  useSaveAccount,
   useSaveCategory,
   useUpdateMember,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
 import { defaultPercentages, formatPct } from '../../components/SplitWidget'
-import {
-  Avatar,
-  ErrorBanner,
-  Field,
-  Icon,
-  IconCircle,
-  Modal,
-  Skeleton,
-  Switch,
-} from '../../components/ui'
-import { accountIcon, categoryColor, categoryIcon, memberColor } from '../../lib/icons'
-import { formatMoney } from '../../lib/money'
+import { Avatar, ErrorBanner, Field, Icon, IconCircle, Modal, Skeleton } from '../../components/ui'
+import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import type { Category, Tracker } from '../../lib/types'
 
 const ROLE_LABEL: Record<string, string> = {
@@ -44,7 +31,6 @@ export function SettingsPage() {
       <div className="panel grid gap-5 p-6 md:p-7">
         <h1 className="text-title-large">Setup del tracker</h1>
         <MembersSection tracker={tracker} isOwner={isOwner} />
-        <AccountsSection tracker={tracker} />
         <CategoriesSection tracker={tracker} />
       </div>
     </div>
@@ -212,133 +198,6 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
             </button>
           </form>
         )}
-      </Modal>
-    </section>
-  )
-}
-
-/* --------------------------------------------------------------- conti -- */
-
-function AccountsSection({ tracker }: { tracker: Tracker }) {
-  const { data, isLoading } = useAccounts(tracker.id)
-  const save = useSaveAccount(tracker.id)
-  const remove = useDeleteAccount(tracker.id)
-  const [open, setOpen] = useState(false)
-  const members = activeMembers(tracker)
-
-  const accounts = data?.results ?? []
-  const declared = accounts
-    .filter((account) => account.include_in_totals)
-    .reduce((sum, account) => sum + Number(account.current_balance), 0)
-
-  return (
-    <section className="rounded-card bg-surface-container-low p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-body-large font-medium">
-          Conti ·{' '}
-          <span className="amount font-semibold">{formatMoney(declared, tracker.currency)}</span>{' '}
-          dichiarati
-        </h2>
-        <button type="button" className="btn-tonal btn-sm" onClick={() => setOpen(true)}>
-          <Icon name="add" size={18} />
-          Conto
-        </button>
-      </div>
-
-      {isLoading ? (
-        <Skeleton className="h-16" />
-      ) : (
-        <div className="grid gap-2">
-          {accounts.map((account) => (
-            <div
-              key={account.id}
-              className="flex flex-wrap items-center gap-3 rounded-nested bg-surface px-4 py-3"
-            >
-              <IconCircle name={accountIcon(account.kind)} color="var(--tertiary)" size={40} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-body-large font-medium">{account.name}</p>
-                <p className="text-body-small text-on-surface-variant">
-                  {account.kind} · {account.owner_detail.display_name}
-                </p>
-              </div>
-              <input
-                className="field-input amount w-32 text-right"
-                defaultValue={account.current_balance}
-                onBlur={(event) =>
-                  event.target.value !== account.current_balance &&
-                  save.mutate({
-                    id: account.id,
-                    current_balance: event.target.value.replace(',', '.'),
-                  })
-                }
-                aria-label={`Saldo di ${account.name}`}
-              />
-              <Switch
-                checked={account.include_in_totals}
-                onChange={(checked) => save.mutate({ id: account.id, include_in_totals: checked })}
-                label={`${account.name} nei totali`}
-              />
-              <button
-                type="button"
-                onClick={() => remove.mutate(account.id)}
-                aria-label="Elimina"
-                className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-              >
-                <Icon name="close" size={20} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-      <ErrorBanner error={save.error ?? remove.error} />
-
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuovo conto">
-        <form
-          className="grid gap-3"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const form = new FormData(event.currentTarget)
-            await save.mutateAsync({
-              name: String(form.get('name')),
-              owner: String(form.get('owner')),
-              kind: form.get('kind') as never,
-              current_balance: String(form.get('balance')).replace(',', '.'),
-            })
-            setOpen(false)
-          }}
-        >
-          <ErrorBanner error={save.error} />
-          <Field label="Nome">
-            <input
-              className="field-input"
-              name="name"
-              required
-              autoFocus
-              placeholder="Hype, BBVA…"
-            />
-          </Field>
-          <Field label="Tipo">
-            <select className="field-input" name="kind" defaultValue="bank">
-              <option value="bank">Conto corrente</option>
-              <option value="card">Carta</option>
-              <option value="cash">Contanti</option>
-              <option value="wallet">Wallet</option>
-            </select>
-          </Field>
-          <Field label="Intestatario">
-            <select className="field-input" name="owner" required>
-              {members.map((member) => (
-                <option key={member.id} value={member.user!.id}>
-                  {member.display_name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Saldo attuale">
-            <input className="field-input amount text-right" name="balance" defaultValue="0.00" />
-          </Field>
-          <button className="btn-filled w-full">Crea</button>
-        </form>
       </Modal>
     </section>
   )

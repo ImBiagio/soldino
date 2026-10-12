@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 
 import {
   useBalances,
@@ -10,7 +10,8 @@ import {
   useRecurringProposals,
   useSummary,
 } from '../../api/hooks'
-import { AppBar } from '../../components/Layout'
+import { DeltaChip, PersonFormula } from '../accounts/AccountsPage'
+import { AppBar, activeMembers } from '../../components/Layout'
 import {
   Avatar,
   CompositeBar,
@@ -27,7 +28,13 @@ import { monthLabel, todayIso } from '../../lib/format'
 import { rangeFor } from '../../lib/period'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatMoney, formatSigned, toCents } from '../../lib/money'
-import type { BalancesResponse, Tracker } from '../../lib/types'
+import type {
+  BalancesResponse,
+  Membership,
+  Reconciliation,
+  ReconciliationFigures,
+  Tracker,
+} from '../../lib/types'
 
 type Transfer = BalancesResponse['suggested_transfers'][number]
 type Period = 'month' | 'quarter' | 'year'
@@ -35,40 +42,62 @@ type Period = 'month' | 'quarter' | 'year'
 export function DashboardPage() {
   const tracker = useOutletContext<Tracker>()
   const { user } = useAuth()
+  const members = activeMembers(tracker)
+  const [params, setParams] = useSearchParams()
   const now = new Date()
   const [period, setPeriod] = useState<Period>('month')
 
+  // Di default la propria vista; "tutti" e' la dashboard globale del tracker.
+  const requested = params.get('vista') ?? user?.id ?? ALL
+  const person = members.find((m) => m.user!.id === requested) ?? null
+  const view = person ? person.user!.id : ALL
+  const setView = (next: string) => {
+    const copy = new URLSearchParams(params)
+    copy.set('vista', next)
+    setParams(copy, { replace: true })
+  }
+
   // "Trimestre" chiedeva l'anno intero: ora e' il trimestre in corso.
   const quarter = rangeFor('quarter', todayIso())
-  const summary = useSummary(
-    tracker.id,
-    period === 'month'
+  const userFilter = person ? { user_id: person.user!.id } : {}
+  const summary = useSummary(tracker.id, {
+    ...userFilter,
+    ...(period === 'month'
       ? { year: now.getFullYear(), month: now.getMonth() + 1 }
       : period === 'quarter'
         ? { date_from: quarter.from, date_to: quarter.to }
-        : { year: now.getFullYear() },
-  )
+        : { year: now.getFullYear() }),
+  })
   const balances = useBalances(tracker.id)
   const reconciliation = useReconciliation(tracker.id)
+  const figures = person
+    ? reconciliation.data?.people.find((p) => p.user.id === person.user!.id)
+    : reconciliation.data
+
+  const transfers = (balances.data?.suggested_transfers ?? []).filter(
+    (t) => !person || t.from_user.id === view || t.to_user.id === view,
+  )
 
   return (
     <>
       <AppBar tracker={tracker} greeting={`Ciao ${user?.display_name ?? ''}`} />
 
       <div className="grid gap-5 px-5 pb-8 pt-3 md:px-7">
-        <ReconciliationPill tracker={tracker} />
+        {members.length > 1 && <ViewSwitcher tracker={tracker} value={view} onChange={setView} />}
 
-        <ErrorBanner error={balances.error ?? summary.error} />
+        {figures && <ReconciliationPill tracker={tracker} delta={figures.delta} />}
+
+        <ErrorBanner error={balances.error ?? summary.error ?? reconciliation.error} />
 
         {balances.isLoading || !balances.data ? (
           <DashboardSkeleton />
         ) : (
           <div className="grid gap-4 lg:grid-cols-[1.35fr_1fr]">
             <div className="grid gap-4">
-              {balances.data.suggested_transfers.length === 0 ? (
-                <SettledCard balances={balances.data} tracker={tracker} />
+              {transfers.length === 0 ? (
+                <SettledCard balances={balances.data} tracker={tracker} person={person} />
               ) : (
-                balances.data.suggested_transfers.map((transfer, index) => (
+                transfers.map((transfer, index) => (
                   <HeroCard
                     key={index}
                     tracker={tracker}
@@ -81,7 +110,7 @@ export function DashboardPage() {
 
             <div className="grid content-start gap-4">
               <ProposalsCard tracker={tracker} />
-              <MonthCard tracker={tracker} />
+              <MonthCard tracker={tracker} person={person} />
             </div>
           </div>
         )}
@@ -92,20 +121,68 @@ export function DashboardPage() {
           onPeriod={setPeriod}
           summary={summary.data}
           loading={summary.isLoading}
+          person={person}
         />
 
-        {reconciliation.data && <ReconciliationCard tracker={tracker} data={reconciliation.data} />}
+        {figures && reconciliation.data && (
+          <ReconciliationCard
+            tracker={tracker}
+            figures={figures}
+            people={person ? null : reconciliation.data.people}
+            person={person}
+            onPerson={setView}
+          />
+        )}
       </div>
     </>
   )
 }
 
+const ALL = 'tutti'
+
+/** "Tutti" e una chip per persona: la scelta resta nell'URL. */
+function ViewSwitcher({
+  tracker,
+  value,
+  onChange,
+}: {
+  tracker: Tracker
+  value: string
+  onChange: (value: string) => void
+}) {
+  const { user } = useAuth()
+  const members = activeMembers(tracker)
+  return (
+    <div className="flex flex-wrap gap-2" role="group" aria-label="Di chi è la dashboard">
+      <button
+        type="button"
+        onClick={() => onChange(ALL)}
+        aria-pressed={value === ALL}
+        className={value === ALL ? 'chip-selected' : 'chip-outlined'}
+      >
+        <Icon name="groups" size={18} />
+        Tutti
+      </button>
+      {members.map((member, index) => (
+        <button
+          key={member.id}
+          type="button"
+          onClick={() => onChange(member.user!.id)}
+          aria-pressed={value === member.user!.id}
+          className={value === member.user!.id ? 'chip-selected' : 'chip-outlined'}
+        >
+          <Avatar name={member.display_name} size={22} color={memberColor(index)} />
+          {member.user!.id === user?.id ? 'Io' : member.display_name}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /* ------------------------------------------------- pill riconciliazione -- */
 
-function ReconciliationPill({ tracker }: { tracker: Tracker }) {
-  const { data } = useReconciliation(tracker.id)
-  if (!data) return null
-  const quadra = toCents(data.delta) === 0
+function ReconciliationPill({ tracker, delta }: { tracker: Tracker; delta: string }) {
+  const quadra = toCents(delta) === 0
 
   return (
     <a
@@ -119,13 +196,13 @@ function ReconciliationPill({ tracker }: { tracker: Tracker }) {
     >
       <Icon name="balance" size={20} />
       {quadra ? (
-        <span>Il tracker quadra</span>
+        <span>Conti e movimenti quadrano</span>
       ) : (
         <>
           <span>
-            Il tracker non quadra per{' '}
+            Conti e movimenti non quadrano per{' '}
             <strong className="amount font-semibold">
-              {formatMoney(Math.abs(toCents(data.delta)) / 100, tracker.currency)}
+              {formatMoney(Math.abs(toCents(delta)) / 100, tracker.currency)}
             </strong>
           </span>
           <Icon name="chevron_right" size={20} />
@@ -221,15 +298,28 @@ function HeroCard({
   )
 }
 
-function SettledCard({ balances, tracker }: { balances: BalancesResponse; tracker: Tracker }) {
+function SettledCard({
+  balances,
+  tracker,
+  person,
+}: {
+  balances: BalancesResponse
+  tracker: Tracker
+  person: Membership | null
+}) {
+  const rows = person
+    ? balances.balances.filter((balance) => balance.user.id === person.user!.id)
+    : balances.balances
   return (
     <section className="rounded-panel bg-primary p-7 text-on-primary">
       <p className="text-body-medium font-medium uppercase tracking-wide text-primary-container">
         Chi deve cosa
       </p>
-      <p className="mt-5 text-title-large">Siete in pari</p>
+      <p className="mt-5 text-title-large">
+        {person ? `${person.display_name} è in pari` : 'Siete in pari'}
+      </p>
       <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
-        {balances.balances.map((balance, index) => (
+        {rows.map((balance, index) => (
           <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
             <Avatar name={balance.user.display_name} size={32} color={memberColor(index)} />
             <span className="min-w-0 flex-1 truncate text-body-medium">
@@ -343,11 +433,12 @@ function ProposalsCard({ tracker }: { tracker: Tracker }) {
 
 /* ------------------------------------------------------------ card mese -- */
 
-function MonthCard({ tracker }: { tracker: Tracker }) {
+function MonthCard({ tracker, person }: { tracker: Tracker; person: Membership | null }) {
   const now = new Date()
   const { data, isLoading } = useSummary(tracker.id, {
     year: now.getFullYear(),
     month: now.getMonth() + 1,
+    user_id: person?.user?.id,
   })
 
   if (isLoading || !data) return <Skeleton className="h-[144px] rounded-panel" />
@@ -357,6 +448,7 @@ function MonthCard({ tracker }: { tracker: Tracker }) {
       <div className="mb-3 flex items-center justify-between">
         <p className="text-label-small uppercase tracking-wide text-on-surface-variant">
           {monthLabel(now.getMonth() + 1)} {now.getFullYear()}
+          {person && ` · quota di ${person.display_name}`}
         </p>
         <Icon name="calendar_month" size={18} className="text-on-surface-variant" />
       </div>
@@ -387,12 +479,14 @@ function SpendingCard({
   onPeriod,
   summary,
   loading,
+  person,
 }: {
   tracker: Tracker
   period: Period
   onPeriod: (period: Period) => void
   summary: ReturnType<typeof useSummary>['data']
   loading: boolean
+  person: Membership | null
 }) {
   const categories = useCategories(tracker.id)
   const byId = useMemo(
@@ -406,7 +500,9 @@ function SpendingCard({
   return (
     <section className="card-m3 p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-title-medium">Dove sono finiti</h2>
+        <h2 className="text-title-medium">
+          Dove sono finiti{person && ` · quota di ${person.display_name}`}
+        </h2>
         <div className="flex gap-2">
           {(
             [
@@ -433,7 +529,7 @@ function SpendingCard({
       </div>
 
       <Link
-        to={`/t/${tracker.id}/grafici?periodo=${period}`}
+        to={`/t/${tracker.id}/grafici?periodo=${period}${person ? `&persona=${person.user!.id}` : ''}`}
         className="state mb-4 inline-flex items-center gap-1 rounded-pill text-body-medium font-medium text-primary"
       >
         Grafici, persone e filtri
@@ -483,55 +579,89 @@ function SpendingCard({
 
 function ReconciliationCard({
   tracker,
-  data,
+  figures,
+  people,
+  person,
+  onPerson,
 }: {
   tracker: Tracker
-  data: NonNullable<ReturnType<typeof useReconciliation>['data']>
+  figures: ReconciliationFigures
+  people: Reconciliation['people'] | null
+  person: Membership | null
+  onPerson: (userId: string) => void
 }) {
-  const quadra = toCents(data.delta) === 0
+  const delta = toCents(figures.delta)
+  const noOpening = toCents(figures.opening_balance) === 0
 
   return (
     <section id="riconciliazione" className="rounded-panel bg-surface-container p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-        <div className="max-w-md">
-          <h2 className="text-title-medium">Riconciliazione</h2>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="max-w-xl">
+          <h2 className="text-title-medium">
+            Riconciliazione{person && ` · ${person.display_name}`}
+          </h2>
           <p className="mt-1 text-body-medium text-on-surface-variant">
-            Saldo conti + in attesa = disponibile. Il delta è quanto il foglio dei conti si discosta
-            dalle transazioni registrate.
+            Saldo iniziale + entrate − uscite deve essere uguale a conti + in attesa. Si contano i
+            soldi che passano davvero dai conti: le spese pagate e le entrate incassate, non le
+            quote.
           </p>
         </div>
+        <DeltaChip tracker={tracker} delta={figures.delta} />
+      </div>
 
-        <div className="flex flex-wrap items-end gap-5">
-          <Term label="Conti" value={formatMoney(data.accounts_balance, tracker.currency)} />
-          <span className="pb-1 text-title-medium text-on-surface-variant">+</span>
-          <Term label="In attesa" value={formatSigned(data.pending_total, tracker.currency)} />
-          <span className="pb-1 text-title-medium text-on-surface-variant">−</span>
-          <Term
-            label="Transazioni"
-            value={formatMoney(data.transactions_balance, tracker.currency)}
-          />
-          <div
-            className={clsx(
-              'rounded-row px-4 py-3',
-              quadra
-                ? 'bg-secondary-container text-on-secondary-container'
-                : 'bg-warning-container text-on-warning-container',
-            )}
-          >
-            <p className="text-label-small uppercase tracking-wide">Delta</p>
-            <p className="amount text-title-medium">{formatSigned(data.delta, tracker.currency)}</p>
-          </div>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <PersonFormula tracker={tracker} figures={figures} />
+
+        <div className="grid content-start gap-3">
+          <p className="text-body-medium">
+            {delta === 0
+              ? 'I conti tornano con i movimenti segnati.'
+              : delta < 0
+                ? `Sui conti ci sono ${formatMoney(-delta / 100, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
+                : `Sui conti ci sono ${formatMoney(delta / 100, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
+          </p>
+          {noOpening && (
+            <p className="rounded-nested bg-warning-container p-3 text-body-small text-on-warning-container">
+              Saldo iniziale a zero: se all&apos;inizio sui conti c&apos;erano già dei soldi, lo
+              scarto viene da lì.{' '}
+              <Link to={`/t/${tracker.id}/conti`} className="font-medium underline">
+                Impostalo in Conti
+              </Link>
+              .
+            </p>
+          )}
+
+          {people && (
+            <div className="grid gap-1">
+              {people.map((row, index) => (
+                <button
+                  key={row.user.id}
+                  type="button"
+                  onClick={() => onPerson(row.user.id)}
+                  className="state flex items-center gap-3 rounded-row bg-surface px-3 py-2 text-left"
+                >
+                  <Avatar name={row.user.display_name} size={28} color={memberColor(index)} />
+                  <span className="min-w-0 flex-1 truncate text-body-medium">
+                    {row.user.display_name}
+                  </span>
+                  <span className="amount text-body-small text-on-surface-variant">
+                    {formatMoney(row.available_balance, tracker.currency)} su{' '}
+                    {formatMoney(row.expected_balance, tracker.currency)}
+                  </span>
+                  <span
+                    className={clsx(
+                      'amount w-24 text-right text-body-medium font-medium',
+                      toCents(row.delta) !== 0 && 'text-warning',
+                    )}
+                  >
+                    {formatSigned(row.delta, tracker.currency)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
-  )
-}
-
-function Term({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-label-small uppercase tracking-wide text-on-surface-variant">{label}</p>
-      <p className="amount text-title-medium">{value}</p>
-    </div>
   )
 }

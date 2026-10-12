@@ -22,6 +22,9 @@ export interface Membership {
   invited_email: string
   role: MemberRole
   default_share_pct: Money
+  /** Saldo sui conti alla data di partenza: base della riconciliazione. */
+  opening_balance: Money
+  opening_date: string | null
   status: MemberStatus
   display_name: string
   created_at: string
@@ -179,12 +182,25 @@ export interface Summary {
   by_month: { month: number; year: number; type: TransactionType; total: Money }[]
 }
 
-export interface Reconciliation {
+/**
+ * Per cassa (ADR 0007): atteso = saldo iniziale + entrate − uscite ± pareggi;
+ * reale = conti + in attesa; delta = reale − atteso.
+ */
+export interface ReconciliationFigures {
+  opening_balance: Money
+  income: Money
+  expense: Money
+  settlements_net: Money
+  transactions_balance: Money
+  expected_balance: Money
   accounts_balance: Money
   pending_total: Money
   available_balance: Money
-  transactions_balance: Money
   delta: Money
+}
+
+export interface Reconciliation extends ReconciliationFigures {
+  people: (ReconciliationFigures & { user: User; opening_date: string | null })[]
 }
 
 export interface RecurringRule {

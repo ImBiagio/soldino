@@ -25,6 +25,8 @@ class MembershipSerializer(serializers.ModelSerializer):
             "invited_email",
             "role",
             "default_share_pct",
+            "opening_balance",
+            "opening_date",
             "status",
             "display_name",
             "created_at",

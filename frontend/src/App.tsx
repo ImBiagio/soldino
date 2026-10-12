@@ -8,6 +8,7 @@ import {
   RegisterPage,
   VerifyEmailPage,
 } from './features/auth/AuthPages'
+import { AccountsPage } from './features/accounts/AccountsPage'
 import { ChartsPage } from './features/charts/ChartsPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { PendingPage } from './features/pending/PendingPage'
@@ -50,6 +51,7 @@ export default function App() {
         <Route index element={<DashboardPage />} />
         <Route path="movimenti" element={<TransactionsPage />} />
         <Route path="grafici" element={<ChartsPage />} />
+        <Route path="conti" element={<AccountsPage />} />
         <Route path="attese" element={<PendingPage />} />
         <Route path="abbonamenti" element={<SubscriptionsPage />} />
         <Route path="impostazioni" element={<SettingsPage />} />

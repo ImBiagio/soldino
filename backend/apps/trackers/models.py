@@ -63,6 +63,19 @@ class Membership(BaseModel):
         help_text="Peso proposto di default negli split di gruppo, fra 0 e 100.",
     )
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    # Il punto di partenza della riconciliazione di questa persona: quanto aveva
+    # sui conti alla data ``opening_date``. Contano solo i movimenti da li' in poi.
+    opening_balance = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Saldo iniziale: soldi sui conti alla data di partenza.",
+    )
+    opening_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Da quando si contano i movimenti. Vuoto = da sempre.",
+    )
 
     history = HistoricalRecords(inherit=False)
 

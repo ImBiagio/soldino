@@ -15,6 +15,7 @@ from apps.core.permissions import IsTrackerMember, IsTrackerOwner
 from apps.core.scoping import TrackerScopedMixin
 from apps.transactions.services.debts import compute_balances, minimize_transfers
 from apps.transactions.services.reports import reconcile, summary
+from apps.users.serializers import UserBriefSerializer
 
 from .invites import read_invite_token, send_invite_email
 from .models import Category, Membership, Tracker
@@ -137,14 +138,18 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
     def reconciliation(self, request, pk=None):
         tracker = self.get_object()
-        result = reconcile(tracker.pk)
+        total, people = reconcile(tracker.pk)
         return Response(
             {
-                "accounts_balance": money_str(result.accounts_balance),
-                "pending_total": money_str(result.pending_total),
-                "available_balance": money_str(result.available_balance),
-                "transactions_balance": money_str(result.transactions_balance),
-                "delta": money_str(result.delta),
+                **total.as_dict(),
+                "people": [
+                    {
+                        "user": UserBriefSerializer(membership.user).data,
+                        "opening_date": membership.opening_date,
+                        **result.as_dict(),
+                    }
+                    for membership, result in people
+                ],
             }
         )
 
@@ -172,10 +177,17 @@ class MembershipViewSet(
     def get_queryset(self):
         return super().get_queryset().exclude(status=Membership.Status.REVOKED)
 
+    # Il saldo iniziale e' un dato personale: ognuno gestisce il proprio.
+    SELF_EDITABLE = {"opening_balance", "opening_date"}
+
     def perform_update(self, serializer):
         membership = self.get_object()
         actor = self.get_membership()
-        if actor is None or actor.role != Membership.Role.OWNER:
+        is_self = actor is not None and actor.pk == membership.pk
+        only_own_fields = set(serializer.validated_data) <= self.SELF_EDITABLE
+        if actor is None or (
+            actor.role != Membership.Role.OWNER and not (is_self and only_own_fields)
+        ):
             self.permission_denied(self.request, message="Solo il proprietario modifica i membri.")
         if (
             membership.role == Membership.Role.OWNER
