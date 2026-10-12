@@ -211,6 +211,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
           value={split}
           onChange={setSplit}
           currency={tracker.currency}
+          barOnlyInPercent
         />
 
         {noteOpen && (

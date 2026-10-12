@@ -132,6 +132,8 @@ interface Props {
   onChange: (state: SplitState) => void
   currency?: string
   compact?: boolean
+  /** La barra trascinabile solo in "Percentuali" (form dei movimenti). */
+  barOnlyInPercent?: boolean
 }
 
 export function SplitWidget({
@@ -141,6 +143,7 @@ export function SplitWidget({
   onChange,
   currency = 'EUR',
   compact,
+  barOnlyInPercent,
 }: Props) {
   const totalCents = toCents(amount)
   const barRef = useRef<HTMLDivElement>(null)
@@ -319,7 +322,7 @@ export function SplitWidget({
             </div>
           ))}
         </div>
-      ) : (
+      ) : barOnlyInPercent && value.mode !== 'percent' ? null : (
         <>
           <div
             ref={barRef}
