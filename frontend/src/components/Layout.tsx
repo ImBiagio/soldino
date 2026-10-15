@@ -36,6 +36,8 @@ export function activeMembers(tracker: Tracker): Membership[] {
   return tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user)
 }
 
+const SCAN_SECTIONS = new Set(['scan', 'scontrino'])
+
 export function TrackerLayout() {
   const { trackerId } = useParams()
   const { data: tracker, isLoading } = useTracker(trackerId)
@@ -98,7 +100,8 @@ export function TrackerLayout() {
 
       {/* --- bottom bar + FAB (mobile) --- */}
       {/* Durante la revisione di uno scan il "+" coprirebbe i pulsanti in basso. */}
-      {section !== 'scan' && <FabMenu tracker={tracker} placement="mobile" />}
+      {/* Durante uno scan il "+" coprirebbe la barra di revisione su mobile. */}
+      {!SCAN_SECTIONS.has(section) && <FabMenu tracker={tracker} placement="mobile" />}
 
       <nav
         aria-label="Sezioni"

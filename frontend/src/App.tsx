@@ -15,6 +15,7 @@ import { AccountsPage } from './features/accounts/AccountsPage'
 import { BankCallbackPage } from './features/banking/BankCallbackPage'
 import { BankPage } from './features/banking/BankPage'
 import { ChartsPage } from './features/charts/ChartsPage'
+import { ReceiptPage } from './features/scan/ReceiptPage'
 import { ScanPage } from './features/scan/ScanPage'
 import { ScanReviewPage } from './features/scan/ScanReviewPage'
 import { DashboardPage } from './features/dashboard/DashboardPage'
@@ -79,6 +80,8 @@ export default function App() {
         <Route path="conti" element={<AccountsPage />} />
         <Route path="scan" element={<ScanPage />} />
         <Route path="scan/:statementId" element={<ScanReviewPage />} />
+        <Route path="scontrino" element={<ReceiptPage />} />
+        <Route path="scontrino/:statementId" element={<ScanReviewPage />} />
         <Route path="banca" element={<BankPage />} />
         <Route path="attese" element={<PendingPage />} />
         <Route path="abbonamenti" element={<SubscriptionsPage />} />

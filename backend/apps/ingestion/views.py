@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.db import transaction as db_transaction
+from django.db.models import BooleanField, ExpressionWrapper, Q
+from django.http import Http404, HttpResponse
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -33,8 +38,15 @@ class StatementViewSet(
     serializer_class = StatementImportSerializer
     permission_classes = [IsAuthenticated, IsTrackerMember]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    queryset = StatementImport.objects.select_related("account", "uploaded_by").prefetch_related(
-        "lines"
+    # Il file (PDF o foto, anche megabyte) non si legge per le liste: si sa
+    # solo se c'e'. Lo scarica l'azione ``file`` quando serve.
+    queryset = (
+        StatementImport.objects.select_related("account", "uploaded_by")
+        .prefetch_related("lines")
+        .defer("pdf")
+        .annotate(
+            file_present=ExpressionWrapper(Q(pdf__isnull=False), output_field=BooleanField())
+        )
     )
     filterset_fields = ["source", "status", "account"]
 
@@ -48,14 +60,18 @@ class StatementViewSet(
         tracker = self.get_tracker()
         upload = StatementUploadSerializer(data=request.data, context={"tracker": tracker})
         upload.is_valid(raise_exception=True)
-        account = upload.validated_data.get("account")
+        data = upload.validated_data
+        account = data.get("account")
         statement = StatementImport.objects.create(
             tracker=tracker,
             uploaded_by=request.user,
-            filename=upload.validated_data["file"].name[:255],
-            pdf=upload.validated_data["file"].read(),
+            source=data["source"],
+            filename=data["file"].name[:255],
+            pdf=data["file"].read(),
+            mime_type=data["mime_type"],
             account=account,
-            # Le righe di un estratto conto sono di chi intesta il conto.
+            # Le righe di un estratto conto sono di chi intesta il conto; lo
+            # scontrino senza conto e' di chi l'ha fotografato.
             default_payer=account.owner if account else request.user,
         )
         db_transaction.on_commit(lambda: scan_statement.delay(str(statement.pk)))
@@ -121,12 +137,34 @@ class StatementViewSet(
             self.get_serializer(self._fresh(statement)).data, status=status.HTTP_201_CREATED
         )
 
+    @extend_schema(request=None, responses={(200, "image/jpeg"): bytes})
+    @action(detail=True, methods=["get"])
+    def file(self, request, tracker_pk=None, pk=None):
+        """La foto dello scontrino, per la revisione. Il PDF non si riscarica."""
+        statement = self.get_object()
+        if not statement.is_receipt or statement.pdf is None:
+            raise Http404("Nessuna foto per questo import.")
+        response = HttpResponse(bytes(statement.pdf), content_type=statement.mime_type)
+        # Dato personale: niente cache condivise, niente copie su disco del browser.
+        response["Cache-Control"] = "private, no-store"
+        response["Content-Disposition"] = "inline"
+        return response
+
     @extend_schema(request=None, responses={202: StatementImportSerializer})
     @action(detail=True, methods=["post"])
     def retry(self, request, tracker_pk=None, pk=None):
-        """Rilegge un PDF la cui lettura non e' riuscita (il file e' ancora li')."""
+        """Rilegge un file la cui lettura non e' riuscita (il file e' ancora li').
+
+        Vale anche per un import fermo "in lettura" da oltre 10 minuti: il worker
+        e' stato riavviato a meta' (un deploy) e il task non tornera' piu'.
+        """
         statement = self.get_object()
-        if statement.status != StatementImport.Status.FAILED or not statement.pdf:
+        stuck = (
+            statement.status == StatementImport.Status.PROCESSING
+            and statement.updated_at < timezone.now() - timedelta(minutes=10)
+        )
+        retryable = statement.status == StatementImport.Status.FAILED or stuck
+        if not retryable or not statement.pdf:
             return Response({"detail": "Niente da rileggere."}, status=status.HTTP_409_CONFLICT)
         statement.status = StatementImport.Status.PROCESSING
         statement.error = ""

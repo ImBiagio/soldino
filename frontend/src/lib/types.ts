@@ -208,6 +208,9 @@ export interface ReconciliationFigures {
 }
 
 export type StatementStatus = 'processing' | 'ready' | 'failed' | 'committed'
+/** Da dove vengono le righe: PDF dell'estratto conto o foto di uno scontrino (ADR 0014). */
+/** Lo scan del PDF, la foto dello scontrino o la banca (ADR 0013): stessa bozza. */
+export type StatementSource = 'scan' | 'receipt' | 'bank'
 export type CategorySource = 'history' | 'ai' | 'manual' | ''
 
 export interface StatementLine {
@@ -227,9 +230,10 @@ export interface StatementLine {
 /** Scan di un estratto conto: righe in bozza finche' non si conferma (ADR 0008). */
 export interface StatementImport {
   id: UUID
-  /** Lo scan del PDF o la sincronizzazione con la banca (ADR 0013): stessa bozza. */
-  source: 'scan' | 'bank'
+  source: StatementSource
   filename: string
+  /** La foto dello scontrino c'e' ancora (fino alla registrazione): si scarica a parte. */
+  has_file: boolean
   account: UUID | null
   account_name: string | null
   default_payer: UUID
@@ -243,6 +247,7 @@ export interface StatementImport {
   line_count: number
   lines: StatementLine[]
   created_at: string
+  updated_at: string
 }
 
 /* ------------------------------------------- open banking (ADR 0013) -- */

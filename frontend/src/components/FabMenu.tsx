@@ -7,13 +7,14 @@ import { showsSection } from '../lib/trackerKind'
 import type { Tracker } from '../lib/types'
 import { Icon } from './ui'
 
-/** Le due strade per inserire movimenti: una alla volta o dall'estratto conto. */
+/** Le strade per inserire movimenti: a mano, da scontrino, dall'estratto conto. */
 const ACTIONS = [
   { path: 'movimenti?new=1', icon: 'edit', label: 'A mano' },
+  { path: 'scontrino', icon: 'photo_camera', label: 'Da scontrino' },
   { path: 'scan', icon: 'document_scanner', label: 'Da estratto conto' },
 ]
 
-/** In un tracker "group" lo scan non c'e': resta solo "A mano", e niente menu. */
+/** In un tracker "group" l'estratto conto non c'e': restano a mano e scontrino. */
 const actionsFor = (tracker: Tracker) =>
   ACTIONS.filter((action) => showsSection(tracker, action.path))
 

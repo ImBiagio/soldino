@@ -408,3 +408,13 @@ def test_errore_application_inesistente_spiegato():
 
     response = httpx.Response(403, json={"message": "Application does not exist"})
     assert "application ID" in str(_explain(response))
+
+
+def test_upload_non_crea_bozze_della_banca(api, user, tracker):
+    response = api(user).post(
+        reverse("statement-list", args=[tracker.pk]),
+        {"file": SimpleUploadedFile("e.pdf", b"%PDF-1.4 x"), "source": "bank"},
+        format="multipart",
+    )
+    assert response.status_code == 400
+    assert "source" in response.data

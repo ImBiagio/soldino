@@ -118,33 +118,36 @@ export function ScanPage() {
         <ErrorBanner error={statements.error} />
         {statements.isLoading ? (
           <RowsSkeleton rows={3} />
-        ) : (statements.data?.results ?? []).length === 0 ? (
+        ) : (statements.data?.results ?? []).every((s) => s.source !== 'scan') ? (
           <EmptyState
             icon="document_scanner"
             title="Ancora nessuno"
             description="Il primo estratto conto letto comparirà qui."
           />
         ) : (
-          (statements.data?.results ?? []).map((statement) => (
-            <Link
-              key={statement.id}
-              to={statement.id}
-              className="state flex flex-wrap items-center gap-3 rounded-card bg-surface-container-low px-4 py-3"
-            >
-              <Icon name="picture_as_pdf" size={24} className="text-on-surface-variant" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-body-large font-medium">
-                  {statement.filename}
+          (statements.data?.results ?? [])
+            // Scontrini e bozze della banca (ADR 0013) hanno le loro pagine.
+            .filter((statement) => statement.source === 'scan')
+            .map((statement) => (
+              <Link
+                key={statement.id}
+                to={statement.id}
+                className="state flex flex-wrap items-center gap-3 rounded-card bg-surface-container-low px-4 py-3"
+              >
+                <Icon name="picture_as_pdf" size={24} className="text-on-surface-variant" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-body-large font-medium">
+                    {statement.filename}
+                  </span>
+                  <span className="text-body-small text-on-surface-variant">
+                    {formatDate(statement.created_at.slice(0, 10))}
+                    {statement.account_name && ` · ${statement.account_name}`}
+                    {statement.status !== 'processing' && ` · ${statement.line_count} righe`}
+                  </span>
                 </span>
-                <span className="text-body-small text-on-surface-variant">
-                  {formatDate(statement.created_at.slice(0, 10))}
-                  {statement.account_name && ` · ${statement.account_name}`}
-                  {statement.status !== 'processing' && ` · ${statement.line_count} righe`}
-                </span>
-              </span>
-              <StatusBadge status={statement.status} />
-            </Link>
-          ))
+                <StatusBadge status={statement.status} />
+              </Link>
+            ))
         )}
       </section>
     </div>
