@@ -8,6 +8,7 @@ def health(request):
     """Per l'healthcheck del container: risponde senza DB, auth ne' redirect."""
     return HttpResponse("ok", content_type="text/plain")
 
+
 urlpatterns = [
     path("api/health", health, name="health"),
     path("admin/", admin.site.urls),
