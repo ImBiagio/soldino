@@ -49,8 +49,10 @@ export function FabMenu({
         <div
           role="menu"
           aria-label="Nuovo inserimento"
+          // Il contenitore resta montato anche da chiuso: non deve prendersi i
+          // click del contenuto sotto, solo le pill aperte li ricevono.
           className={clsx(
-            'absolute flex flex-col gap-2',
+            'pointer-events-none absolute flex flex-col gap-2',
             mobile ? 'bottom-full right-0 mb-3 items-end' : 'left-full top-0 ml-4 items-start',
           )}
         >
@@ -67,7 +69,7 @@ export function FabMenu({
               className={clsx(
                 'state flex h-14 items-center gap-3 whitespace-nowrap rounded-pill bg-primary-container pl-5 pr-6 text-title-medium text-on-primary-container shadow-fab-mobile transition-all duration-200 ease-m3',
                 open
-                  ? 'translate-x-0 translate-y-0 opacity-100'
+                  ? 'pointer-events-auto translate-x-0 translate-y-0 opacity-100'
                   : clsx(
                       'pointer-events-none opacity-0',
                       mobile ? 'translate-y-3' : '-translate-y-3',
