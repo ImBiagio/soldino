@@ -273,8 +273,9 @@ function AccountRow({
         )}
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-end">
-        <label className="field block">
+      {/* I due campi restano alti uguali: le note vanno sotto la riga, non dentro. */}
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-stretch">
+        <label className="field block h-full">
           <span className="field-label">Conto in Soldino</span>
           <select
             className="field-input"
@@ -291,7 +292,7 @@ function AccountRow({
             <option value={NEW_ACCOUNT}>+ Nuovo conto “{label}”</option>
           </select>
         </label>
-        <label className="field block">
+        <label className="field block h-full">
           <span className="field-label">Importa movimenti dal</span>
           <input
             type="date"
@@ -305,13 +306,8 @@ function AccountRow({
               if (link.account) update.mutate({ id: link.id, sync_from: event.target.value })
             }}
           />
-          {link.account && !link.synced_until && link.last_synced_at && (
-            <span className="mt-1 block px-4 text-body-small text-on-surface-variant">
-              Alla prossima sincronizzazione rilegge da qui; i movimenti già letti non si ripetono.
-            </span>
-          )}
         </label>
-        <div className="flex items-center gap-3 md:pb-2">
+        <div className="flex items-center gap-3 md:self-center">
           <Switch
             checked={link.auto_commit}
             label="Registra in automatico"
@@ -327,6 +323,10 @@ function AccountRow({
           {link.auto_commit
             ? 'I movimenti nuovi diventano subito movimenti; i possibili doppioni restano da rivedere.'
             : 'I movimenti nuovi arrivano in una bozza: li rivedi e li registri tu.'}
+          {link.account &&
+            !link.synced_until &&
+            link.last_synced_at &&
+            ` Alla prossima sincronizzazione rilegge dal ${formatDate(syncFrom)}; i movimenti già letti non si ripetono.`}
           {link.last_synced_at &&
             ` Ultima lettura ${new Date(link.last_synced_at).toLocaleString('it-IT', {
               dateStyle: 'short',

@@ -44,6 +44,8 @@ import type {
 type Transfer = BalancesResponse['suggested_transfers'][number]
 type Period = 'month' | 'quarter' | 'year'
 
+const SIDE_BY_SIDE = 'grid content-start gap-4 lg:flex lg:flex-col lg:[&>*:first-child]:flex-1'
+
 export function DashboardPage() {
   const tracker = useOutletContext<Tracker>()
   const { user } = useAuth()
@@ -105,8 +107,9 @@ export function DashboardPage() {
               group ? 'lg:grid-cols-[1.35fr_1fr]' : 'lg:grid-cols-[1fr_1.35fr]',
             )}
           >
-            {/* In un gruppo chi deve cosa viene prima, anche su mobile. */}
-            <div className={clsx('grid content-start gap-4', group && 'order-last')}>
+            {/* In un gruppo chi deve cosa viene prima, anche su mobile. Su desktop
+                il primo riquadro di ogni colonna si allunga: stessa altezza affiancati. */}
+            <div className={clsx(SIDE_BY_SIDE, group && 'order-last')}>
               {group ? (
                 <GroupTotalCard tracker={tracker} balances={balances.data} person={person} />
               ) : (
@@ -115,7 +118,7 @@ export function DashboardPage() {
               {showsSection(tracker, 'abbonamenti') && <ProposalsCard tracker={tracker} />}
             </div>
 
-            <div className="grid content-start gap-4">
+            <div className={SIDE_BY_SIDE}>
               {transfers.length === 0 ? (
                 <SettledCard balances={balances.data} tracker={tracker} person={person} />
               ) : (
