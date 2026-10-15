@@ -117,6 +117,7 @@ export function TrackerListPage() {
             const form = new FormData(event.currentTarget)
             await create.mutateAsync({ name: String(form.get('name')), kind })
             setOpen(false)
+            setKind('household')
           }}
         >
           <ErrorBanner error={create.error} />

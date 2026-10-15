@@ -199,6 +199,24 @@ a chi ha pagato per lui, al netto di cosa gli deve l'altro e dei pareggi fra i
 due. In due persone coincidono; in ogni caso ognuno arriva allo stesso saldo
 netto. Vedi [ADR 0009](docs/decisions/0009-semplifica-debiti.md).
 
+### Due tipi di tracker, una sola contabilità
+
+`Tracker.kind` sceglie l'interfaccia, non i conti
+([ADR 0010](docs/decisions/0010-tipo-di-tracker-come-preset.md)):
+
+- `household` (default): tracking continuo di casa o coppia, tutto come prima.
+- `group`: dividere le spese alla Splitwise (viaggi, cene fra amici). Il
+  frontend nasconde Conti, In attesa, Ricorrenze, lo scan dal "+" e la
+  riconciliazione; il form propone solo spese, senza conto, con lo split
+  "di default" fra tutti; la dashboard apre su "Tutti" con chi deve cosa in
+  primo piano e il totale speso (con chi ha pagato e la quota di ciascuno) al
+  posto del mese.
+
+Modello dati, split, debiti, summary e riconciliazione non guardano il tipo:
+cambiarlo dal Setup (solo proprietario) non tocca nessun dato e le sezioni
+nascoste ricompaiono intatte. Le regole "si vede o no" stanno tutte in
+`frontend/src/lib/trackerKind.ts`.
+
 ### La riconciliazione
 
 ```
@@ -287,7 +305,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-144 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+149 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -301,6 +319,8 @@ docker compose run --rm --no-deps frontend npm run api:generate
 - Nessun endpoint restituisce dati di tracker altrui —
   `apps/trackers/tests/test_isolation.py` copre collezioni annidate, ruoli,
   inviti pendenti, split verso non membri, categorie di altri tracker
+- Cambiare `Tracker.kind` non cambia saldi, summary né riconciliazione, e solo
+  il proprietario può farlo (`apps/trackers/tests/test_kind.py`)
 - Un `Settlement` azzera i debiti senza comparire nelle statistiche per categoria
 - Un possibile duplicato viene **segnalato, non bloccato**: nel foglio esistono
   righe legittimamente identiche
@@ -327,7 +347,10 @@ finisce nel gruppo "Archiviati" della lista e non riceve ricorrenze automatiche.
 Elimina (`DELETE /trackers/{id}`, conferma scrivendo il nome) è un soft delete
 che porta giù anche le membership, perché le rotte annidate controllano quelle.
 
-**Dashboard per persona** (`?vista=<id>`, di default la propria) e globale
+**Tipo di tracker** (`kind`: `household` o `group`, scelto alla creazione e
+modificabile dal Setup): un tracker `group` mostra solo spese e chi deve cosa.
+
+**Dashboard per persona** (`?vista=<id>`, di default la propria; nei `group` "tutti") e globale
 (`?vista=tutti`): chi deve cosa, mese, categorie e riconciliazione seguono la
 vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
 iniziale e confronto atteso/reale di ciascuno.

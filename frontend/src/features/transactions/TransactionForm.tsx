@@ -16,7 +16,7 @@ import { Avatar, ErrorBanner, Field, Icon, Modal, Segmented } from '../../compon
 import { formatDate, todayIso } from '../../lib/format'
 import { memberColor } from '../../lib/icons'
 import { formatCents, normalizeDecimal } from '../../lib/money'
-import { isGroup, showsIncome } from '../../lib/trackerKind'
+import { isGroup, showsIncome, showsSection } from '../../lib/trackerKind'
 import type { Tracker, Transaction, TransactionType } from '../../lib/types'
 
 interface Props {
@@ -46,6 +46,8 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   )
   // In un gruppo solo spese; un'entrata gia' registrata si modifica come prima.
   const typeSwitch = showsIncome(tracker) || editing?.type === 'income'
+  // Senza la sezione Conti il conto non si sceglie, salvo che il movimento ne abbia gia' uno.
+  const accountField = showsSection(tracker, 'conti') || Boolean(editing?.account)
 
   const categories = useCategories(tracker.id)
   const accounts = useAccounts(tracker.id)
@@ -170,20 +172,22 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
                 ))}
             </select>
           </Field>
-          <Field label="Conto">
-            <select
-              className="field-input"
-              value={account ?? ''}
-              onChange={(event) => setAccount(event.target.value)}
-            >
-              <option value="">Nessuno</option>
-              {(accounts.data?.results ?? []).map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </Field>
+          {accountField && (
+            <Field label="Conto">
+              <select
+                className="field-input"
+                value={account ?? ''}
+                onChange={(event) => setAccount(event.target.value)}
+              >
+                <option value="">Nessuno</option>
+                {(accounts.data?.results ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          )}
         </div>
 
         <div>
