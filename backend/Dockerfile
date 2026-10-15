@@ -21,5 +21,18 @@ RUN pip install -e ".[dev]"
 
 # --- prod ---
 FROM base AS prod
-RUN python -c "import compileall; compileall.compile_dir('/app', quiet=1)" || true
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+ENV DJANGO_SETTINGS_MODULE=config.settings.prod
+# Gli statici dell'admin finiscono nell'immagine (li serve whitenoise). La
+# SECRET_KEY fittizia serve solo a far partire i settings durante la build.
+RUN DJANGO_SECRET_KEY=collectstatic-build python manage.py collectstatic --noinput
+# Utente non root: un'eventuale RCE resta confinata nel container.
+# chmod: il codice dev'essere leggibile dall'utente non root qualunque siano i
+# permessi del checkout da cui parte la build.
+RUN useradd --system --uid 10001 appuser \
+    && chmod -R a+rX /app \
+    && chown -R appuser /app/staticfiles
+USER appuser
+EXPOSE 8000
+# Migrazioni a ogni avvio (idempotenti). worker e beat usano la stessa immagine
+# con un altro command nel compose di produzione.
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --timeout 120"]

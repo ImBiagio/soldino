@@ -1,0 +1,94 @@
+# Produzione su homeserver: immagini pre-buildate dalla GitHub Action (branch
+# prod) e aggiornate da Watchtower. Sul server servono solo questo file e un
+# .env accanto (modello in deploy/.env.prod.example). Nessuna porta pubblicata:
+# il traffico arriva dal proxy "edge" (deploy/edge) sulla rete Docker "edge".
+name: soldino
+
+x-backend: &backend
+  image: ghcr.io/imbiagio/soldino-backend:prod
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    POSTGRES_HOST: db
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+  labels:
+    - com.centurylinklabs.watchtower.enable=true
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-soldino}
+      POSTGRES_USER: ${POSTGRES_USER:-soldino}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?impostare POSTGRES_PASSWORD nel .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-soldino} -d ${POSTGRES_DB:-soldino}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # Risponde solo dopo migrate: worker e beat aspettano questo.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8000/api/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  worker:
+    <<: *backend
+    command: celery -A config worker -l info --concurrency 2
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  beat:
+    <<: *backend
+    command: >
+      celery -A config beat -l info
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/imbiagio/soldino-web:prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      default:
+      edge:
+        aliases: [soldino-web]
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+# Watchtower non c'e' qui: quello di cinemino aggiorna tutti i container
+# etichettati del server, quindi anche questi.
+
+networks:
+  edge:
+    external: true
+
+volumes:
+  pgdata:

@@ -2,7 +2,9 @@
 // e' un cookie httpOnly gestito dal browser. Su 401 si tenta un refresh e si
 // riprova la richiesta una sola volta.
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? 'http://localhost:8000'
+// In sviluppo l'API sta su un'altra porta (VITE_API_BASE_URL); in produzione
+// frontend e API escono dallo stesso dominio, quindi basta l'origin della pagina.
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || window.location.origin
 
 let accessToken: string | null = null
 let onUnauthenticated: (() => void) | null = null

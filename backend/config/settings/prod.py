@@ -10,6 +10,8 @@ if not SECRET_KEY or SECRET_KEY in {"insecure-dev-key", "change-me-in-production
     raise ImproperlyConfigured("DJANGO_SECRET_KEY va impostata in produzione.")
 
 SECURE_SSL_REDIRECT = True
+# L'healthcheck di Docker parla HTTP diretto col container, senza proxy.
+SECURE_REDIRECT_EXEMPT = [r"^api/health$"]
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
