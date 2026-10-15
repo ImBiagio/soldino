@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth import authenticate, get_user_model, password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,16 +13,19 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from apps.core.methods import normalize_email, send_notification
+from apps.core.methods import normalize_email
 
+from .emails import send_password_reset_email, send_verification_email
 from .serializers import (
+    EmailSerializer,
     LoginSerializer,
     PasswordChangeSerializer,
+    PasswordResetConfirmSerializer,
     RegisterSerializer,
     TokenPairSerializer,
     UserSerializer,
 )
-from .tokens import EMAIL_VERIFY_SALT, email_verification_url, read_token
+from .tokens import EMAIL_VERIFY_SALT, read_token, user_from_reset_token
 
 User = get_user_model()
 
@@ -64,11 +68,7 @@ class RegisterView(APIView):
         user = serializer.save()
 
         if settings.REQUIRE_EMAIL_VERIFICATION:
-            send_notification(
-                "Conferma il tuo indirizzo email",
-                f"Conferma il tuo account: {email_verification_url(user)}",
-                user.email,
-            )
+            send_verification_email(user)
             return Response(
                 {"detail": "Registrazione completata. Controlla la mail per confermare."},
                 status=status.HTTP_201_CREATED,
@@ -99,8 +99,10 @@ class LoginView(APIView):
                 {"detail": "Credenziali non valide."}, status=status.HTTP_401_UNAUTHORIZED
             )
         if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_email_verified:
+            # ``code`` fa comparire nel login il bottone "Rimanda la mail".
             return Response(
-                {"detail": "Email non ancora confermata."}, status=status.HTTP_403_FORBIDDEN
+                {"detail": "Email non ancora confermata.", "code": "email_not_verified"},
+                status=status.HTTP_403_FORBIDDEN,
             )
         return _auth_response(user)
 
@@ -212,3 +214,72 @@ class PasswordChangeView(APIView):
         revoke_all_refresh_tokens(request.user)
         response = Response(status=status.HTTP_204_NO_CONTENT)
         return _set_refresh_cookie(response, RefreshToken.for_user(request.user))
+
+
+def _user_by_email(email: str):
+    return User.objects.filter(email=normalize_email(email), is_active=True).first()
+
+
+class ResendVerificationView(APIView):
+    """Rimanda la mail di conferma. Risponde 204 sempre: non dice chi e' registrato."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+
+    @extend_schema(request=EmailSerializer, responses={204: None})
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = _user_by_email(serializer.validated_data["email"])
+        if user is not None and not user.is_email_verified:
+            send_verification_email(user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetView(APIView):
+    """Manda il link per scegliere una nuova password. 204 sempre, come sopra."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+
+    @extend_schema(request=EmailSerializer, responses={204: None})
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = _user_by_email(serializer.validated_data["email"])
+        if user is not None:
+            send_password_reset_email(user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetConfirmView(APIView):
+    """Nuova password dal link della mail: chiude le altre sessioni e fa entrare."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = "auth"
+
+    @extend_schema(request=PasswordResetConfirmSerializer, responses={200: TokenPairSerializer})
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        user = user_from_reset_token(data["uid"], data["token"])
+        if user is None:
+            return Response(
+                {"detail": "Link non valido, gia' usato o scaduto: chiedine uno nuovo."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            password_validation.validate_password(data["new_password"], user)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": exc.messages}) from None
+
+        user.set_password(data["new_password"])
+        # Ha appena dimostrato di leggere quella casella: vale come conferma.
+        update = ["password"]
+        if not user.is_email_verified:
+            user.email_verified_at = timezone.now()
+            update.append("email_verified_at")
+        user.save(update_fields=update)
+        revoke_all_refresh_tokens(user)
+        return _auth_response(user)

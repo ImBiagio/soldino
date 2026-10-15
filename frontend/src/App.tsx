@@ -4,10 +4,13 @@ import { TrackerLayout } from './components/Layout'
 import { Skeleton } from './components/ui'
 import {
   AcceptInvitePage,
+  ForgotPasswordPage,
   LoginPage,
   RegisterPage,
+  ResetPasswordPage,
   VerifyEmailPage,
 } from './features/auth/AuthPages'
+import { AccountPage } from './features/account/AccountPage'
 import { AccountsPage } from './features/accounts/AccountsPage'
 import { ChartsPage } from './features/charts/ChartsPage'
 import { ScanPage } from './features/scan/ScanPage'
@@ -33,6 +36,16 @@ export default function App() {
       <Route path="/accedi" element={<LoginPage />} />
       <Route path="/registrati" element={<RegisterPage />} />
       <Route path="/verifica-email/:token" element={<VerifyEmailPage />} />
+      <Route path="/password-dimenticata" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+      <Route
+        path="/account"
+        element={
+          <RequireAuth>
+            <AccountPage />
+          </RequireAuth>
+        }
+      />
       <Route path="/inviti/:token" element={<AcceptInvitePage />} />
       <Route
         path="/"

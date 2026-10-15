@@ -10,6 +10,8 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string, displayName: string) => Promise<string | null>
   verifyEmail: (token: string) => Promise<void>
+  /** Nuova password dal link della mail: se va bene si entra direttamente. */
+  resetPassword: (uid: string, token: string, password: string) => Promise<void>
   logout: () => Promise<void>
   setUser: (user: User) => void
 }
@@ -83,6 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       verifyEmail: async (token) => {
         apply(await api.post<AuthPayload>(`/api/auth/verify-email/${token}`))
+      },
+      resetPassword: async (uid, token, password) => {
+        apply(
+          await api.post<AuthPayload>('/api/auth/password-reset/confirm', {
+            uid,
+            token,
+            new_password: password,
+          }),
+        )
       },
       logout,
     }),

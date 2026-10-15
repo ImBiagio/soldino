@@ -1,0 +1,12 @@
+{% autoescape off %}Ciao {{ name }},
+
+{{ intro }}
+{% if body %}
+{{ body }}
+{% endif %}
+{{ cta_label }}: {{ cta_url }}
+{% if note %}
+{{ note }}
+{% endif %}
+Soldino
+{% endautoescape %}

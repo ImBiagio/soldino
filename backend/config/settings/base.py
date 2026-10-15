@@ -215,8 +215,18 @@ CACHES = {
 }
 
 # --- Email ---
+# In sviluppo le mail vanno nella console del worker. In produzione SMTP di
+# Brevo, lo stesso account di cinemino (dominio inoo.it autenticato).
 EMAIL_BACKEND = env("EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@soldino.local")
+EMAIL_HOST = env("EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+EMAIL_TIMEOUT = 15
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Soldino <no-reply@soldino.local>")
+# Il link di reset vale 2 ore (il default di Django sono 3 giorni).
+PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", str(2 * 60 * 60)))
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")
 
 # --- Scan estratto conto (Gemini) ---

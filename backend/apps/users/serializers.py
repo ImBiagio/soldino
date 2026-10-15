@@ -66,3 +66,15 @@ class TokenPairSerializer(serializers.Serializer):
 
     access = serializers.CharField(read_only=True)
     user = UserSerializer(read_only=True)
+
+
+class EmailSerializer(serializers.Serializer):
+    """Reinvio della conferma e richiesta di reset: basta l'indirizzo."""
+
+    email = serializers.EmailField()
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True)

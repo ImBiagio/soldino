@@ -1,16 +1,20 @@
-"""Token firmati per verifica email e reset password.
+"""Token per verifica email e reset password.
 
-Signing invece di un modello: niente tabella da mantenere, scadenza esplicita.
+Verifica: token firmato stateless (niente tabella), monouso perche' la view
+rifiuta un utente gia' verificato. Reset: il generatore di Django, che mette
+nell'hash password e ultimo login, quindi il link muore appena usato.
 """
 
 from __future__ import annotations
 
 from django.conf import settings
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 
 from apps.core.methods import sign, unsign
 
 EMAIL_VERIFY_SALT = "soldino.email-verify"
-PASSWORD_RESET_SALT = "soldino.password-reset"
 DEFAULT_MAX_AGE = 60 * 60 * 24 * 3  # 3 giorni
 
 
@@ -29,5 +33,19 @@ def email_verification_url(user) -> str:
 
 
 def password_reset_url(user) -> str:
-    token = make_token(user.pk, PASSWORD_RESET_SALT)
-    return f"{settings.FRONTEND_BASE_URL}/reset-password/{token}"
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    return f"{settings.FRONTEND_BASE_URL}/reset-password/{uid}/{token}"
+
+
+def user_from_reset_token(uid: str, token: str):
+    """L'utente del link di reset, o ``None`` se il link e' falso, usato o scaduto."""
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import ValidationError
+
+    try:
+        pk = force_str(urlsafe_base64_decode(uid))
+        user = get_user_model().objects.get(pk=pk, is_active=True)
+    except (ValueError, TypeError, OverflowError, ValidationError, get_user_model().DoesNotExist):
+        return None
+    return user if default_token_generator.check_token(user, token) else None

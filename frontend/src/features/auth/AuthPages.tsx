@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { ErrorBanner, Field, Icon, Skeleton } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
@@ -36,6 +36,42 @@ function Shell({
 
         {footer && <div className="mt-4 text-center text-body-medium">{footer}</div>}
       </div>
+    </div>
+  )
+}
+
+/** Il login risponde con questo codice se l'email non e' ancora confermata. */
+function isUnverified(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.data as { code?: string } | null)?.code === 'email_not_verified'
+  )
+}
+
+/** Le due mail "a richiesta": rispondono sempre 204, non dicono chi e' registrato. */
+export function requestEmail(kind: 'verify' | 'reset', email: string) {
+  const path = kind === 'verify' ? '/api/auth/verify-email/resend' : '/api/auth/password-reset'
+  return api.post<void>(path, { email })
+}
+
+function ResendVerification({ email }: { email: string }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'sent'>('idle')
+  return (
+    <div className="rounded-row bg-surface-container p-4 text-body-medium">
+      <p>Prima di entrare conferma l'indirizzo dal link che ti abbiamo mandato.</p>
+      <button
+        type="button"
+        className="btn-tonal btn-sm mt-3"
+        disabled={state !== 'idle'}
+        onClick={async () => {
+          setState('busy')
+          await requestEmail('verify', email).catch(() => undefined)
+          setState('sent')
+        }}
+      >
+        <Icon name="forward_to_inbox" size={18} />
+        {state === 'sent' ? 'Mail rimandata' : 'Rimanda la mail'}
+      </button>
     </div>
   )
 }
@@ -76,7 +112,7 @@ export function LoginPage() {
           }
         }}
       >
-        <ErrorBanner error={error} />
+        {isUnverified(error) ? <ResendVerification email={email} /> : <ErrorBanner error={error} />}
         <Field label="Email">
           <input
             className="field-input"
@@ -100,6 +136,16 @@ export function LoginPage() {
         <button className="btn-filled mt-1 w-full" disabled={busy}>
           {busy ? 'Accesso…' : 'Entra'}
         </button>
+        <Link
+          to={
+            email
+              ? `/password-dimenticata?email=${encodeURIComponent(email)}`
+              : '/password-dimenticata'
+          }
+          className="btn-text w-full"
+        >
+          Password dimenticata?
+        </Link>
       </form>
     </Shell>
   )
@@ -210,6 +256,156 @@ export function VerifyEmailPage() {
   return (
     <Shell title="Conferma email">
       {error ? <ErrorBanner error={error} /> : <Skeleton className="h-12" />}
+    </Shell>
+  )
+}
+
+export function ForgotPasswordPage() {
+  const [params] = useSearchParams()
+  const [email, setEmail] = useState(params.get('email') ?? '')
+  const [error, setError] = useState<unknown>(null)
+  const [sent, setSent] = useState(false)
+  const [busy, setBusy] = useState(false)
+
+  return (
+    <Shell
+      title="Password dimenticata"
+      footer={
+        <Link className="font-medium text-on-primary underline" to="/accedi">
+          Torna al login
+        </Link>
+      }
+    >
+      {sent ? (
+        <p className="text-body-medium">
+          Se <strong>{email}</strong> ha un account, tra poco ti arriva una mail con il link per
+          scegliere una nuova password. Il link vale 2 ore. Controlla anche lo spam.
+        </p>
+      ) : (
+        <form
+          className="grid gap-3"
+          onSubmit={async (event) => {
+            event.preventDefault()
+            setBusy(true)
+            setError(null)
+            try {
+              await requestEmail('reset', email)
+              setSent(true)
+            } catch (err) {
+              setError(err)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          <p className="text-body-medium text-on-surface-variant">
+            Scrivi l'email dell'account: ti mandiamo un link per sceglierne una nuova.
+          </p>
+          <ErrorBanner error={error} />
+          <Field label="Email">
+            <input
+              className="field-input"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+              autoFocus
+            />
+          </Field>
+          <button className="btn-filled mt-1 w-full" disabled={busy}>
+            {busy ? 'Invio…' : 'Mandami il link'}
+          </button>
+        </form>
+      )}
+    </Shell>
+  )
+}
+
+/** Nuova password due volte, con lo stesso controllo locale in login e in Account. */
+export function NewPasswordFields({
+  password,
+  confirm,
+  onPassword,
+  onConfirm,
+  error,
+}: {
+  password: string
+  confirm: string
+  onPassword: (value: string) => void
+  onConfirm: (value: string) => void
+  error?: string
+}) {
+  const mismatch = confirm.length > 0 && confirm !== password
+  return (
+    <>
+      <Field label="Nuova password" error={error} hint="Almeno 10 caratteri.">
+        <input
+          className="field-input"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => onPassword(event.target.value)}
+          required
+        />
+      </Field>
+      <Field label="Ripeti la nuova password" error={mismatch ? 'Non coincide.' : undefined}>
+        <input
+          className="field-input"
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(event) => onConfirm(event.target.value)}
+          required
+        />
+      </Field>
+    </>
+  )
+}
+
+export function ResetPasswordPage() {
+  const { uid, token } = useParams()
+  const { resetPassword } = useAuth()
+  const navigate = useNavigate()
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [error, setError] = useState<unknown>(null)
+  const [busy, setBusy] = useState(false)
+
+  return (
+    <Shell title="Nuova password">
+      <form
+        className="grid gap-3"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          if (password !== confirm) return
+          setBusy(true)
+          setError(null)
+          try {
+            await resetPassword(uid ?? '', token ?? '', password)
+            navigate('/', { replace: true })
+          } catch (err) {
+            setError(err)
+          } finally {
+            setBusy(false)
+          }
+        }}
+      >
+        <ErrorBanner error={error} />
+        <NewPasswordFields
+          password={password}
+          confirm={confirm}
+          onPassword={setPassword}
+          onConfirm={setConfirm}
+          error={error instanceof ApiError ? error.fieldErrors().new_password : undefined}
+        />
+        <button className="btn-filled mt-1 w-full" disabled={busy || password !== confirm}>
+          {busy ? 'Salvo…' : 'Salva ed entra'}
+        </button>
+        <Link to="/password-dimenticata" className="btn-text w-full">
+          Il link non va? Chiedine uno nuovo
+        </Link>
+      </form>
     </Shell>
   )
 }

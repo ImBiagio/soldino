@@ -287,11 +287,24 @@ function MenuSheet({
           </button>
           <button
             type="button"
-            onClick={() => logout()}
+            onClick={() => {
+              navigate('/account')
+              onClose()
+            }}
             className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
           >
             <Avatar name={user?.display_name ?? ''} size={22} />
-            <span className="flex-1 text-body-large">Esci ({user?.email})</span>
+            <span className="min-w-0 flex-1 truncate text-body-large">
+              Account <span className="text-on-surface-variant">· {user?.email}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
+          >
+            <Icon name="logout" size={22} />
+            <span className="flex-1 text-body-large">Esci</span>
           </button>
         </div>
       </div>

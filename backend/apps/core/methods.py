@@ -8,10 +8,9 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.conf import settings
 from django.core import signing
-from django.core.mail import send_mail
 from django.db.models import QuerySet, Sum
+from django.template.loader import render_to_string
 from rest_framework import serializers
 
 from .money import ZERO, quantize
@@ -35,9 +34,39 @@ def unsign(token: str, salt: str, max_age: int) -> dict | None:
         return None
 
 
-def send_notification(subject: str, body: str, to: str) -> None:
-    """Mail di servizio: se l'SMTP non risponde l'azione dell'utente va comunque."""
-    send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [to], fail_silently=True)
+def send_email(
+    to: str,
+    subject: str,
+    *,
+    name: str,
+    intro: str,
+    cta_label: str,
+    cta_url: str,
+    body: str = "",
+    note: str = "",
+) -> None:
+    """Mail di servizio con un bottone (testo + HTML, stesso layout per tutte).
+
+    Parte dal worker Celery dopo il commit: l'SMTP puo' metterci secondi o
+    non rispondere, e la richiesta dell'utente non deve aspettarlo. Se la
+    transazione fallisce la mail non parte.
+    """
+    from django.db import transaction
+
+    from .tasks import deliver_email
+
+    context = {
+        "subject": subject,
+        "name": name,
+        "intro": intro,
+        "body": body,
+        "note": note,
+        "cta_label": cta_label,
+        "cta_url": cta_url,
+    }
+    text = render_to_string("emails/base.txt", context)
+    html = render_to_string("emails/base.html", context)
+    transaction.on_commit(lambda: deliver_email.delay(subject, text, html, to))
 
 
 def sum_amount(qs: QuerySet, field: str) -> Decimal:

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { useCreateTracker, useReconciliation, useTrackers } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
 import {
+  Avatar,
   AvatarStack,
   EmptyState,
   ErrorBanner,
@@ -22,7 +23,7 @@ import type { Tracker, TrackerKind } from '../../lib/types'
 
 export function TrackerListPage() {
   const { data, isLoading, error } = useTrackers()
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const create = useCreateTracker()
   const [open, setOpen] = useState(false)
   const [kind, setKind] = useState<TrackerKind>('household')
@@ -48,9 +49,10 @@ export function TrackerListPage() {
               <Icon name="add" size={20} />
               Nuovo tracker
             </button>
-            <button type="button" className="btn-text" onClick={() => logout()}>
-              Esci
-            </button>
+            <Link to="/account" className="btn-text" aria-label="Account">
+              <Avatar name={user?.display_name ?? ''} size={24} />
+              Account
+            </Link>
           </div>
         </header>
 
