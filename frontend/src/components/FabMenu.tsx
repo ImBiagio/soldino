@@ -136,16 +136,20 @@ export function NewEntryMenuButton({
   useCloseOnEscape(open, () => setOpen(false))
   useClickOutside(ref, open, () => setOpen(false))
 
+  // className va sul contenitore, come nel caso col menu: sul bottone un
+  // "md:block" toglierebbe l'inline-flex e il + non starebbe in riga col testo.
   if (actions.length === 1) {
     return (
-      <button
-        type="button"
-        className={clsx('btn-filled', className)}
-        onClick={() => navigate(`/t/${tracker.id}/${actions[0].path}`)}
-      >
-        <Icon name="add" size={20} />
-        Nuova spesa
-      </button>
+      <div className={className}>
+        <button
+          type="button"
+          className="btn-filled"
+          onClick={() => navigate(`/t/${tracker.id}/${actions[0].path}`)}
+        >
+          <Icon name="add" size={20} />
+          Nuova spesa
+        </button>
+      </div>
     )
   }
 
