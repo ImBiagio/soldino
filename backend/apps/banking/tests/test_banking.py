@@ -502,3 +502,24 @@ def test_saldo_nella_valuta_del_conto():
     assert pick_balance(balances, ("XXX", "EUR")) == D("12.00")
     # Senza preferenze vince il primo del tipo, non l'ultimo.
     assert pick_balance(balances) == D("5.00")
+
+
+def test_cambiare_la_data_di_partenza_rilegge_da_li(api, user, tracker, linked, fake):
+    fake.transactions_data = [tx("r1", "12.50", day="2026-10-10")]
+    sync_service.sync_account(linked)
+    linked.refresh_from_db()
+    assert linked.synced_until == date(2026, 10, 10)
+
+    response = api(user).patch(
+        reverse("bankaccount-detail", args=[tracker.pk, linked.pk]),
+        {"sync_from": "2026-09-01"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    linked.refresh_from_db()
+    assert linked.synced_until is None
+
+    fake.transactions_data = [tx("vecchio", "5.00", day="2026-09-15"), tx("r1", "12.50")]
+    result = sync_service.sync_account(linked)
+    assert fake.calls[-1] == ("transactions", "2026-09-01")
+    assert (result["drafted"], result["already_seen"]) == (1, 1)

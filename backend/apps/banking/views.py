@@ -202,10 +202,12 @@ class BankAccountViewSet(
         return super().get_queryset().filter(connection__user=self.request.user)
 
     def perform_update(self, serializer):
-        before = serializer.instance.account_id
+        before = (serializer.instance.account_id, serializer.instance.sync_from)
         bank_account = serializer.save()
-        if bank_account.account_id != before:
-            # Un altro conto di Soldino: si riparte da sync_from, non da dove era arrivato.
+        if (bank_account.account_id, bank_account.sync_from) != before:
+            # Un altro conto di Soldino o un'altra data di partenza: il giro dopo
+            # riparte da sync_from, non da dove era arrivato. I movimenti gia'
+            # letti non si ripetono (SeenBankTransaction).
             bank_account.synced_until = None
             bank_account.save(update_fields=["synced_until", "updated_at"])
 

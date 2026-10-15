@@ -298,17 +298,18 @@ function AccountRow({
             className="field-input"
             value={syncFrom}
             max={new Date().toISOString().slice(0, 10)}
-            disabled={disabled || Boolean(link.synced_until)}
-            title={
-              link.synced_until
-                ? 'Già sincronizzato: i movimenti precedenti non si reimportano'
-                : undefined
-            }
+            disabled={disabled}
             onChange={(event) => {
+              if (!event.target.value) return
               setSyncFrom(event.target.value)
               if (link.account) update.mutate({ id: link.id, sync_from: event.target.value })
             }}
           />
+          {link.account && !link.synced_until && link.last_synced_at && (
+            <span className="mt-1 block px-4 text-body-small text-on-surface-variant">
+              Alla prossima sincronizzazione rilegge da qui; i movimenti già letti non si ripetono.
+            </span>
+          )}
         </label>
         <div className="flex items-center gap-3 md:pb-2">
           <Switch
