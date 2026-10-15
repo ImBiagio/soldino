@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest import mock
 
 import pytest
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
@@ -236,6 +237,9 @@ def test_gemini_sovraccarico_si_riprova_da_solo(settings):
     from apps.ingestion.services import gemini
 
     settings.GEMINI_API_KEY = "chiave-finta"
+    # Un modello solo: qui si provano i retry, le riserve hanno i loro test.
+    settings.GEMINI_FALLBACK_MODELS = []
+    cache.clear()
     ok = mock.Mock(parsed=ExtractedStatement(lines=[]))
     with (
         mock.patch("google.genai.Client") as client,
@@ -250,6 +254,9 @@ def test_gemini_sempre_sovraccarico_messaggio_leggibile(settings):
     from apps.ingestion.services import gemini
 
     settings.GEMINI_API_KEY = "chiave-finta"
+    # Un modello solo: qui si provano i retry, le riserve hanno i loro test.
+    settings.GEMINI_FALLBACK_MODELS = []
+    cache.clear()
     with mock.patch("google.genai.Client") as client, mock.patch.object(gemini, "sleep"):
         client.return_value.models.generate_content.side_effect = _api_error(503)
         with pytest.raises(ExtractionError, match="sovraccarico"):

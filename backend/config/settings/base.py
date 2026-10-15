@@ -242,6 +242,10 @@ FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")
 # Senza chiave lo scan fallisce con un messaggio chiaro, il resto dell'app va.
 GEMINI_API_KEY = env("GEMINI_API_KEY", "")
 GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
+# Riserve, nell'ordine, quando il principale e' sovraccarico (ADR 0008, aggiornamento).
+GEMINI_FALLBACK_MODELS = env_list("GEMINI_FALLBACK_MODELS", "gemini-flash-lite-latest")
+# Per quanti secondi un modello sovraccarico resta in fondo alla fila.
+GEMINI_MODEL_COOLDOWN = int(env("GEMINI_MODEL_COOLDOWN", "300"))
 STATEMENT_MAX_BYTES = int(env("STATEMENT_MAX_BYTES", str(15 * 1024 * 1024)))
 
 # --- Open banking (Enable Banking, ADR 0013) ---

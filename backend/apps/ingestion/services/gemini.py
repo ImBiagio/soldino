@@ -12,8 +12,10 @@ import json
 from time import sleep
 from typing import Literal
 
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from pydantic import BaseModel, Field
+from django.core.cache import cache
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class ExtractionError(Exception):
@@ -23,21 +25,39 @@ class ExtractionError(Exception):
 # 429 limite di frequenza, 500/503 sovraccarico, 504 timeout lato Google: passano da soli.
 TRANSIENT_CODES = {429, 500, 503, 504}
 RETRY_PAUSES = (4, 12)
-# Per tentativo: un estratto conto lungo puo' metterci un minuto buono.
-REQUEST_TIMEOUT_MS = 90_000
+# Per tentativo: un estratto conto lungo puo' metterci un minuto buono, uno
+# scontrino pochi secondi. Oltre, il modello e' "giu'" e si passa alla riserva.
+STATEMENT_TIMEOUT_MS = 90_000
+RECEIPT_TIMEOUT_MS = 30_000
 
 
-def _explain(exc, *, attempts: int) -> str:
-    if exc.code in TRANSIENT_CODES:
-        return (
-            f"Gemini e' sovraccarico in questo momento (errore {exc.code}, "
-            f"{attempts} tentativi). Riprova tra qualche minuto."
-        )
+def _explain(exc, *, model: str) -> str:
     if exc.code in (401, 403):
         return "Gemini ha rifiutato la chiave: controlla GEMINI_API_KEY."
-    if exc.code == 404:
-        return f"Il modello {settings.GEMINI_MODEL} non esiste o non e' disponibile per la chiave."
     return f"Gemini ha risposto con un errore ({exc.code}): {exc.message or exc.status}"
+
+
+# --- Scelta del modello in base alla disponibilita' ---------------------------
+#
+# Si prova GEMINI_MODEL, poi i GEMINI_FALLBACK_MODELS. Un modello che risponde
+# "sovraccarico" (o non risponde) viene segnato giu' nella cache condivisa per
+# GEMINI_MODEL_COOLDOWN secondi: le letture successive, anche da altri worker,
+# partono da quello che funziona. Scaduta la pausa il principale torna primo.
+
+
+def _down_key(model: str) -> str:
+    return f"gemini:down:{model}"
+
+
+def mark_down(model: str, seconds: int | None = None) -> None:
+    cache.set(_down_key(model), True, seconds or settings.GEMINI_MODEL_COOLDOWN)
+
+
+def models_in_order() -> list[str]:
+    """Principale e riserve, quelli segnati giu' in fondo (non tolti: se sono
+    giu' tutti si riprova comunque, nello stesso ordine)."""
+    models = list(dict.fromkeys([settings.GEMINI_MODEL, *settings.GEMINI_FALLBACK_MODELS]))
+    return sorted(models, key=lambda model: bool(cache.get(_down_key(model))))
 
 
 class ExtractedLine(BaseModel):
@@ -54,6 +74,8 @@ class ExtractedStatement(BaseModel):
     period_start: str | None = None
     period_end: str | None = None
     lines: list[ExtractedLine]
+    # Il modello che ha letto davvero (non fa parte dello schema chiesto a Gemini).
+    _model: str = PrivateAttr(default="")
 
 
 PROMPT = """Sei un contabile. Leggi l'estratto conto allegato ed elenca OGNI movimento.
@@ -106,8 +128,14 @@ class ExtractedReceipt(BaseModel):
     category_id: str | None = Field(default=None, description="id di una categoria o null")
 
 
-def _generate(contents, schema):
-    """Chiamata a Gemini con risposta JSON vincolata a ``schema`` e retry sui 429/5xx."""
+def _generate(contents, schema, *, timeout_ms: int):
+    """Chiamata a Gemini con risposta JSON vincolata a ``schema``.
+
+    Restituisce ``(risposta, modello usato)``. Errori temporanei (429/5xx,
+    timeout, rete) passano subito al modello successivo; finito il giro si
+    aspetta e si riprova. Chiave rifiutata o richiesta non valida non
+    dipendono dal modello: si fermano subito.
+    """
     if not settings.GEMINI_API_KEY:
         raise ExtractionError(
             "Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e riavvia."
@@ -119,7 +147,7 @@ def _generate(contents, schema):
     # Senza timeout una chiamata appesa lasciava l'import "in lettura" per sempre.
     client = genai.Client(
         api_key=settings.GEMINI_API_KEY,
-        http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
+        http_options=types.HttpOptions(timeout=timeout_ms),
     )
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
@@ -127,21 +155,46 @@ def _generate(contents, schema):
         temperature=0,
     )
 
-    for attempt, pause in enumerate((*RETRY_PAUSES, None)):
-        try:
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL, contents=contents(types), config=config
-            )
-            break
-        except errors.APIError as exc:
-            # Sovraccarico e limiti di frequenza passano da soli: si riprova.
-            if exc.code in TRANSIENT_CODES and pause is not None:
-                sleep(pause)
+    tried: list[str] = []
+    last_error = ""
+    for pause in (*RETRY_PAUSES, None):
+        for model in models_in_order():
+            try:
+                response = client.models.generate_content(
+                    model=model, contents=contents(types), config=config
+                )
+            except errors.APIError as exc:
+                if exc.code == 404:
+                    # Modello inesistente per questa chiave: inutile riprovarlo per un giorno.
+                    mark_down(model, 24 * 60 * 60)
+                elif exc.code in TRANSIENT_CODES:
+                    mark_down(model)
+                else:
+                    raise ExtractionError(_explain(exc, model=model)) from exc
+                tried.append(model)
+                last_error = f"errore {exc.code}"
                 continue
-            raise ExtractionError(_explain(exc, attempts=attempt + 1)) from exc
-        except Exception as exc:
-            raise ExtractionError(f"Gemini non ha risposto: {exc}") from exc
+            except SoftTimeLimitExceeded:
+                # Il task ha finito il suo tempo: non e' colpa del modello.
+                raise
+            except Exception as exc:
+                mark_down(model)
+                tried.append(model)
+                last_error = str(exc)[:120] or type(exc).__name__
+                continue
+            cache.delete(_down_key(model))
+            return _parse(response, schema), model
+        if pause is not None:
+            sleep(pause)
 
+    models = ", ".join(dict.fromkeys(tried))
+    raise ExtractionError(
+        f"Gemini e' sovraccarico in questo momento: nessun modello ha risposto ({models}; "
+        f"ultimo: {last_error}). Riprova tra qualche minuto."
+    )
+
+
+def _parse(response, schema):
     parsed = response.parsed
     if isinstance(parsed, schema):
         return parsed
@@ -152,13 +205,16 @@ def _generate(contents, schema):
 
 
 def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
-    return _generate(
+    statement, model = _generate(
         lambda types: [
             types.Part.from_bytes(data=pdf, mime_type="application/pdf"),
             PROMPT.format(categories=json.dumps(categories, ensure_ascii=False)),
         ],
         ExtractedStatement,
+        timeout_ms=STATEMENT_TIMEOUT_MS,
     )
+    statement._model = model
+    return statement
 
 
 def extract_receipt(
@@ -166,19 +222,20 @@ def extract_receipt(
 ) -> ExtractedStatement:
     """Lo scontrino come un estratto conto di una riga: il resto della pipeline e' lo stesso."""
     expenses = [c for c in categories if c["type"] == "expense"]
-    receipt = _generate(
+    receipt, model = _generate(
         lambda types: [
             types.Part.from_bytes(data=image, mime_type=mime_type),
             RECEIPT_PROMPT.format(categories=json.dumps(expenses, ensure_ascii=False)),
         ],
         ExtractedReceipt,
+        timeout_ms=RECEIPT_TIMEOUT_MS,
     )
     if not receipt.total:
         raise ExtractionError(
             "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
             "dritto e ben illuminato."
         )
-    return ExtractedStatement(
+    statement = ExtractedStatement(
         lines=[
             ExtractedLine(
                 date=receipt.date or "",
@@ -189,3 +246,5 @@ def extract_receipt(
             )
         ]
     )
+    statement._model = model
+    return statement

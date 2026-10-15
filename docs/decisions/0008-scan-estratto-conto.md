@@ -38,3 +38,24 @@ per migliorare i modelli, per gli estratti conto serve un progetto a pagamento.
 **Errori.** 429/500/503 (sovraccarico, limiti) si riprovano da soli due volte,
 con pause crescenti; gli altri arrivano all'utente con un messaggio leggibile e
 lo stato `failed`, da cui si può riprovare.
+
+## Aggiornamento 2026-10-15: modello scelto in base alla disponibilità
+
+Il 15 ottobre `gemini-flash-latest` ha risposto 503/504 per ore mentre
+`gemini-flash-lite-latest` rispondeva in un secondo: con un modello solo lo
+scan era fermo. Ora `GEMINI_MODEL` è il principale e `GEMINI_FALLBACK_MODELS`
+(default `gemini-flash-lite-latest`) le riserve, in ordine.
+
+- Un errore temporaneo (429, 5xx, timeout, rete) passa **subito** al modello
+  successivo invece di aspettare; finito il giro si aspetta (4 s, poi 12 s) e
+  si rifà il giro, tre volte in tutto.
+- Il modello che ha fallito resta **in fondo alla fila per
+  `GEMINI_MODEL_COOLDOWN` secondi** (300), nella cache Redis condivisa dai
+  worker: le letture successive partono da quello che funziona. Un 404
+  (modello inesistente per la chiave) lo tiene in fondo un giorno.
+- Chiave rifiutata (401/403) e richieste non valide non dipendono dal modello:
+  si fermano subito.
+- L'import registra in `model_name` il modello che ha letto davvero.
+- Timeout per chiamata: 90 s per l'estratto conto, 30 s per lo scontrino, così
+  un modello appeso non fa aspettare un minuto e mezzo per una foto.
+

@@ -448,6 +448,12 @@ eliminano e aggiungono righe. Solo "Registra" le scrive nei movimenti
 Gemini che legge le **descrizioni** delle categorie. I possibili doppioni sono
 segnalati. Il PDF si cancella appena letto.
 
+**Modello Gemini scelto in base alla disponibilità**: `GEMINI_MODEL` è il
+principale, `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) le
+riserve. Se un modello è sovraccarico o non risponde lo scan passa subito al
+successivo, e quello resta in fondo alla fila per 5 minuti (cache Redis):
+dettagli nell'aggiornamento di [ADR 0008](docs/decisions/0008-scan-estratto-conto.md).
+
 **Scan scontrino** (`/t/:id/scontrino`, dal "+" → "Da scontrino",
 [ADR 0014](docs/decisions/0014-scan-scontrino.md)). "Scatta una foto" apre la
 fotocamera del telefono, "Scegli una foto" la galleria. Gemini legge

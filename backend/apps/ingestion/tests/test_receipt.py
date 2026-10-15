@@ -142,3 +142,19 @@ def test_import_fermo_in_lettura_si_puo_riprovare(api, user, tracker):
             updated_at=timezone.now() - timedelta(minutes=11)
         )
         assert api(user).post(url).status_code == 202
+
+
+def test_l_import_ricorda_il_modello_che_ha_letto(api, user, tracker):
+    statement = StatementImport.objects.get(pk=_upload(api, user, tracker).data["id"])
+
+    def extractor(image, categories):
+        result = ExtractedStatement(
+            lines=[ExtractedLine(date="2026-10-15", description="Bar", amount="2",
+                                 direction="out")]
+        )
+        result._model = "gemini-flash-lite-latest"
+        return result
+
+    run_scan(statement, extractor=extractor)
+    statement.refresh_from_db()
+    assert statement.model_name == "gemini-flash-lite-latest"

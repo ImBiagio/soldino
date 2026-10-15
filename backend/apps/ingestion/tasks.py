@@ -4,7 +4,8 @@ from .models import StatementImport
 from .services.scan import run_scan
 
 
-# Tre tentativi da 90 s piu' le pause stanno sotto il limite morbido: se lo si
+# Tre giri sui modelli (90 s al massimo per chiamata di un estratto conto) piu' le
+# pause stanno di solito sotto il limite morbido: se lo si
 # supera, SoftTimeLimitExceeded arriva dentro run_scan, che segna l'import come
 # non riuscito (e quindi riprovabile) invece di lasciarlo "in lettura".
 @shared_task(soft_time_limit=300, time_limit=330)

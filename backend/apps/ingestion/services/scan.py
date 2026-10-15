@@ -189,6 +189,8 @@ def run_scan(statement: StatementImport, extractor=None) -> None:
     read = extractor or default_extractor(statement)
     try:
         extracted = read(bytes(statement.pdf or b""), category_catalog(statement.tracker))
+        # Quello che ha letto davvero: con il principale giu' e' una riserva.
+        statement.model_name = getattr(extracted, "_model", "") or settings.GEMINI_MODEL
         with db_transaction.atomic():
             statement.lines.all().hard_delete()
             build_lines(statement, extracted)
