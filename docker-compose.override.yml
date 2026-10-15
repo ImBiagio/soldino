@@ -1,6 +1,12 @@
 # Applicato automaticamente da `docker compose up` in sviluppo:
 # volumi montati, autoreload, niente gunicorn.
 services:
+  # Solo in sviluppo: Postgres raggiungibile dall'host (PyCharm, psql).
+  # In produzione il DB non deve avere porte aperte.
+  db:
+    ports:
+      - "5433:5432"
+
   backend:
     build:
       context: ./backend

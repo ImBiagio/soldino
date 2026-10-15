@@ -7,8 +7,8 @@ isolamento copre l'intera superficie API.
 from __future__ import annotations
 
 from django.db.models import QuerySet
+from django.http import Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
 
 
 def visible_tracker_ids(user) -> QuerySet:
@@ -44,14 +44,24 @@ class TrackerScopedMixin:
         return self.kwargs.get(self.tracker_url_kwarg)
 
     def get_tracker(self):
+        """Il tracker della rotta, letto una volta per richiesta."""
         from apps.trackers.models import Tracker
 
-        tracker = get_object_or_404(Tracker.objects.all(), pk=self.tracker_id)
-        if not get_membership(self.request.user, tracker.pk):
-            # 404 e non 403: l'esistenza di un tracker altrui non e' un'informazione
-            # che va restituita.
-            raise PermissionDenied("Tracker non accessibile.")
-        return tracker
+        if getattr(self, "_tracker", None) is None:
+            tracker = get_object_or_404(Tracker.objects.all(), pk=self.tracker_id)
+            if not get_membership(self.request.user, tracker.pk):
+                # 404 e non 403: l'esistenza di un tracker altrui non e' un'informazione
+                # che va restituita.
+                raise Http404("Tracker non accessibile.")
+            self._tracker = tracker
+        return self._tracker
+
+    def get_serializer_context(self):
+        # Sulle rotte annidate ogni serializer valida contro il tracker della rotta.
+        context = super().get_serializer_context()
+        if self.tracker_id:
+            context["tracker"] = self.get_tracker()
+        return context
 
     def get_membership(self):
         return get_membership(self.request.user, self.tracker_id)

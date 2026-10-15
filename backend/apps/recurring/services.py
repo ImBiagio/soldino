@@ -11,8 +11,9 @@ from __future__ import annotations
 from django.db import transaction as db_transaction
 from django.utils import timezone
 
+from apps.transactions.methods import create_transaction
 from apps.transactions.models import Transaction
-from apps.transactions.services.splits import personal_split_input, sync_splits
+from apps.transactions.services.splits import personal_split_input
 
 from .models import RecurringRule
 
@@ -34,8 +35,10 @@ def _advance(rule: RecurringRule) -> None:
 @db_transaction.atomic
 def write_occurrence(rule: RecurringRule, *, created_by) -> Transaction:
     """Scrive l'occorrenza ``rule.next_run`` come transazione e fa avanzare la regola."""
-    tx = Transaction(
+    tx = create_transaction(
         tracker=rule.tracker,
+        created_by=created_by,
+        splits=rule.split_template or personal_split_input(rule.paid_by_id),
         type=rule.type,
         date=rule.next_run,
         title=rule.title,
@@ -44,11 +47,7 @@ def write_occurrence(rule: RecurringRule, *, created_by) -> Transaction:
         account=rule.account,
         paid_by=rule.paid_by,
         source=Transaction.Source.RECURRING,
-        created_by=created_by,
     )
-    tx.full_clean(exclude=["merchant_normalized", "fingerprint"])
-    tx.save()
-    sync_splits(tx, rule.split_template or personal_split_input(rule.paid_by_id))
     _advance(rule)
     return tx
 

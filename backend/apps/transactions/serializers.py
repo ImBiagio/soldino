@@ -5,9 +5,11 @@ from decimal import Decimal
 from django.db import transaction as db_transaction
 from rest_framework import serializers
 
-from apps.trackers.models import Membership
+from apps.core.methods import validate_positive_amount
+from apps.trackers.methods import active_member_ids, require_active_member
 from apps.users.serializers import UserBriefSerializer
 
+from .methods import create_transaction
 from .models import Settlement, Transaction, TransactionSplit
 from .services.splits import (
     MODE_DEFAULT,
@@ -17,6 +19,9 @@ from .services.splits import (
     sync_splits,
     validate_split_users,
 )
+
+# Un import o una bozza di scan grandi stanno ben sotto; oltre e' un abuso.
+BULK_MAX_TRANSACTIONS = 1000
 
 
 class SplitInputSerializer(serializers.Serializer):
@@ -99,18 +104,12 @@ class TransactionSerializer(serializers.ModelSerializer):
         ]
 
     def validate_amount(self, value: Decimal) -> Decimal:
-        if value is None or value <= 0:
-            raise serializers.ValidationError("L'importo deve essere positivo.")
-        return value
+        return validate_positive_amount(value)
 
     def validate_paid_by(self, user):
-        tracker = self.context["tracker"]
-        is_member = Membership.objects.filter(
-            tracker=tracker, user=user, status=Membership.Status.ACTIVE
-        ).exists()
-        if not is_member:
-            raise serializers.ValidationError("Chi paga deve essere un membro attivo del tracker.")
-        return user
+        return require_active_member(
+            self.context["tracker"], user, "Chi paga deve essere un membro attivo del tracker."
+        )
 
     def _resolve_split_items(self, validated_data, instance=None) -> list[dict] | None:
         tracker = self.context["tracker"]
@@ -136,12 +135,9 @@ class TransactionSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         items = self._resolve_split_items(validated_data)
         validate_split_users(tracker, items)
-
-        tx = Transaction(tracker=tracker, created_by=request.user, **validated_data)
-        tx.full_clean(exclude=["merchant_normalized", "fingerprint"])
-        tx.save()
-        sync_splits(tx, items)
-        return tx
+        return create_transaction(
+            tracker=tracker, created_by=request.user, splits=items, **validated_data
+        )
 
     @db_transaction.atomic
     def update(self, instance, validated_data):
@@ -174,7 +170,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
 
 class TransactionBulkSerializer(serializers.Serializer):
-    transactions = TransactionSerializer(many=True)
+    transactions = TransactionSerializer(many=True, max_length=BULK_MAX_TRANSACTIONS)
 
     @db_transaction.atomic
     def create(self, validated_data):
@@ -207,13 +203,9 @@ class SettlementSerializer(serializers.ModelSerializer):
         to_user = attrs.get("to_user") or getattr(self.instance, "to_user", None)
         if from_user == to_user:
             raise serializers.ValidationError("Il pareggio richiede due utenti diversi.")
-        member_ids = set(
-            Membership.objects.filter(
-                tracker=tracker, status=Membership.Status.ACTIVE
-            ).values_list("user_id", flat=True)
-        )
-        if from_user.pk not in member_ids or to_user.pk not in member_ids:
+        member_ids = active_member_ids(tracker)
+        if str(from_user.pk) not in member_ids or str(to_user.pk) not in member_ids:
             raise serializers.ValidationError("Entrambi gli utenti devono essere membri attivi.")
-        if attrs.get("amount") is not None and attrs["amount"] <= 0:
-            raise serializers.ValidationError("L'importo deve essere positivo.")
+        if attrs.get("amount") is not None:
+            validate_positive_amount(attrs["amount"])
         return attrs

@@ -4,7 +4,8 @@ from django.conf import settings
 from rest_framework import serializers
 
 from apps.accounts.models import Account
-from apps.trackers.models import Membership
+from apps.core.methods import validate_positive_amount
+from apps.trackers.methods import is_active_member
 from apps.users.serializers import UserBriefSerializer
 
 from .models import StatementImport, StatementLine
@@ -31,9 +32,7 @@ class StatementLineSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "position", "category_source", "duplicate_of", "transaction"]
 
     def validate_amount(self, value):
-        if value is None or value <= 0:
-            raise serializers.ValidationError("L'importo deve essere positivo.")
-        return value
+        return validate_positive_amount(value)
 
     def validate(self, attrs):
         tracker = self.context["tracker"]
@@ -46,15 +45,13 @@ class StatementLineSerializer(serializers.ModelSerializer):
                     {"category": "La categoria e' di tipo diverso dal movimento."}
                 )
         paid_by = attrs.get("paid_by")
-        if paid_by and not Membership.objects.filter(
-            tracker=tracker, user=paid_by, status=Membership.Status.ACTIVE
-        ).exists():
+        if paid_by and not is_active_member(tracker, paid_by):
             raise serializers.ValidationError({"paid_by": "Deve essere un membro del tracker."})
         return attrs
 
 
 class LinesReplaceSerializer(serializers.Serializer):
-    lines = StatementLineSerializer(many=True)
+    lines = StatementLineSerializer(many=True, max_length=1000)
 
 
 class StatementImportSerializer(serializers.ModelSerializer):

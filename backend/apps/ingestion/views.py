@@ -37,10 +37,10 @@ class StatementViewSet(
         "lines"
     )
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["tracker"] = self.get_tracker()
-        return context
+    @property
+    def throttle_scope(self):
+        # Solo cio' che chiama Gemini: la revisione fa polling ogni 2,5 secondi.
+        return "scan" if self.action in {"create", "retry"} else None
 
     @extend_schema(request=StatementUploadSerializer, responses={201: StatementImportSerializer})
     def create(self, request, tracker_pk=None):
@@ -86,7 +86,8 @@ class StatementViewSet(
         existing = {str(line.pk): line for line in statement.lines.all()}
         keep = set()
         for position, data in enumerate(payload.validated_data["lines"]):
-            line_id = str(request.data["lines"][position].get("id") or "")
+            raw = request.data["lines"][position]
+            line_id = str(raw.get("id") or "") if isinstance(raw, dict) else ""
             data["position"] = position
             line = existing.get(line_id)
             if line is not None:

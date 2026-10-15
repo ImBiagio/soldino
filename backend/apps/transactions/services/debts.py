@@ -10,8 +10,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from decimal import Decimal
 
-from django.db.models import Sum
-
+from apps.core.methods import sums_by
 from apps.core.money import ZERO, quantize
 from apps.transactions.models import Settlement, Transaction, TransactionSplit
 
@@ -35,46 +34,22 @@ class SuggestedTransfer:
 
 def compute_balances(tracker_id, member_ids: Iterable) -> list[UserBalance]:
     member_ids = [str(m) for m in member_ids]
+    expenses = Transaction.objects.filter(tracker_id=tracker_id, type=Transaction.Type.EXPENSE)
+    settlements = Settlement.objects.filter(tracker_id=tracker_id)
 
-    paid = {
-        str(row["paid_by_id"]): row["total"]
-        for row in Transaction.objects.filter(
-            tracker_id=tracker_id, type=Transaction.Type.EXPENSE
-        )
-        .values("paid_by_id")
-        .annotate(total=Sum("amount"))
-    }
-
-    owed = {
-        str(row["user_id"]): row["total"]
-        for row in TransactionSplit.objects.filter(
-            transaction__tracker_id=tracker_id,
-            transaction__type=Transaction.Type.EXPENSE,
-            transaction__deleted_at__isnull=True,
-        )
-        .values("user_id")
-        .annotate(total=Sum("share_amount"))
-    }
-
-    sent = {
-        str(row["from_user_id"]): row["total"]
-        for row in Settlement.objects.filter(tracker_id=tracker_id)
-        .values("from_user_id")
-        .annotate(total=Sum("amount"))
-    }
-    received = {
-        str(row["to_user_id"]): row["total"]
-        for row in Settlement.objects.filter(tracker_id=tracker_id)
-        .values("to_user_id")
-        .annotate(total=Sum("amount"))
-    }
+    paid = sums_by(expenses, "paid_by_id", "amount")
+    owed = sums_by(
+        TransactionSplit.objects.filter(transaction__in=expenses.values("id")),
+        "user_id",
+        "share_amount",
+    )
+    sent = sums_by(settlements, "from_user_id", "amount")
+    received = sums_by(settlements, "to_user_id", "amount")
 
     balances = []
     for uid in member_ids:
-        p = quantize(paid.get(uid) or ZERO)
-        o = quantize(owed.get(uid) or ZERO)
-        s = quantize(sent.get(uid) or ZERO)
-        r = quantize(received.get(uid) or ZERO)
+        p, o = paid.get(uid, ZERO), owed.get(uid, ZERO)
+        s, r = sent.get(uid, ZERO), received.get(uid, ZERO)
         balances.append(
             UserBalance(
                 user_id=uid,

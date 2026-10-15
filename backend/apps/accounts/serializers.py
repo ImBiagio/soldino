@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
-from apps.trackers.models import Membership
+from apps.trackers.methods import require_active_member
+from apps.transactions.serializers import SplitInputSerializer
 from apps.users.serializers import UserBriefSerializer
 
 from .models import Account, PendingItem
@@ -10,12 +11,7 @@ from .models import Account, PendingItem
 
 def validate_member_owner(serializer, user):
     """Conti e BTA di un non membro sfuggirebbero alla riconciliazione per persona."""
-    tracker = serializer.context["view"].get_tracker()
-    if not Membership.objects.filter(
-        tracker=tracker, user=user, status=Membership.Status.ACTIVE
-    ).exists():
-        raise serializers.ValidationError("Deve essere un membro attivo del tracker.")
-    return user
+    return require_active_member(serializer.context["tracker"], user)
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -91,4 +87,11 @@ class PendingItemConvertSerializer(serializers.Serializer):
     account = serializers.UUIDField(required=False, allow_null=True)
     category = serializers.UUIDField(required=False, allow_null=True)
     paid_by = serializers.UUIDField(required=False, allow_null=True)
-    splits = serializers.ListField(child=serializers.DictField(), required=False)
+    splits = SplitInputSerializer(many=True, required=False)
+
+    def validate_paid_by(self, user_id):
+        if user_id is None:
+            return None
+        return require_active_member(
+            self.context["tracker"], user_id, "Chi paga deve essere un membro attivo del tracker."
+        )

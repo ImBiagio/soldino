@@ -13,7 +13,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
 
 from apps.core.money import ZERO, allocate, percentages_from_amounts, quantize
-from apps.trackers.models import Membership
+from apps.trackers.methods import active_member_ids, active_memberships
 from apps.transactions.models import TransactionSplit
 
 MODE_PERSONAL = "personal"
@@ -24,11 +24,7 @@ MODE_AMOUNT = "amount"
 
 def default_split_input(tracker, paid_by_id) -> list[dict]:
     """Percentuali di default dal tracker; se non sommano a zero vengono usate come pesi."""
-    memberships = list(
-        Membership.objects.filter(
-            tracker=tracker, status=Membership.Status.ACTIVE, user__isnull=False
-        )
-    )
+    memberships = list(active_memberships(tracker))
     if not memberships:
         return [{"user": paid_by_id, "share_pct": Decimal("100.00")}]
     if sum((m.default_share_pct for m in memberships), ZERO) <= 0:
@@ -118,12 +114,7 @@ def sync_splits(tx, items: list[dict]) -> list[TransactionSplit]:
 
 
 def validate_split_users(tracker, items: list[dict]) -> None:
-    member_ids = {
-        str(uid)
-        for uid in Membership.objects.filter(
-            tracker=tracker, status=Membership.Status.ACTIVE, user__isnull=False
-        ).values_list("user_id", flat=True)
-    }
+    member_ids = active_member_ids(tracker)
     for item in items:
         user = item["user"]
         uid = str(user.pk if hasattr(user, "pk") else user)

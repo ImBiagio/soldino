@@ -10,14 +10,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.core.methods import normalize_email
 from apps.core.money import money_str
 from apps.core.permissions import IsTrackerMember, IsTrackerOwner
-from apps.core.scoping import TrackerScopedMixin
+from apps.core.scoping import TrackerScopedMixin, get_membership
 from apps.transactions.services.debts import compute_balances, minimize_transfers
 from apps.transactions.services.reports import balance_history, reconcile, summary
 from apps.users.serializers import UserBriefSerializer
 
 from .invites import read_invite_token, send_invite_email
+from .methods import active_memberships
 from .models import Category, Membership, Tracker
 from .serializers import (
     BalanceHistoryQuerySerializer,
@@ -40,9 +42,14 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     )
 
     def _require_owner(self, tracker, verb: str) -> None:
-        membership = self.request.user.memberships.filter(tracker=tracker).first()
+        membership = get_membership(self.request.user, tracker.pk)
         if not membership or membership.role != Membership.Role.OWNER:
             self.permission_denied(self.request, message=f"Solo il proprietario puo' {verb}.")
+
+    def perform_update(self, serializer):
+        # Nome, valuta e impostazioni valgono per tutti i membri: li decide il proprietario.
+        self._require_owner(serializer.instance, "modificare il tracker")
+        serializer.save()
 
     @db_transaction.atomic
     def perform_destroy(self, instance):
@@ -81,7 +88,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         tracker = self.get_object()
         serializer = InviteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        email = serializer.validated_data["email"].lower().strip()
+        email = normalize_email(serializer.validated_data["email"])
 
         from django.contrib.auth import get_user_model
 
@@ -114,11 +121,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["get"], permission_classes=[IsAuthenticated, IsTrackerMember])
     def balances(self, request, pk=None):
         tracker = self.get_object()
-        memberships = list(
-            tracker.memberships.filter(
-                status=Membership.Status.ACTIVE, user__isnull=False
-            ).select_related("user")
-        )
+        memberships = list(active_memberships(tracker).select_related("user"))
         by_id = {str(m.user_id): m for m in memberships}
         balances = compute_balances(tracker.pk, by_id.keys())
         transfers = minimize_transfers(balances)
@@ -281,7 +284,8 @@ class InviteAcceptView(APIView):
                 {"detail": "L'invito e' intestato a un altro utente."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        if not membership.user_id and membership.invited_email.lower() != request.user.email:
+        invited = normalize_email(membership.invited_email)
+        if not membership.user_id and invited != request.user.email:
             return Response(
                 {"detail": "L'invito e' stato inviato a un altro indirizzo email."},
                 status=status.HTTP_403_FORBIDDEN,

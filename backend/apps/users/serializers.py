@@ -3,6 +3,8 @@ from __future__ import annotations
 from django.contrib.auth import get_user_model, password_validation
 from rest_framework import serializers
 
+from apps.core.methods import normalize_email
+
 User = get_user_model()
 
 
@@ -28,7 +30,7 @@ class RegisterSerializer(serializers.Serializer):
     display_name = serializers.CharField(required=False, allow_blank=True)
 
     def validate_email(self, value: str) -> str:
-        value = value.lower().strip()
+        value = normalize_email(value)
         if User.objects.filter(email=value).exists():
             raise serializers.ValidationError("Esiste gia' un account con questa email.")
         return value

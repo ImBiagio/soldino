@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
 from rest_framework import serializers
 
+from apps.core.methods import validate_date_range
 from apps.users.serializers import UserBriefSerializer
 
 from .models import Category, Membership, Tracker
@@ -32,6 +33,12 @@ class MembershipSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "user", "invited_email", "status", "created_at"]
+
+    def validate_role(self, value: str) -> str:
+        # Il proprietario e' uno solo, quello di ``Tracker.owner``.
+        if value == Membership.Role.OWNER and getattr(self.instance, "role", None) != value:
+            raise serializers.ValidationError("Il proprietario non si assegna.")
+        return value
 
 
 class TrackerSerializer(serializers.ModelSerializer):
@@ -146,15 +153,11 @@ class CategorySerializer(serializers.ModelSerializer):
 class InviteSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(
-        choices=Membership.Role.choices, default=Membership.Role.EDITOR
+        choices=[Membership.Role.EDITOR, Membership.Role.VIEWER], default=Membership.Role.EDITOR
     )
     default_share_pct = serializers.DecimalField(
         max_digits=5, decimal_places=2, default="50.00", min_value=0, max_value=100
     )
-
-
-class InviteAcceptSerializer(serializers.Serializer):
-    token = serializers.CharField()
 
 
 class SummaryQuerySerializer(serializers.Serializer):
@@ -176,9 +179,7 @@ class SummaryQuerySerializer(serializers.Serializer):
             raise serializers.ValidationError("Categoria non valida.") from None
 
     def validate(self, attrs):
-        start, end = attrs.get("date_from"), attrs.get("date_to")
-        if start and end and start > end:
-            raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
+        validate_date_range(attrs.get("date_from"), attrs.get("date_to"))
         return attrs
 
 
@@ -188,9 +189,7 @@ class BalanceHistoryQuerySerializer(serializers.Serializer):
     user_id = serializers.UUIDField(required=False)
 
     def validate(self, attrs):
-        span = (attrs["date_to"] - attrs["date_from"]).days
-        if span < 0:
-            raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
-        if span > 366 * 3:
+        validate_date_range(attrs["date_from"], attrs["date_to"])
+        if (attrs["date_to"] - attrs["date_from"]).days > 366 * 3:
             raise serializers.ValidationError("Al massimo tre anni per volta.")
         return attrs

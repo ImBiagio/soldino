@@ -6,6 +6,8 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+from apps.core.methods import normalize_email
+
 
 class UserManager(BaseUserManager):
     use_in_migrations = True
@@ -13,7 +15,7 @@ class UserManager(BaseUserManager):
     def _create_user(self, email: str, password: str | None, **extra):
         if not email:
             raise ValueError("L'email e' obbligatoria.")
-        email = self.normalize_email(email).lower()
+        email = normalize_email(email)
         user = self.model(email=email, **extra)
         user.set_password(password)
         user.save(using=self._db)
@@ -55,7 +57,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         return self.display_name or self.email
 
     def save(self, *args, **kwargs):
-        self.email = self.email.lower().strip()
+        self.email = normalize_email(self.email)
         if not self.display_name:
             self.display_name = self.email.split("@")[0]
         super().save(*args, **kwargs)

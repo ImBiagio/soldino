@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from apps.trackers.models import Membership
+from apps.trackers.methods import is_active_member
 from apps.transactions.services.splits import resolve_split_amounts, validate_split_users
 
 from .models import RecurringRule
@@ -43,14 +43,17 @@ class RecurringRuleSerializer(serializers.ModelSerializer):
         return is_due(obj)
 
     def validate(self, attrs):
-        tracker = self.context["view"].get_tracker()
+        tracker = self.context["tracker"]
         paid_by = attrs.get("paid_by") or getattr(self.instance, "paid_by", None)
-        if paid_by and not Membership.objects.filter(
-            tracker=tracker, user=paid_by, status=Membership.Status.ACTIVE
-        ).exists():
+        if paid_by and not is_active_member(tracker, paid_by):
             raise serializers.ValidationError(
                 {"paid_by": "Chi paga deve essere un membro attivo del tracker."}
             )
+        # Categoria e conto di un altro tracker esploderebbero solo all'approvazione.
+        for field in ("category", "account"):
+            related = attrs.get(field)
+            if related is not None and related.tracker_id != tracker.pk:
+                raise serializers.ValidationError({field: "Appartiene a un altro tracker."})
 
         template = attrs.get("split_template")
         if template:

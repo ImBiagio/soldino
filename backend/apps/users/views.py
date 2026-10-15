@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
-from django.core.mail import send_mail
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -10,7 +9,10 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
+
+from apps.core.methods import normalize_email, send_notification
 
 from .serializers import (
     LoginSerializer,
@@ -43,8 +45,17 @@ def _auth_response(user) -> Response:
     return _set_refresh_cookie(Response(payload), refresh)
 
 
+def revoke_all_refresh_tokens(user) -> None:
+    """Ogni sessione aperta dell'utente non potra' piu' rinnovarsi."""
+    BlacklistedToken.objects.bulk_create(
+        [BlacklistedToken(token=token) for token in OutstandingToken.objects.filter(user=user)],
+        ignore_conflicts=True,
+    )
+
+
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "auth"
 
     @extend_schema(request=RegisterSerializer, responses={201: TokenPairSerializer})
     def post(self, request):
@@ -53,12 +64,10 @@ class RegisterView(APIView):
         user = serializer.save()
 
         if settings.REQUIRE_EMAIL_VERIFICATION:
-            send_mail(
+            send_notification(
                 "Conferma il tuo indirizzo email",
                 f"Conferma il tuo account: {email_verification_url(user)}",
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=True,
+                user.email,
             )
             return Response(
                 {"detail": "Registrazione completata. Controlla la mail per confermare."},
@@ -74,6 +83,7 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "auth"
 
     @extend_schema(request=LoginSerializer, responses={200: TokenPairSerializer})
     def post(self, request):
@@ -81,7 +91,7 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         user = authenticate(
             request,
-            username=serializer.validated_data["email"].lower().strip(),
+            username=normalize_email(serializer.validated_data["email"]),
             password=serializer.validated_data["password"],
         )
         if user is None:
@@ -97,10 +107,12 @@ class LoginView(APIView):
 
 class RefreshView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "refresh"
 
     @extend_schema(request=None, responses={200: TokenPairSerializer})
     def post(self, request):
-        raw = request.COOKIES.get(settings.REFRESH_COOKIE_NAME) or request.data.get("refresh")
+        # Solo dal cookie: il refresh non deve mai passare dal JavaScript.
+        raw = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not raw:
             return Response(
                 {"detail": "Refresh token assente."}, status=status.HTTP_401_UNAUTHORIZED
@@ -127,6 +139,13 @@ class LogoutView(APIView):
 
     @extend_schema(request=None, responses={204: None})
     def post(self, request):
+        # Il cookie cancellato non basta: chi l'avesse copiato potrebbe ancora usarlo.
+        raw = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
+        if raw:
+            try:
+                RefreshToken(raw).blacklist()
+            except TokenError:
+                pass
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie(
             settings.REFRESH_COOKIE_NAME, path=settings.REFRESH_COOKIE_PATH
@@ -136,6 +155,7 @@ class LogoutView(APIView):
 
 class VerifyEmailView(APIView):
     permission_classes = [AllowAny]
+    throttle_scope = "auth"
 
     @extend_schema(request=None, responses={200: TokenPairSerializer})
     def post(self, request, token: str):
@@ -147,9 +167,14 @@ class VerifyEmailView(APIView):
         user = User.objects.filter(pk=uid).first()
         if user is None:
             return Response({"detail": "Utente inesistente."}, status=status.HTTP_400_BAD_REQUEST)
-        if not user.is_email_verified:
-            user.email_verified_at = timezone.now()
-            user.save(update_fields=["email_verified_at"])
+        # Il link fa entrare senza password: vale una volta sola, non per tre giorni.
+        if user.is_email_verified:
+            return Response(
+                {"detail": "Email gia' confermata: accedi con la tua password."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.email_verified_at = timezone.now()
+        user.save(update_fields=["email_verified_at"])
         return _auth_response(user)
 
 
@@ -182,4 +207,8 @@ class PasswordChangeView(APIView):
             )
         request.user.set_password(serializer.validated_data["new_password"])
         request.user.save(update_fields=["password"])
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        # Le altre sessioni (magari di chi conosceva la vecchia password) cadono;
+        # questa riceve un refresh nuovo e resta aperta.
+        revoke_all_refresh_tokens(request.user)
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        return _set_refresh_cookie(response, RefreshToken.for_user(request.user))

@@ -14,14 +14,7 @@ from .models import Settlement, Transaction
 from .serializers import SettlementSerializer, TransactionBulkSerializer, TransactionSerializer
 
 
-class TrackerContextMixin:
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["tracker"] = self.get_tracker()
-        return context
-
-
-class TransactionViewSet(TrackerScopedMixin, TrackerContextMixin, viewsets.ModelViewSet):
+class TransactionViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated, IsTrackerMember]
     filterset_class = TransactionFilter
@@ -33,7 +26,7 @@ class TransactionViewSet(TrackerScopedMixin, TrackerContextMixin, viewsets.Model
     )
 
 
-class SettlementViewSet(TrackerScopedMixin, TrackerContextMixin, viewsets.ModelViewSet):
+class SettlementViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     serializer_class = SettlementSerializer
     permission_classes = [IsAuthenticated, IsTrackerMember]
     queryset = Settlement.objects.select_related("from_user", "to_user")
@@ -52,8 +45,7 @@ class TransactionBulkView(TrackerScopedMixin, APIView):
         request=TransactionBulkSerializer, responses={201: TransactionSerializer(many=True)}
     )
     def post(self, request, tracker_pk=None):
-        tracker = self.get_tracker()
-        context = {"request": request, "tracker": tracker}
+        context = {"request": request, "tracker": self.get_tracker()}
         serializer = TransactionBulkSerializer(data=request.data, context=context)
         serializer.is_valid(raise_exception=True)
         created = serializer.save()

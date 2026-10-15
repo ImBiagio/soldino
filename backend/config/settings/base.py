@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
     # third party
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "drf_spectacular",
@@ -137,6 +138,15 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
+    # Solo le view con ``throttle_scope`` sono limitate: login, registrazione,
+    # inviti e upload dello scan (che costa una chiamata a Gemini). I contatori
+    # stanno nella cache Django, cioe' Redis.
+    "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": env("THROTTLE_AUTH", "10/min"),
+        "refresh": env("THROTTLE_REFRESH", "60/min"),
+        "scan": env("THROTTLE_SCAN", "20/hour"),
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -155,6 +165,9 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(seconds=ACCESS_TOKEN_LIFETIME),
     "REFRESH_TOKEN_LIFETIME": timedelta(seconds=REFRESH_TOKEN_LIFETIME),
     "ROTATE_REFRESH_TOKENS": True,
+    # La blacklist serve a logout e cambio password, non alla rotazione: con
+    # due schede aperte che rinnovano insieme, blacklistare il token ruotato
+    # butterebbe fuori una delle due.
     "BLACKLIST_AFTER_ROTATION": False,
     "UPDATE_LAST_LOGIN": True,
     "USER_ID_FIELD": "id",
@@ -171,9 +184,10 @@ REQUIRE_EMAIL_VERIFICATION = env_bool("REQUIRE_EMAIL_VERIFICATION", True)
 
 # --- Celery ---
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", "redis://redis:6379/1")
-CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", "redis://redis:6379/2")
+# Nessuno legge il valore di ritorno dei task: lo stato (es. dello scan) sta
+# nel DB. Senza result backend Redis non accumula risultati mai letti.
+CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_SERIALIZER = "json"
-CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_ALWAYS_EAGER = False
@@ -183,6 +197,10 @@ CELERY_BEAT_SCHEDULE = {
     "materialize-recurring-rules": {
         "task": "apps.recurring.tasks.materialize_due_rules",
         "schedule": crontab(hour=3, minute=0),
+    },
+    "flush-expired-tokens": {
+        "task": "apps.users.tasks.flush_expired_tokens",
+        "schedule": crontab(hour=4, minute=0),
     },
 }
 

@@ -6,7 +6,8 @@ Signing invece di un modello: niente tabella da mantenere, scadenza esplicita.
 from __future__ import annotations
 
 from django.conf import settings
-from django.core import signing
+
+from apps.core.methods import sign, unsign
 
 EMAIL_VERIFY_SALT = "soldino.email-verify"
 PASSWORD_RESET_SALT = "soldino.password-reset"
@@ -14,15 +15,12 @@ DEFAULT_MAX_AGE = 60 * 60 * 24 * 3  # 3 giorni
 
 
 def make_token(user_id, salt: str) -> str:
-    return signing.dumps({"uid": str(user_id)}, salt=salt)
+    return sign({"uid": str(user_id)}, salt)
 
 
 def read_token(token: str, salt: str, max_age: int = DEFAULT_MAX_AGE) -> str | None:
-    try:
-        data = signing.loads(token, salt=salt, max_age=max_age)
-    except signing.BadSignature:
-        return None
-    return data.get("uid")
+    data = unsign(token, salt, max_age)
+    return data.get("uid") if data else None
 
 
 def email_verification_url(user) -> str:

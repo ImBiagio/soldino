@@ -12,12 +12,9 @@ from decimal import Decimal
 from django.db.models import Count, Sum
 
 from apps.accounts.models import Account, PendingItem
+from apps.core.methods import sum_amount
 from apps.core.money import ZERO, money_str, quantize
 from apps.transactions.models import Settlement, Transaction, TransactionSplit
-
-
-def _sum(qs, field: str) -> Decimal:
-    return quantize(qs.aggregate(t=Sum(field))["t"] or ZERO)
 
 
 @dataclass(frozen=True)
@@ -103,21 +100,21 @@ def reconcile_person(membership) -> Reconciliation:
         txs = txs.filter(date__gte=since)
         settlements = settlements.filter(date__gte=since)
 
-    received = _sum(settlements.filter(to_user_id=user_id), "amount")
-    sent = _sum(settlements.filter(from_user_id=user_id), "amount")
+    received = sum_amount(settlements.filter(to_user_id=user_id), "amount")
+    sent = sum_amount(settlements.filter(from_user_id=user_id), "amount")
 
     return Reconciliation(
         opening_balance=quantize(membership.opening_balance),
-        income=_sum(txs.filter(type=Transaction.Type.INCOME), "amount"),
-        expense=_sum(txs.filter(type=Transaction.Type.EXPENSE), "amount"),
+        income=sum_amount(txs.filter(type=Transaction.Type.INCOME), "amount"),
+        expense=sum_amount(txs.filter(type=Transaction.Type.EXPENSE), "amount"),
         settlements_net=quantize(received - sent),
-        accounts_balance=_sum(
+        accounts_balance=sum_amount(
             Account.objects.filter(
                 tracker_id=tracker_id, owner_id=user_id, include_in_totals=True
             ),
             "current_balance",
         ),
-        pending_total=_sum(
+        pending_total=sum_amount(
             PendingItem.objects.filter(
                 tracker_id=tracker_id, owner_id=user_id, status=PendingItem.Status.OPEN
             ),
@@ -193,8 +190,8 @@ def summary(
     def field(name: str) -> str:
         return f"{prefix}{name}"
 
-    total_expense = _sum(rows.filter(**{field("type"): Transaction.Type.EXPENSE}), amount)
-    total_income = _sum(rows.filter(**{field("type"): Transaction.Type.INCOME}), amount)
+    total_expense = sum_amount(rows.filter(**{field("type"): Transaction.Type.EXPENSE}), amount)
+    total_income = sum_amount(rows.filter(**{field("type"): Transaction.Type.INCOME}), amount)
 
     by_category = [
         {
