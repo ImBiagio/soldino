@@ -479,4 +479,8 @@ def release_draft(statement: StatementImport) -> int:
     deleted, _ = SeenBankTransaction.objects.filter(
         account_id=statement.account_id, external_id__in=ids
     ).delete()
+    # I giri successivi ripartono da qualche giorno prima dell'ultima data letta:
+    # senza tornare a sync_from, i movimenti piu' vecchi della bozza non
+    # verrebbero piu' richiesti alla banca.
+    BankAccount.objects.filter(account_id=statement.account_id).update(synced_until=None)
     return deleted

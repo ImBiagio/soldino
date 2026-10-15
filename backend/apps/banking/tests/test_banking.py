@@ -474,14 +474,22 @@ def test_default_mensile_e_modificabile_dal_setup(api, user, tracker):
 
 
 def test_scartare_la_bozza_rimette_in_coda_i_movimenti(api, user, tracker, linked, fake):
-    fake.transactions_data = [tx("r1", "12.50"), tx("r2", "7.00", day="2026-10-12")]
+    # Come PayPal: movimenti del 1° del mese e di meta' mese.
+    fake.transactions_data = [
+        tx("r1", "12.50", day="2026-10-01"),
+        tx("r2", "7.00", day="2026-10-14"),
+    ]
     sync_service.sync_account(linked)
     draft = StatementImport.objects.get(source="bank")
     response = api(user).delete(reverse("statement-detail", args=[tracker.pk, draft.pk]))
     assert response.status_code == 204
     assert not SeenBankTransaction.objects.exists()
+    linked.refresh_from_db()
+    assert linked.synced_until is None
 
     result = sync_service.sync_account(linked)
+    # Riparte da sync_from (1/10), non da 5 giorni prima dell'ultima data letta.
+    assert fake.calls[-1] == ("transactions", "2026-10-01")
     assert (result["drafted"], result["already_seen"]) == (2, 0)
 
 
