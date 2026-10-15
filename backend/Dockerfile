@@ -23,8 +23,10 @@ RUN pip install -e ".[dev]"
 FROM base AS prod
 ENV DJANGO_SETTINGS_MODULE=config.settings.prod
 # Gli statici dell'admin finiscono nell'immagine (li serve whitenoise). La
-# SECRET_KEY fittizia serve solo a far partire i settings durante la build.
-RUN DJANGO_SECRET_KEY=collectstatic-build python manage.py collectstatic --noinput
+# SECRET_KEY e BANKING_ENCRYPTION_KEY fittizie servono solo a far partire i
+# settings durante la build: quelle vere arrivano dal .env all'avvio.
+RUN DJANGO_SECRET_KEY=collectstatic-build BANKING_ENCRYPTION_KEY=collectstatic-build \
+    python manage.py collectstatic --noinput
 # Utente non root: un'eventuale RCE resta confinata nel container.
 # chmod: il codice dev'essere leggibile dall'utente non root qualunque siano i
 # permessi del checkout da cui parte la build.
