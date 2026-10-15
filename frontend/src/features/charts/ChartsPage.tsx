@@ -7,14 +7,16 @@ import { BalanceCurve } from './BalanceCurve'
 import {
   Avatar,
   ErrorBanner,
-  Icon,
+  IconButton,
   IconCircle,
   Segmented,
   Skeleton,
   Stat,
 } from '../../components/ui'
 import { todayIso } from '../../lib/format'
-import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { categoryColor, memberColor } from '../../lib/colors'
+import { categoryIcon } from '../../lib/icons'
+import { PERIOD_LABEL } from '../../lib/labels'
 import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import { rangeFor, rangeLabel, shiftRange, type DateRange, type PeriodKind } from '../../lib/period'
 import type { Summary, SummaryParams, Tracker, TransactionType, UUID } from '../../lib/types'
@@ -179,9 +181,9 @@ function FilterBar({
         value={kind}
         onChange={filters.setKind}
         options={[
-          { value: 'month', label: 'Mese' },
-          { value: 'quarter', label: 'Trimestre' },
-          { value: 'year', label: 'Anno' },
+          { value: 'month', label: PERIOD_LABEL.month },
+          { value: 'quarter', label: PERIOD_LABEL.quarter },
+          { value: 'year', label: PERIOD_LABEL.year },
           { value: 'custom', label: 'Date' },
         ]}
       />
@@ -212,25 +214,25 @@ function FilterBar({
         </div>
       ) : (
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className="state flex h-10 w-10 items-center justify-center rounded-pill"
+          <IconButton
+            icon="chevron_left"
+            label="Periodo precedente"
             onClick={() => filters.setRange(shiftRange(kind, range, -1))}
-            aria-label="Periodo precedente"
-          >
-            <Icon name="chevron_left" size={22} />
-          </button>
+            size="md"
+            iconSize={22}
+            inheritColor
+          />
           <span className="min-w-[150px] text-center text-body-large font-medium">
             {rangeLabel(kind, range)}
           </span>
-          <button
-            type="button"
-            className="state flex h-10 w-10 items-center justify-center rounded-pill"
+          <IconButton
+            icon="chevron_right"
+            label="Periodo successivo"
             onClick={() => filters.setRange(shiftRange(kind, range, 1))}
-            aria-label="Periodo successivo"
-          >
-            <Icon name="chevron_right" size={22} />
-          </button>
+            size="md"
+            iconSize={22}
+            inheritColor
+          />
         </div>
       )}
 

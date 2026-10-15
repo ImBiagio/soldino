@@ -3,20 +3,20 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import {
-  useAccounts,
-  useCategories,
   useConvertPendingItem,
   useDeletePendingItem,
   usePendingItems,
   useSavePendingItem,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { AccountSelect, CategorySelect, MemberSelect } from '../../components/selects'
 import {
   Chip,
   EmptyState,
   ErrorBanner,
   Field,
   Icon,
+  IconButton,
   IconCircle,
   Modal,
   RowsSkeleton,
@@ -138,14 +138,11 @@ export function PendingPage() {
                         >
                           Converti
                         </button>
-                        <button
-                          type="button"
+                        <IconButton
+                          icon="close"
+                          label="Elimina"
                           onClick={() => remove.mutate(item.id)}
-                          aria-label="Elimina"
-                          className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-                        >
-                          <Icon name="close" size={20} />
-                        </button>
+                        />
                       </>
                     )}
                   </div>
@@ -185,13 +182,7 @@ export function PendingPage() {
             />
           </Field>
           <Field label="Di chi">
-            <select className="field-input" name="owner" required>
-              {members.map((member) => (
-                <option key={member.id} value={member.user!.id}>
-                  {member.display_name}
-                </option>
-              ))}
-            </select>
+            <MemberSelect members={members} name="owner" required />
           </Field>
           <Field label="Data attesa">
             <input className="field-input" type="date" name="expected_date" />
@@ -222,8 +213,6 @@ function ConvertModal({
   onClose: () => void
 }) {
   const convert = useConvertPendingItem(tracker.id)
-  const categories = useCategories(tracker.id)
-  const accounts = useAccounts(tracker.id)
   const isIncome = toCents(item.amount) >= 0
 
   return (
@@ -256,26 +245,15 @@ function ConvertModal({
           />
         </Field>
         <Field label="Categoria">
-          <select className="field-input" name="category" defaultValue="">
-            <option value="">Senza categoria</option>
-            {(categories.data?.results ?? [])
-              .filter((c) => c.type === (isIncome ? 'income' : 'expense'))
-              .map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
+          <CategorySelect
+            trackerId={tracker.id}
+            type={isIncome ? 'income' : 'expense'}
+            name="category"
+            defaultValue=""
+          />
         </Field>
         <Field label="Conto">
-          <select className="field-input" name="account" defaultValue="">
-            <option value="">Nessuno</option>
-            {(accounts.data?.results ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <AccountSelect trackerId={tracker.id} name="account" defaultValue="" />
         </Field>
         <button className="btn-filled w-full" disabled={convert.isPending}>
           Converti in movimento

@@ -2,7 +2,10 @@ import clsx from 'clsx'
 import type { CSSProperties, ReactNode } from 'react'
 import { useEffect } from 'react'
 
+import { memberColor } from '../lib/colors'
 import { initials } from '../lib/format'
+import { useCloseOnEscape } from '../lib/hooks'
+import type { Membership, UUID } from '../lib/types'
 
 /* ---------------------------------------------------------------- icone -- */
 
@@ -52,6 +55,46 @@ export function IconCircle({
   )
 }
 
+/** Pulsante rotondo con solo l'icona: chiudi, elimina, menu. */
+export function IconButton({
+  icon,
+  label,
+  onClick,
+  size = 'sm',
+  iconSize = 20,
+  disabled,
+  inheritColor,
+  className,
+}: {
+  icon: string
+  label: string
+  onClick: () => void
+  /** sm = 36px (azioni di riga), md = 40px (barre e dialog). */
+  size?: 'sm' | 'md'
+  iconSize?: number
+  disabled?: boolean
+  /** Prende il colore del contenitore invece di on-surface-variant. */
+  inheritColor?: boolean
+  className?: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      disabled={disabled}
+      className={clsx(
+        'state flex items-center justify-center rounded-pill',
+        size === 'sm' ? 'h-9 w-9' : 'h-10 w-10',
+        !inheritColor && 'text-on-surface-variant',
+        className,
+      )}
+    >
+      <Icon name={icon} size={iconSize} />
+    </button>
+  )
+}
+
 /* -------------------------------------------------------------- avatar -- */
 
 export function Avatar({
@@ -85,12 +128,14 @@ export function Avatar({
 export function AvatarStack({
   people,
   size = 36,
+  className,
 }: {
   people: { name: string; color?: string }[]
   size?: number
+  className?: string
 }) {
   return (
-    <div className="flex" style={{ paddingLeft: 10 }}>
+    <div className={clsx('flex', className)} style={{ paddingLeft: 10 }}>
       {people.map((person, index) => (
         <span key={index} style={{ marginLeft: -10 }}>
           <Avatar name={person.name} color={person.color} size={size} ring={index > 0} />
@@ -101,6 +146,64 @@ export function AvatarStack({
 }
 
 /* ---------------------------------------------------------------- chip -- */
+
+/**
+ * Una chip con avatar per membro, una sola selezionata: chi ha pagato, di chi è
+ * la vista, a chi va la spesa. `children` va prima dei membri (es. "Tutti").
+ */
+export function MemberChips({
+  members,
+  value,
+  onChange,
+  avatarSize = 22,
+  filled,
+  labelOf = (member) => member.display_name,
+  ariaLabel,
+  className,
+  children,
+}: {
+  members: Membership[]
+  value: UUID | null
+  onChange: (userId: UUID) => void
+  avatarSize?: number
+  /** Selezione piena in primary invece della chip tonale. */
+  filled?: boolean
+  labelOf?: (member: Membership) => string
+  ariaLabel?: string
+  className?: string
+  children?: ReactNode
+}) {
+  return (
+    <div
+      className={clsx('flex flex-wrap gap-2', className)}
+      role={ariaLabel ? 'group' : undefined}
+      aria-label={ariaLabel}
+    >
+      {children}
+      {members.map((member, index) => {
+        const selected = value === member.user!.id
+        return (
+          <button
+            key={member.id}
+            type="button"
+            onClick={() => onChange(member.user!.id)}
+            aria-pressed={selected}
+            className={
+              !selected
+                ? 'chip-outlined'
+                : filled
+                  ? 'state inline-flex items-center gap-2 rounded-pill bg-primary px-4 py-2 text-body-medium font-medium text-on-primary'
+                  : 'chip-selected'
+            }
+          >
+            <Avatar name={member.display_name} size={avatarSize} color={memberColor(index)} />
+            {labelOf(member)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export function Chip({
   label,
@@ -239,6 +342,52 @@ export function Switch({
 
 /* -------------------------------------------------------- feedback ------ */
 
+/**
+ * Pill di stato: tonale quando tutto torna, warning quando no. Con `href`
+ * diventa un link (più grande, con freccia) che porta al dettaglio.
+ */
+export function StatusPill({
+  ok,
+  icon,
+  href,
+  children,
+}: {
+  ok: boolean
+  icon?: string
+  href?: string
+  children: ReactNode
+}) {
+  const tone = ok
+    ? 'bg-secondary-container text-on-secondary-container'
+    : 'bg-warning-container text-on-warning-container'
+  if (href) {
+    return (
+      <a
+        href={href}
+        className={clsx(
+          'state inline-flex w-fit items-center gap-2 rounded-pill py-2 pl-4 pr-3 text-body-medium',
+          tone,
+        )}
+      >
+        <Icon name={icon ?? 'balance'} size={20} />
+        {children}
+        {!ok && <Icon name="chevron_right" size={20} />}
+      </a>
+    )
+  }
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-body-medium font-medium',
+        tone,
+      )}
+    >
+      <Icon name={icon ?? (ok ? 'check_circle' : 'balance')} size={18} />
+      {children}
+    </span>
+  )
+}
+
 export function Skeleton({ className, style }: { className?: string; style?: CSSProperties }) {
   return <div className={clsx('skeleton', className)} style={style} aria-hidden />
 }
@@ -324,18 +473,14 @@ export function Modal({
   wide?: boolean
   headerRight?: ReactNode
 }) {
+  useCloseOnEscape(open, onClose)
   useEffect(() => {
     if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
   return (
@@ -358,14 +503,14 @@ export function Modal({
         style={{ animation: 'none' }}
       >
         <div className="flex items-center gap-3 px-6 pb-2 pt-6 sm:px-7 sm:pt-7">
-          <button
-            type="button"
+          <IconButton
+            icon="close"
+            label="Chiudi"
             onClick={onClose}
-            aria-label="Chiudi"
-            className="state -ml-2 flex h-10 w-10 items-center justify-center rounded-pill text-on-surface-variant"
-          >
-            <Icon name="close" size={22} />
-          </button>
+            size="md"
+            iconSize={22}
+            className="-ml-2"
+          />
           <h2 className="flex-1 text-[22px] font-semibold leading-7">{title}</h2>
           {headerRight}
         </div>

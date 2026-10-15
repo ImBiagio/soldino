@@ -1,7 +1,8 @@
 import clsx from 'clsx'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { useClickOutside, useCloseOnEscape } from '../lib/hooks'
 import { showsSection } from '../lib/trackerKind'
 import type { Tracker } from '../lib/types'
 import { Icon } from './ui'
@@ -15,15 +16,6 @@ const ACTIONS = [
 /** In un tracker "group" lo scan non c'e': resta solo "A mano", e niente menu. */
 const actionsFor = (tracker: Tracker) =>
   ACTIONS.filter((action) => showsSection(tracker, action.path))
-
-function useCloseOnEscape(open: boolean, close: () => void) {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && close()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [open, close])
-}
 
 /**
  * FAB menu di Material 3 Expressive: il "+" diventa "×" e apre le azioni come
@@ -140,15 +132,7 @@ export function NewEntryMenuButton({
   const ref = useRef<HTMLDivElement>(null)
   const actions = actionsFor(tracker)
   useCloseOnEscape(open, () => setOpen(false))
-
-  useEffect(() => {
-    if (!open) return
-    const onClick = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   if (actions.length === 1) {
     return (

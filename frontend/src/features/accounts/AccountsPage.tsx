@@ -15,14 +15,18 @@ import {
   ErrorBanner,
   Field,
   Icon,
+  IconButton,
   IconCircle,
   Modal,
   RowsSkeleton,
+  StatusPill,
   Switch,
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
-import { accountIcon, memberColor } from '../../lib/icons'
+import { memberColor } from '../../lib/colors'
+import { accountIcon } from '../../lib/icons'
+import { ACCOUNT_KIND_LABEL, deltaText } from '../../lib/labels'
 import { formatCents, formatMoney, formatSigned, normalizeDecimal, toCents } from '../../lib/money'
 import type {
   Account,
@@ -31,13 +35,6 @@ import type {
   ReconciliationFigures,
   Tracker,
 } from '../../lib/types'
-
-const KIND_LABEL: Record<Account['kind'], string> = {
-  bank: 'Conto corrente',
-  card: 'Carta',
-  cash: 'Contanti',
-  wallet: 'Wallet',
-}
 
 export function AccountsPage() {
   const tracker = useOutletContext<Tracker>()
@@ -123,7 +120,11 @@ function PersonSection({
             <span className="amount">{formatCents(included, tracker.currency)}</span>
           </p>
         </div>
-        {figures && <DeltaChip tracker={tracker} delta={figures.delta} />}
+        {figures && (
+          <StatusPill ok={toCents(figures.delta) === 0}>
+            {deltaText(figures.delta, tracker.currency)}
+          </StatusPill>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
@@ -147,7 +148,7 @@ function PersonSection({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-body-large font-medium">{account.name}</p>
                 <p className="text-body-small text-on-surface-variant">
-                  {KIND_LABEL[account.kind]}
+                  {ACCOUNT_KIND_LABEL[account.kind]}
                   {account.balance_updated_at &&
                     ` · aggiornato il ${formatDate(account.balance_updated_at.slice(0, 10))}`}
                 </p>
@@ -172,18 +173,15 @@ function PersonSection({
                 label={`${account.name} nei totali`}
               />
               {canWrite && (
-                <button
-                  type="button"
+                <IconButton
+                  icon="close"
+                  label={`Elimina ${account.name}`}
                   onClick={() => {
                     if (window.confirm(`Eliminare il conto ${account.name}?`)) {
                       remove.mutate(account.id)
                     }
                   }}
-                  aria-label={`Elimina ${account.name}`}
-                  className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-                >
-                  <Icon name="close" size={20} />
-                </button>
+                />
               )}
             </div>
           ))}
@@ -316,23 +314,6 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
   )
 }
 
-export function DeltaChip({ tracker, delta }: { tracker: Tracker; delta: string }) {
-  const cents = toCents(delta)
-  return (
-    <span
-      className={clsx(
-        'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-body-medium font-medium',
-        cents === 0
-          ? 'bg-secondary-container text-on-secondary-container'
-          : 'bg-warning-container text-on-warning-container',
-      )}
-    >
-      <Icon name={cents === 0 ? 'check_circle' : 'balance'} size={18} />
-      {cents === 0 ? 'Quadra' : `Scarto ${formatSigned(delta, tracker.currency)}`}
-    </span>
-  )
-}
-
 /* -------------------------------------------------------- nuovo conto -- */
 
 function NewAccountModal({
@@ -368,7 +349,7 @@ function NewAccountModal({
         </Field>
         <Field label="Tipo">
           <select className="field-input" name="kind" defaultValue="bank">
-            {Object.entries(KIND_LABEL).map(([value, label]) => (
+            {Object.entries(ACCOUNT_KIND_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>

@@ -4,7 +4,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-rout
 
 import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
-import { memberColor } from '../lib/icons'
+import { memberColor } from '../lib/colors'
 import { showsSection } from '../lib/trackerKind'
 import type { Membership, Tracker } from '../lib/types'
 import { FabMenu } from './FabMenu'

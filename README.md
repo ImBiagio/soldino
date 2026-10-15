@@ -244,8 +244,11 @@ servizio, somme di importi, validatori), `trackers/methods.py` (chi è membro
 attivo di un tracker), `transactions/methods.py` (`create_transaction`, l'unico
 modo di scrivere un movimento con i suoi split, usato da form, BTA e
 ricorrenze). La logica di dominio resta nei `services/`. Nel frontend lo stesso
-ruolo lo fanno `lib/money.ts` (`normalizeDecimal`, `formatCents`) e gli helper
-`useSaveResource` / `useDeleteResource` di `api/hooks.ts`.
+ruolo lo fanno `lib/money.ts` (`normalizeDecimal`, `formatCents`), gli helper
+`useSaveResource` / `useDeleteResource` di `api/hooks.ts`, `lib/hooks.ts`
+(click fuori, Esc), `lib/labels.ts` (etichette degli enum), `lib/colors.ts`
+(palette di membri e categorie), `components/selects.tsx` e le primitive di
+`components/ui.tsx` (`IconButton`, `StatusPill`, `MemberChips`).
 
 ```
 backend/
@@ -261,8 +264,8 @@ backend/
     └── ingestion/       import e scan (fasi 2-3, vuoto)
 frontend/src/
 ├── api/                 hook TanStack Query
-├── lib/                 client HTTP, auth, money, format, tipi
-├── components/          UI + SplitWidget
+├── lib/                 client HTTP, auth, money, format, hook, etichette, colori, tipi
+├── components/          UI, select condivise, SplitWidget
 └── features/            per dominio: auth, trackers, transactions, dashboard…
 docs/decisions/          ADR
 ```

@@ -1,4 +1,3 @@
-import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
@@ -9,7 +8,7 @@ import { formatDate, todayIso } from '../../lib/format'
 import { formatCents, normalizeDecimal, toCents } from '../../lib/money'
 import type { StatementImport, StatementLine, Tracker, TransactionType } from '../../lib/types'
 import { ReviewRow, SelectChip, type Row } from './ReviewRow'
-import { STATUS_LABEL } from './ScanPage'
+import { StatusBadge } from './status'
 
 let counter = 0
 const newKey = () => `nuova-${++counter}`
@@ -49,17 +48,7 @@ export function ScanReviewPage() {
             </p>
           )}
         </div>
-        {statement && (
-          <span
-            className={clsx(
-              'inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-body-small font-medium',
-              STATUS_LABEL[statement.status].tone,
-            )}
-          >
-            <Icon name={STATUS_LABEL[statement.status].icon} size={16} />
-            {STATUS_LABEL[statement.status].label}
-          </span>
-        )}
+        {statement && <StatusBadge status={statement.status} />}
       </div>
 
       <ErrorBanner error={error} />

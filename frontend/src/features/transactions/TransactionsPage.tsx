@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 
 import {
@@ -17,12 +17,15 @@ import {
   ErrorBanner,
   Field,
   Icon,
+  IconButton,
   IconCircle,
   Modal,
   RowsSkeleton,
 } from '../../components/ui'
 import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
-import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { useClickOutside } from '../../lib/hooks'
+import { categoryColor, memberColor } from '../../lib/colors'
+import { categoryIcon } from '../../lib/icons'
 import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
 import type { Account, Category, Tracker, Transaction } from '../../lib/types'
 import { NewEntryMenuButton } from '../../components/FabMenu'
@@ -281,14 +284,7 @@ function SelectChip({
   const ref = useRef<HTMLDivElement>(null)
   const selected = options.find((option) => option.value === value)
 
-  useEffect(() => {
-    if (!open) return
-    const onClick = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+  useClickOutside(ref, open, () => setOpen(false))
 
   return (
     <div ref={ref} className="relative">
@@ -421,17 +417,10 @@ function TransactionRow({
   const isGroup = tx.splits.length > 1
   const isIncome = tx.type === 'income'
 
-  useEffect(() => {
-    if (!menuOpen && !categoryOpen) return
-    const onClick = (event: MouseEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false)
-        setCategoryOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [menuOpen, categoryOpen])
+  useClickOutside(menuRef, menuOpen || categoryOpen, () => {
+    setMenuOpen(false)
+    setCategoryOpen(false)
+  })
 
   const splitLabel = isGroup
     ? tx.splits.map((split) => Math.round(Number(split.share_pct))).join('/')
@@ -579,14 +568,7 @@ function TransactionRow({
       )}
 
       <div className="relative" ref={menuOpen ? menuRef : undefined}>
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-label="Azioni"
-          className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-        >
-          <Icon name="more_vert" size={20} />
-        </button>
+        <IconButton icon="more_vert" label="Azioni" onClick={() => setMenuOpen((open) => !open)} />
         {menuOpen && (
           <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-card bg-surface-container p-2 shadow-sheet">
             <button

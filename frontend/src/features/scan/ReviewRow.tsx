@@ -2,9 +2,10 @@ import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
 import { activeMembers } from '../../components/Layout'
-import { Avatar, Icon } from '../../components/ui'
+import { Avatar, Icon, IconButton } from '../../components/ui'
 import { monthLabel } from '../../lib/format'
-import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { categoryColor, memberColor } from '../../lib/colors'
+import { categoryIcon } from '../../lib/icons'
 import { toCents } from '../../lib/money'
 import type { Category, StatementLine } from '../../lib/types'
 
@@ -142,14 +143,13 @@ export function ReviewRow({
     </span>
   )
   const removeButton = (
-    <button
-      type="button"
+    <IconButton
+      icon="delete"
+      label={`Elimina ${row.title || 'riga'}`}
       onClick={onRemove}
-      className="state flex h-10 w-10 shrink-0 items-center justify-center rounded-pill text-on-surface-variant"
-      aria-label={`Elimina ${row.title || 'riga'}`}
-    >
-      <Icon name="delete" size={20} />
-    </button>
+      size="md"
+      className="shrink-0"
+    />
   )
 
   return (

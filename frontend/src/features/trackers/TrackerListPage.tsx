@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom'
 import { useCreateTracker, useReconciliation, useTrackers } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
 import {
-  Avatar,
+  AvatarStack,
   EmptyState,
   ErrorBanner,
   Field,
@@ -15,7 +15,7 @@ import {
   RowsSkeleton,
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
-import { memberColor } from '../../lib/icons'
+import { memberColor } from '../../lib/colors'
 import { formatCents, toCents } from '../../lib/money'
 import { KIND_OPTIONS, isGroup, showsReconciliation } from '../../lib/trackerKind'
 import type { Tracker, TrackerKind } from '../../lib/types'
@@ -156,18 +156,14 @@ function TrackerRow({ tracker }: { tracker: Tracker }) {
           {showsReconciliation(tracker) && <ReconciliationHint tracker={tracker} />}
         </p>
       </div>
-      <div className="hidden sm:flex">
-        {members.map((member, index) => (
-          <span key={member.id} style={{ marginLeft: index ? -10 : 0 }}>
-            <Avatar
-              name={member.display_name}
-              size={32}
-              color={memberColor(index)}
-              ring={index > 0}
-            />
-          </span>
-        ))}
-      </div>
+      <AvatarStack
+        className="hidden sm:flex"
+        size={32}
+        people={members.map((member, index) => ({
+          name: member.display_name,
+          color: memberColor(index),
+        }))}
+      />
       <Icon name="chevron_right" size={22} className="text-on-surface-variant" />
     </Link>
   )

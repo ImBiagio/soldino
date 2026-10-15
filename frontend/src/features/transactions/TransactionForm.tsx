@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 
-import { useAccounts, useCategories, useSaveTransaction } from '../../api/hooks'
+import { useAccounts, useSaveTransaction } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
 import {
   SplitWidget,
@@ -12,9 +12,10 @@ import {
   toSplitPayload,
   type SplitState,
 } from '../../components/SplitWidget'
-import { Avatar, ErrorBanner, Field, Icon, Modal, Segmented } from '../../components/ui'
+import { AccountSelect, CategorySelect } from '../../components/selects'
+import { ErrorBanner, Field, Icon, MemberChips, Modal, Segmented } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
-import { memberColor } from '../../lib/icons'
+import { TYPE_LABEL, TYPE_OPTIONS } from '../../lib/labels'
 import { formatCents, normalizeDecimal } from '../../lib/money'
 import { isGroup, showsIncome, showsSection } from '../../lib/trackerKind'
 import type { Tracker, Transaction, TransactionType } from '../../lib/types'
@@ -49,7 +50,6 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   // Senza la sezione Conti il conto non si sceglie, salvo che il movimento ne abbia gia' uno.
   const accountField = showsSection(tracker, 'conti') || Boolean(editing?.account)
 
-  const categories = useCategories(tracker.id)
   const accounts = useAccounts(tracker.id)
   const save = useSaveTransaction(tracker.id)
 
@@ -89,10 +89,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
               setType(value)
               setCategory('')
             }}
-            options={[
-              { value: 'expense', label: 'Spesa' },
-              { value: 'income', label: 'Entrata' },
-            ]}
+            options={TYPE_OPTIONS}
           />
         )
       }
@@ -115,9 +112,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
               : 'bg-primary-container text-on-primary-container',
           )}
         >
-          <p className="text-[13px] font-semibold uppercase tracking-wide">
-            {type === 'expense' ? 'Spesa' : 'Entrata'}
-          </p>
+          <p className="text-[13px] font-semibold uppercase tracking-wide">{TYPE_LABEL[type]}</p>
           <input
             className="amount w-full border-none bg-transparent text-center text-[44px] font-semibold leading-tight text-inherit outline-none placeholder:text-current placeholder:opacity-40 sm:text-display-medium"
             inputMode="decimal"
@@ -157,35 +152,21 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
             />
           </Field>
           <Field label="Categoria">
-            <select
-              className="field-input"
+            <CategorySelect
+              trackerId={tracker.id}
+              type={type}
+              hideArchived
               value={category ?? ''}
               onChange={(event) => setCategory(event.target.value)}
-            >
-              <option value="">Senza categoria</option>
-              {(categories.data?.results ?? [])
-                .filter((c) => c.type === type && !c.archived)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
+            />
           </Field>
           {accountField && (
             <Field label="Conto">
-              <select
-                className="field-input"
+              <AccountSelect
+                trackerId={tracker.id}
                 value={account ?? ''}
                 onChange={(event) => setAccount(event.target.value)}
-              >
-                <option value="">Nessuno</option>
-                {(accounts.data?.results ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
+              />
             </Field>
           )}
         </div>
@@ -194,24 +175,13 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
           <p className="mb-2 text-body-medium font-medium">
             {type === 'expense' ? 'Ha pagato' : 'Ha incassato'}
           </p>
-          <div className="flex flex-wrap gap-2">
-            {members.map((member, index) => (
-              <button
-                key={member.id}
-                type="button"
-                onClick={() => setPaidBy(member.user!.id)}
-                aria-pressed={paidBy === member.user!.id}
-                className={
-                  paidBy === member.user!.id
-                    ? 'state inline-flex items-center gap-2 rounded-pill bg-primary px-4 py-2 text-body-medium font-medium text-on-primary'
-                    : 'chip-outlined'
-                }
-              >
-                <Avatar name={member.display_name} size={28} color={memberColor(index)} />
-                {member.display_name}
-              </button>
-            ))}
-          </div>
+          <MemberChips
+            members={members}
+            value={paidBy}
+            onChange={setPaidBy}
+            avatarSize={28}
+            filled
+          />
         </div>
 
         <SplitWidget

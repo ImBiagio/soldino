@@ -10,7 +10,6 @@ import {
   useRecurringProposals,
   useSummary,
 } from '../../api/hooks'
-import { DeltaChip } from '../accounts/AccountsPage'
 import { ReconciliationWaterfall } from './ReconciliationWaterfall'
 import { AppBar, activeMembers } from '../../components/Layout'
 import {
@@ -21,13 +20,17 @@ import {
   Field,
   Icon,
   IconCircle,
+  MemberChips,
   Modal,
   Skeleton,
+  StatusPill,
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { monthLabel, todayIso } from '../../lib/format'
 import { rangeFor } from '../../lib/period'
-import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { categoryColor, memberColor } from '../../lib/colors'
+import { categoryIcon } from '../../lib/icons'
+import { PERIOD_LABEL, deltaText } from '../../lib/labels'
 import { formatCents, formatMoney, formatSigned, normalizeDecimal, toCents } from '../../lib/money'
 import { isGroup, showsReconciliation, showsSection } from '../../lib/trackerKind'
 import type {
@@ -165,9 +168,14 @@ function ViewSwitcher({
   onChange: (value: string) => void
 }) {
   const { user } = useAuth()
-  const members = activeMembers(tracker)
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Di chi è la dashboard">
+    <MemberChips
+      members={activeMembers(tracker)}
+      value={value}
+      onChange={onChange}
+      labelOf={(member) => (member.user!.id === user?.id ? 'Io' : member.display_name)}
+      ariaLabel="Di chi è la dashboard"
+    >
       <button
         type="button"
         onClick={() => onChange(ALL)}
@@ -177,19 +185,7 @@ function ViewSwitcher({
         <Icon name="groups" size={18} />
         Tutti
       </button>
-      {members.map((member, index) => (
-        <button
-          key={member.id}
-          type="button"
-          onClick={() => onChange(member.user!.id)}
-          aria-pressed={value === member.user!.id}
-          className={value === member.user!.id ? 'chip-selected' : 'chip-outlined'}
-        >
-          <Avatar name={member.display_name} size={22} color={memberColor(index)} />
-          {member.user!.id === user?.id ? 'Io' : member.display_name}
-        </button>
-      ))}
-    </div>
+    </MemberChips>
   )
 }
 
@@ -199,30 +195,18 @@ function ReconciliationPill({ tracker, delta }: { tracker: Tracker; delta: strin
   const quadra = toCents(delta) === 0
 
   return (
-    <a
-      href="#riconciliazione"
-      className={clsx(
-        'state inline-flex w-fit items-center gap-2 rounded-pill py-2 pl-4 pr-3 text-body-medium',
-        quadra
-          ? 'bg-secondary-container text-on-secondary-container'
-          : 'bg-warning-container text-on-warning-container',
-      )}
-    >
-      <Icon name="balance" size={20} />
+    <StatusPill ok={quadra} href="#riconciliazione">
       {quadra ? (
         <span>Conti e movimenti quadrano</span>
       ) : (
-        <>
-          <span>
-            Conti e movimenti non quadrano per{' '}
-            <strong className="amount font-semibold">
-              {formatCents(Math.abs(toCents(delta)), tracker.currency)}
-            </strong>
-          </span>
-          <Icon name="chevron_right" size={20} />
-        </>
+        <span>
+          Conti e movimenti non quadrano per{' '}
+          <strong className="amount font-semibold">
+            {formatCents(Math.abs(toCents(delta)), tracker.currency)}
+          </strong>
+        </span>
       )}
-    </a>
+    </StatusPill>
   )
 }
 
@@ -285,18 +269,13 @@ function HeroCard({
         <div className="overflow-hidden">
           <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
             {balances.balances.map((balance, index) => (
-              <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
-                <Avatar name={balance.user.display_name} size={32} color={memberColor(index)} />
-                <span className="min-w-0 flex-1 truncate text-body-medium">
-                  {balance.user.display_name} · pagato{' '}
-                  <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span> · di
-                  competenza{' '}
-                  <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
-                </span>
-                <span className="amount shrink-0 font-semibold">
-                  {formatSigned(balance.net, tracker.currency)}
-                </span>
-              </div>
+              <BalanceRow
+                key={balance.user.id}
+                tracker={tracker}
+                balance={balance}
+                color={memberColor(index)}
+                showOwed
+              />
             ))}
           </div>
         </div>
@@ -334,19 +313,49 @@ function SettledCard({
       </p>
       <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
         {rows.map((balance, index) => (
-          <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
-            <Avatar name={balance.user.display_name} size={32} color={memberColor(index)} />
-            <span className="min-w-0 flex-1 truncate text-body-medium">
-              {balance.user.display_name} · pagato{' '}
-              <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span>
-            </span>
-            <span className="amount shrink-0 font-semibold">
-              {formatSigned(balance.net, tracker.currency)}
-            </span>
-          </div>
+          <BalanceRow
+            key={balance.user.id}
+            tracker={tracker}
+            balance={balance}
+            color={memberColor(index)}
+          />
         ))}
       </div>
     </section>
+  )
+}
+
+/** Una persona nel riepilogo dei saldi: quanto ha pagato e il netto. */
+function BalanceRow({
+  tracker,
+  balance,
+  color,
+  showOwed,
+}: {
+  tracker: Tracker
+  balance: BalancesResponse['balances'][number]
+  color: string
+  /** Anche la quota di competenza: serve a capire come si compone il debito. */
+  showOwed?: boolean
+}) {
+  return (
+    <div className="flex items-center gap-3 py-1.5">
+      <Avatar name={balance.user.display_name} size={32} color={color} />
+      <span className="min-w-0 flex-1 truncate text-body-medium">
+        {balance.user.display_name} · pagato{' '}
+        <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span>
+        {showOwed && (
+          <>
+            {' '}
+            · di competenza{' '}
+            <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
+          </>
+        )}
+      </span>
+      <span className="amount shrink-0 font-semibold">
+        {formatSigned(balance.net, tracker.currency)}
+      </span>
+    </div>
   )
 }
 
@@ -575,13 +584,7 @@ function SpendingCard({
           Dove sono finiti{person && ` · quota di ${person.display_name}`}
         </h2>
         <div className="flex gap-2">
-          {(
-            [
-              ['month', 'Mese'],
-              ['quarter', 'Trimestre'],
-              ['year', 'Anno'],
-            ] as [Period, string][]
-          ).map(([id, label]) => (
+          {(Object.entries(PERIOD_LABEL) as [Period, string][]).map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -676,7 +679,7 @@ function ReconciliationCard({
             passano davvero dai conti: spese pagate ed entrate incassate, non le quote.
           </p>
         </div>
-        <DeltaChip tracker={tracker} delta={figures.delta} />
+        <StatusPill ok={delta === 0}>{deltaText(figures.delta, tracker.currency)}</StatusPill>
       </div>
 
       <p className="mb-5 max-w-2xl text-body-medium">

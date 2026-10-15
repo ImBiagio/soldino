@@ -5,31 +5,8 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAccounts, useStatements, useUploadStatement } from '../../api/hooks'
 import { EmptyState, ErrorBanner, Field, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
-import type { StatementStatus, Tracker } from '../../lib/types'
-
-export const STATUS_LABEL: Record<StatementStatus, { label: string; icon: string; tone: string }> =
-  {
-    processing: {
-      label: 'In lettura',
-      icon: 'hourglass_top',
-      tone: 'bg-surface-container-high text-on-surface',
-    },
-    ready: {
-      label: 'Da rivedere',
-      icon: 'edit_note',
-      tone: 'bg-warning-container text-on-warning-container',
-    },
-    failed: {
-      label: 'Non riuscito',
-      icon: 'error',
-      tone: 'bg-error-container text-on-error-container',
-    },
-    committed: {
-      label: 'Registrato',
-      icon: 'check_circle',
-      tone: 'bg-secondary-container text-on-secondary-container',
-    },
-  }
+import type { Tracker } from '../../lib/types'
+import { StatusBadge } from './status'
 
 export function ScanPage() {
   const tracker = useOutletContext<Tracker>()
@@ -148,37 +125,26 @@ export function ScanPage() {
             description="Il primo estratto conto letto comparirà qui."
           />
         ) : (
-          (statements.data?.results ?? []).map((statement) => {
-            const status = STATUS_LABEL[statement.status]
-            return (
-              <Link
-                key={statement.id}
-                to={statement.id}
-                className="state flex flex-wrap items-center gap-3 rounded-card bg-surface-container-low px-4 py-3"
-              >
-                <Icon name="picture_as_pdf" size={24} className="text-on-surface-variant" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body-large font-medium">
-                    {statement.filename}
-                  </span>
-                  <span className="text-body-small text-on-surface-variant">
-                    {formatDate(statement.created_at.slice(0, 10))}
-                    {statement.account_name && ` · ${statement.account_name}`}
-                    {statement.status !== 'processing' && ` · ${statement.line_count} righe`}
-                  </span>
+          (statements.data?.results ?? []).map((statement) => (
+            <Link
+              key={statement.id}
+              to={statement.id}
+              className="state flex flex-wrap items-center gap-3 rounded-card bg-surface-container-low px-4 py-3"
+            >
+              <Icon name="picture_as_pdf" size={24} className="text-on-surface-variant" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-body-large font-medium">
+                  {statement.filename}
                 </span>
-                <span
-                  className={clsx(
-                    'inline-flex items-center gap-1.5 rounded-pill px-3 py-1 text-body-small font-medium',
-                    status.tone,
-                  )}
-                >
-                  <Icon name={status.icon} size={16} />
-                  {status.label}
+                <span className="text-body-small text-on-surface-variant">
+                  {formatDate(statement.created_at.slice(0, 10))}
+                  {statement.account_name && ` · ${statement.account_name}`}
+                  {statement.status !== 'processing' && ` · ${statement.line_count} righe`}
                 </span>
-              </Link>
-            )
-          })
+              </span>
+              <StatusBadge status={statement.status} />
+            </Link>
+          ))
         )}
       </section>
     </div>
