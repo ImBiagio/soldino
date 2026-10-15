@@ -53,20 +53,26 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
             Dal menu in alto apri <strong>API applications</strong> e compila &quot;Add a new
             application&quot;:
           </p>
-          <ul className="grid gap-2">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             <li>
-              <strong>Environment</strong>: <code>Production</code>
+              <strong>1.</strong> scegli <code>Production</code> (non Sandbox, che ha solo banche
+              finte)
             </li>
             <li>
-              <strong>Name</strong>: <code>Soldino</code> (lo vedrai quando autorizzi la banca)
+              <strong>2.</strong> lascia &quot;Generate in the browser&quot;: la chiave la crea il
+              browser
             </li>
             <li>
-              <strong>Redirect URLs</strong>: esattamente questo indirizzo
+              <strong>Application name</strong>: <code>Soldino</code> (lo vedrai quando autorizzi la
+              banca)
+            </li>
+            <li>
+              <strong>Allowed redirect URLs</strong>: esattamente questo indirizzo
               <CopyBox value={status.callback_url} />
             </li>
             <li>
-              Lascia l&apos;opzione predefinita per la chiave privata e premi{' '}
-              <strong>Register</strong>.
+              Gli altri campi sono facoltativi: per Privacy e Terms URL va bene l&apos;indirizzo di
+              Soldino. Poi premi <strong>Register</strong>.
             </li>
           </ul>
           <p>
@@ -81,18 +87,22 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
     {
       title: "Attiva l'applicazione collegando i conti",
       image: '/banca/03-attiva.png',
-      imageAlt: 'Il pulsante Activate by linking accounts su una applicazione inattiva',
+      imageAlt:
+        "La card dell'applicazione Soldino: attiva, con un conto collegato e i menu per collegarne un altro",
       body: (
         <>
           <p>
-            L&apos;applicazione appena creata è <strong>Inactive</strong>. Premi{' '}
-            <strong>Activate by linking accounts</strong>, scegli la banca, accetta i termini di
-            Enable Banking e autorizza con l&apos;app della banca.
+            L&apos;applicazione appena creata è <strong>Inactive</strong>: si attiva collegando un
+            conto. In fondo alla sua card scegli <strong>Country</strong> (Italy), la banca in{' '}
+            <strong>ASPSP</strong> e l&apos;uso in <strong>Usage type</strong> (personale), poi
+            premi <strong>Link</strong> (o <strong>Activate by linking accounts</strong>). Accetta i
+            termini di Enable Banking e autorizza con l&apos;app della banca.
           </p>
           <p>
             Ripeti per <strong>ogni conto</strong> che vuoi in Soldino: in modalità gratuita
-            l&apos;applicazione legge solo i conti collegati qui. Non si scarica nessun file, la
-            chiave resta una.
+            l&apos;applicazione legge solo i conti sotto <strong>Linked accounts</strong>. Quando
+            è pronta vedi <strong>Active</strong> e &quot;Account Information · Restricted&quot;.
+            Non si scarica nessun file, la chiave resta una.
           </p>
           <ExternalLink href={CONTROL_PANEL}>Apri API applications</ExternalLink>
         </>
@@ -141,7 +151,7 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
           step.image && 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start',
         )}
       >
-        <div className="grid gap-3 text-body-large [&_code]:rounded [&_code]:bg-surface-container-high [&_code]:px-1.5 [&_code]:text-body-medium [&_li]:ml-5 [&_li]:list-disc">
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 text-body-large [&_code]:rounded [&_code]:bg-surface-container-high [&_code]:px-1.5 [&_code]:text-body-medium [&_li]:ml-5 [&_li]:list-disc">
           <h2 className="text-title-medium">
             {current + 1}. {step.title}
           </h2>
@@ -274,7 +284,7 @@ function CopyBox({ value }: { value: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <span className="mt-1.5 flex items-center gap-2 rounded-card bg-surface px-3 py-2">
-      <code className="min-w-0 flex-1 truncate !bg-transparent !px-0">{value}</code>
+      <code className="min-w-0 flex-1 break-all !bg-transparent !px-0">{value}</code>
       <button
         type="button"
         className="btn-text btn-sm shrink-0"
