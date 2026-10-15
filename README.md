@@ -129,6 +129,22 @@ che rinnovano insieme si butterebbero fuori a vicenda. Il frontend tiene comunqu
 StrictMode all'avvio e le query che prendono 401 insieme aspettano la stessa
 risposta.
 
+**Mail dell'account** (ADR 0012): conferma dell'indirizzo alla registrazione
+(con `REQUIRE_EMAIL_VERIFICATION=1`), reinvio dal login se l'email non è
+confermata (`POST auth/verify-email/resend`), **password dimenticata**
+(`POST auth/password-reset` → link `/reset-password/<uid>/<token>` valido 2 ore
+e una volta sola, poi `POST auth/password-reset/confirm`, che chiude le altre
+sessioni e fa entrare) e inviti ai tracker. Reinvio e reset rispondono sempre
+204, così non rivelano chi è registrato. Le mail partono dal `worker` Celery
+dopo il commit (l'SMTP può essere lento o giù: riprova con attesa crescente),
+in testo e HTML con un solo layout (`backend/templates/emails/`). In sviluppo
+finiscono nei log del worker: `docker compose logs -f worker`. In produzione
+SMTP di Brevo, lo stesso account di cinemino.
+
+**Account** (`/account`, dalla lista tracker o dal menu): nome, stato
+dell'email con reinvio della conferma, cambio password e "mandami il link di
+reset" per chi non ricorda quella attuale.
+
 Login, registrazione e verifica email hanno un **rate limit** (10/min per IP,
 `THROTTLE_AUTH`), il refresh 60/min, l'upload dello scan 20/ora
 (`THROTTLE_SCAN`, ogni upload è una chiamata a Gemini). Il link di verifica
