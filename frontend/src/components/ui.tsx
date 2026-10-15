@@ -207,10 +207,12 @@ export function Switch({
   checked,
   onChange,
   label,
+  disabled = false,
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   label: string
+  disabled?: boolean
 }) {
   return (
     <button
@@ -218,8 +220,9 @@ export function Switch({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      disabled={disabled}
       onClick={() => onChange(!checked)}
-      className="relative shrink-0 rounded-pill transition-colors duration-200 ease-m3"
+      className="relative shrink-0 rounded-pill transition-colors duration-200 ease-m3 disabled:opacity-40"
       style={{
         width: 52,
         height: 32,

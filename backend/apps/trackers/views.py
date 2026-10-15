@@ -14,7 +14,7 @@ from apps.core.methods import normalize_email
 from apps.core.money import money_str
 from apps.core.permissions import IsTrackerMember, IsTrackerOwner
 from apps.core.scoping import TrackerScopedMixin, get_membership
-from apps.transactions.services.debts import compute_balances, minimize_transfers
+from apps.transactions.services.debts import compute_balances, suggested_transfers
 from apps.transactions.services.reports import balance_history, reconcile, summary
 from apps.users.serializers import UserBriefSerializer
 
@@ -124,9 +124,10 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         memberships = list(active_memberships(tracker).select_related("user"))
         by_id = {str(m.user_id): m for m in memberships}
         balances = compute_balances(tracker.pk, by_id.keys())
-        transfers = minimize_transfers(balances)
+        transfers = suggested_transfers(tracker, balances)
         return Response(
             {
+                "simplified": tracker.simplify_debts,
                 "balances": [
                     {
                         "user": {

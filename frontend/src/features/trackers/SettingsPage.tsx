@@ -11,10 +11,20 @@ import {
   useRemoveMember,
   useSaveCategory,
   useUpdateMember,
+  useUpdateTracker,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
 import { defaultPercentages, formatPct } from '../../components/SplitWidget'
-import { Avatar, ErrorBanner, Field, Icon, IconCircle, Modal, Skeleton } from '../../components/ui'
+import {
+  Avatar,
+  ErrorBanner,
+  Field,
+  Icon,
+  IconCircle,
+  Modal,
+  Skeleton,
+  Switch,
+} from '../../components/ui'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { normalizeDecimal } from '../../lib/money'
 import type { Category, Tracker, TransactionType } from '../../lib/types'
@@ -40,10 +50,45 @@ export function SettingsPage() {
       <div className="panel grid gap-5 p-6 md:p-7">
         <h1 className="text-title-large">Setup del tracker</h1>
         <MembersSection tracker={tracker} isOwner={isOwner} />
+        <DebtsSection tracker={tracker} isOwner={isOwner} />
         <CategoriesSection tracker={tracker} />
         {isOwner && <LifecycleSection tracker={tracker} />}
       </div>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------- debiti -- */
+
+function DebtsSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean }) {
+  const update = useUpdateTracker(tracker.id)
+  const checked = update.isPending
+    ? Boolean(update.variables?.simplify_debts)
+    : tracker.simplify_debts
+
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <div className="flex items-start gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-body-large font-medium">Semplifica i debiti</h2>
+          <p className="mt-1 text-body-small text-on-surface-variant">
+            {checked
+              ? 'Acceso: i debiti si chiudono col minor numero di bonifici, anche fra persone che non hanno spese in comune. Se Anna ha pagato per Bruno e Bruno per Carla, basta che Carla dia i soldi ad Anna.'
+              : 'Spento: ognuno restituisce a chi ha pagato per lui, al netto di quello che quella persona deve a lui. Più bonifici, ma ogni debito resta fra chi ha condiviso la spesa.'}
+          </p>
+          <p className="mt-1 text-body-small text-on-surface-variant">
+            In due non cambia nulla. {!isOwner && 'Lo decide il proprietario del tracker.'}
+          </p>
+        </div>
+        <Switch
+          checked={checked}
+          disabled={!isOwner || update.isPending}
+          onChange={(next) => update.mutate({ simplify_debts: next })}
+          label="Semplifica i debiti"
+        />
+      </div>
+      <ErrorBanner error={update.error} />
+    </section>
   )
 }
 

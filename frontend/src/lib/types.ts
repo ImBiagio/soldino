@@ -36,6 +36,8 @@ export interface Tracker {
   currency: string
   owner: User
   archived_at: string | null
+  /** Debiti chiusi col minor numero di bonifici; spento = ognuno restituisce a chi ha pagato. */
+  simplify_debts: boolean
   members: Membership[]
   my_role: MemberRole | null
   created_at: string
@@ -144,6 +146,8 @@ export interface Balance {
 }
 
 export interface BalancesResponse {
+  /** Come sono calcolati i `suggested_transfers`: vale `Tracker.simplify_debts`. */
+  simplified: boolean
   balances: Balance[]
   suggested_transfers: {
     from_user: { id: UUID; display_name: string }

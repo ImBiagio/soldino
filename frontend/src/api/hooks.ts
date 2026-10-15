@@ -81,6 +81,20 @@ export function useTracker(trackerId: UUID | undefined) {
   })
 }
 
+/** Impostazioni del tracker (solo il proprietario): nome, valuta, semplifica debiti. */
+export function useUpdateTracker(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Partial<Pick<Tracker, 'name' | 'currency' | 'simplify_debts'>>) =>
+      api.patch<Tracker>(trackerBase(trackerId), body),
+    onSuccess: () => {
+      invalidate()
+      return client.invalidateQueries({ queryKey: keys.trackers, exact: true })
+    },
+  })
+}
+
 /** Archivia o ripristina: il tracker resta, cambia solo gruppo nella lista. */
 export function useArchiveTracker(trackerId: UUID) {
   const client = useQueryClient()

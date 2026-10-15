@@ -19,6 +19,11 @@ class Tracker(BaseModel):
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_trackers"
     )
     archived_at = models.DateTimeField(null=True, blank=True)
+    simplify_debts = models.BooleanField(
+        default=True,
+        help_text="Chiude i debiti col minor numero di bonifici, anche fra persone "
+        "senza spese in comune. Spento: ognuno restituisce a chi ha pagato per lui.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
