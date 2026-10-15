@@ -352,6 +352,15 @@ internet ─────┤     cinem.inoo.it ──► cinemino-web:80
   apre solo dalla LAN di casa, guarda il `client_ip` vero e non l'IP dell'edge.
 - `GET /api/health` serve all'healthcheck del container (esente dal redirect HTTPS).
 
+**Backup.** Il servizio `backup` del compose fa un `pg_dump` compresso ogni
+notte a mezzanotte e a ogni avvio, in `~/soldino/backups/` (`daily/` 7 giorni,
+`weekly/` 4 settimane, `monthly/` 6 mesi, `last/` l'ultimo). Lo stesso servizio
+gira per cinemino. Restore, in un database vuoto con lo stesso utente:
+
+```bash
+gunzip -c backups/last/soldino-latest.sql.gz | docker compose -f compose.prod.yaml exec -T db psql -U soldino -d <db-vuoto>
+```
+
 Primo avvio (già fatto il 2026-10-15):
 
 ```bash
