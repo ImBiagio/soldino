@@ -3,8 +3,6 @@ import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import {
-  useAccounts,
-  useCategories,
   useDeleteRecurringRule,
   useRecurringProposals,
   useRecurringRules,
@@ -12,6 +10,7 @@ import {
   useSaveRecurringRule,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { AccountSelect, CategorySelect, MemberSelect } from '../../components/selects'
 import {
   SplitWidget,
   initialSplitState,
@@ -25,6 +24,7 @@ import {
   ErrorBanner,
   Field,
   Icon,
+  IconButton,
   IconCircle,
   Modal,
   RowsSkeleton,
@@ -32,15 +32,9 @@ import {
 } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
 import { categoryIcon } from '../../lib/icons'
+import { FREQUENCY_LABEL, FREQUENCY_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
 import type { RecurringRule, Tracker } from '../../lib/types'
-
-const FREQUENCY_LABEL: Record<string, string> = {
-  weekly: 'settimanale',
-  monthly: 'mensile',
-  yearly: 'annuale',
-  custom: 'personalizzata',
-}
 
 export function SubscriptionsPage() {
   const tracker = useOutletContext<Tracker>()
@@ -144,14 +138,7 @@ export function SubscriptionsPage() {
                   onChange={(checked) => save.mutate({ id: rule.id, active: checked })}
                   label={`Attiva ${rule.title}`}
                 />
-                <button
-                  type="button"
-                  onClick={() => remove.mutate(rule.id)}
-                  aria-label="Elimina"
-                  className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-                >
-                  <Icon name="close" size={20} />
-                </button>
+                <IconButton icon="close" label="Elimina" onClick={() => remove.mutate(rule.id)} />
                 {proposalIds.has(rule.id) && <span className="sr-only">proposta in sospeso</span>}
               </div>
             ))
@@ -189,15 +176,14 @@ function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule 
         >
           {approve.isPending ? 'Approvo…' : 'Approva'}
         </button>
-        <button
-          type="button"
+        <IconButton
+          icon="close"
+          label="Salta questa occorrenza"
           onClick={() => skip.mutate(rule)}
           disabled={busy}
-          aria-label="Salta questa occorrenza"
-          className="state flex h-9 w-9 items-center justify-center rounded-pill disabled:opacity-50"
-        >
-          <Icon name="close" size={20} />
-        </button>
+          inheritColor
+          className="disabled:opacity-50"
+        />
       </div>
     </div>
   )
@@ -213,8 +199,6 @@ function RuleForm({
   onClose: () => void
 }) {
   const save = useSaveRecurringRule(tracker.id)
-  const categories = useCategories(tracker.id)
-  const accounts = useAccounts(tracker.id)
   const members = activeMembers(tracker)
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(members[0]?.user?.id ?? '')
@@ -269,23 +253,28 @@ function RuleForm({
           </Field>
           <Field label="Tipo">
             <select className="field-input" name="type" defaultValue="expense">
-              <option value="expense">Spesa</option>
-              <option value="income">Entrata</option>
+              {TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Frequenza">
             <select className="field-input" name="frequency" defaultValue="monthly">
-              <option value="weekly">Settimanale</option>
-              <option value="monthly">Mensile</option>
-              <option value="yearly">Annuale</option>
+              {FREQUENCY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label="Prossima occorrenza">
             <input className="field-input" type="date" name="next_run" defaultValue={todayIso()} />
           </Field>
           <Field label="A carico di">
-            <select
-              className="field-input"
+            <MemberSelect
+              members={members}
               name="paid_by"
               value={paidBy}
               onChange={(event) => {
@@ -295,34 +284,14 @@ function RuleForm({
                 }
               }}
               required
-            >
-              {members.map((member) => (
-                <option key={member.id} value={member.user!.id}>
-                  {member.display_name}
-                </option>
-              ))}
-            </select>
+            />
           </Field>
           <Field label="Categoria">
-            <select className="field-input" name="category" defaultValue="">
-              <option value="">Senza categoria</option>
-              {(categories.data?.results ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <CategorySelect trackerId={tracker.id} name="category" defaultValue="" />
           </Field>
         </div>
         <Field label="Conto">
-          <select className="field-input" name="account" defaultValue="">
-            <option value="">Nessuno</option>
-            {(accounts.data?.results ?? []).map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <AccountSelect trackerId={tracker.id} name="account" defaultValue="" />
         </Field>
         {members.length > 1 && (
           <SplitWidget

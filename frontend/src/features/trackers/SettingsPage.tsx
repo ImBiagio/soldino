@@ -20,26 +20,17 @@ import {
   ErrorBanner,
   Field,
   Icon,
+  IconButton,
   IconCircle,
   Modal,
   Skeleton,
   Switch,
 } from '../../components/ui'
-import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/colors'
+import { categoryIcon } from '../../lib/icons'
+import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
 import type { Category, Tracker, TransactionType } from '../../lib/types'
-
-/** Gli stessi del backend (`Category.DEFAULT_COLORS`): verde entrate, rosso uscite. */
-const DEFAULT_CATEGORY_COLOR: Record<TransactionType, string> = {
-  expense: '#ba1a1a',
-  income: '#1b6c2f',
-}
-
-const ROLE_LABEL: Record<string, string> = {
-  owner: 'Proprietario',
-  editor: 'Editor',
-  viewer: 'Sola lettura',
-}
 
 export function SettingsPage() {
   const tracker = useOutletContext<Tracker>()
@@ -273,17 +264,13 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                     }
                     aria-label={`Ruolo di ${member.display_name}`}
                   >
-                    <option value="editor">Editor</option>
-                    <option value="viewer">Sola lettura</option>
+                    <RoleOptions />
                   </select>
-                  <button
-                    type="button"
+                  <IconButton
+                    icon="close"
+                    label="Rimuovi"
                     onClick={() => remove.mutate(member.id)}
-                    aria-label="Rimuovi"
-                    className="state flex h-9 w-9 items-center justify-center rounded-pill text-on-surface-variant"
-                  >
-                    <Icon name="close" size={20} />
-                  </button>
+                  />
                 </>
               )}
             </div>
@@ -336,8 +323,7 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
             </Field>
             <Field label="Ruolo">
               <select className="field-input" name="role" defaultValue="editor">
-                <option value="editor">Editor</option>
-                <option value="viewer">Sola lettura</option>
+                <RoleOptions />
               </select>
             </Field>
             <Field label="Peso di default">
@@ -350,6 +336,18 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
         )}
       </Modal>
     </section>
+  )
+}
+
+function RoleOptions() {
+  return (
+    <>
+      {ROLE_OPTIONS.map((option) => (
+        <option key={option.value} value={option.value}>
+          {option.label}
+        </option>
+      ))}
+    </>
   )
 }
 
@@ -494,8 +492,11 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                     setFormType(next)
                   }}
                 >
-                  <option value="expense">Spesa</option>
-                  <option value="income">Entrata</option>
+                  {TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </select>
               </Field>
               <Field label="Colore">

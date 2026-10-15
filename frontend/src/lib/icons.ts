@@ -42,17 +42,3 @@ export function accountIcon(kind?: Account['kind'] | null): string {
       return 'account_balance'
   }
 }
-
-/** Colore di fallback quando la categoria non ne ha uno: coerente con la palette. */
-export const CATEGORY_FALLBACK_COLORS = ['#1b6c2f', '#38656a', '#7d5700', '#74796f']
-
-export function categoryColor(category?: Pick<Category, 'color'> | null, index = 0): string {
-  return category?.color || CATEGORY_FALLBACK_COLORS[index % CATEGORY_FALLBACK_COLORS.length]
-}
-
-/** I membri hanno un colore stabile per posizione: serve alla barra di split. */
-export const MEMBER_COLORS = ['#1b6c2f', '#38656a', '#7d5700', '#74796f', '#8b4a62']
-
-export function memberColor(index: number): string {
-  return MEMBER_COLORS[index % MEMBER_COLORS.length]
-}

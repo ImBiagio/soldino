@@ -10,9 +10,9 @@ import {
   normalizePercentages,
   toCents,
 } from '../lib/money'
-import { memberColor } from '../lib/icons'
+import { memberColor } from '../lib/colors'
 import type { Membership, SplitInput, UUID } from '../lib/types'
-import { Avatar, Icon } from './ui'
+import { Avatar, Icon, MemberChips, StatusPill } from './ui'
 
 export type SplitMode = 'personal' | 'default' | 'percent' | 'amount'
 
@@ -274,15 +274,7 @@ export function SplitWidget({
     <div className={clsx('rounded-card bg-surface-container-low', compact ? 'p-4' : 'p-5')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <p className="text-body-large font-medium">Come si divide</p>
-        <span
-          className={clsx(
-            'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-body-medium font-medium',
-            balanced
-              ? 'bg-secondary-container text-on-secondary-container'
-              : 'bg-warning-container text-on-warning-container',
-          )}
-        >
-          <Icon name={balanced ? 'check_circle' : 'balance'} size={18} />
+        <StatusPill ok={balanced}>
           {residualBp !== 0
             ? residualBp > 0
               ? `Manca il ${formatPct(fromCents(residualBp))}%`
@@ -290,7 +282,7 @@ export function SplitWidget({
             : residual === 0
               ? `Quadra: ${formatMoney(fromCents(allocated), currency)}`
               : `Residuo ${formatMoney(fromCents(residual), currency)}`}
-        </span>
+        </StatusPill>
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -439,20 +431,12 @@ export function SplitWidget({
       )}
 
       {value.mode === 'personal' && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {members.map((member, index) => (
-            <button
-              key={member.id}
-              type="button"
-              onClick={() => onChange({ ...value, personalUser: member.user!.id })}
-              aria-pressed={value.personalUser === member.user!.id}
-              className={value.personalUser === member.user!.id ? 'chip-selected' : 'chip-outlined'}
-            >
-              <Avatar name={member.display_name} size={22} color={memberColor(index)} />
-              {member.display_name}
-            </button>
-          ))}
-        </div>
+        <MemberChips
+          members={members}
+          value={value.personalUser}
+          onChange={(userId) => onChange({ ...value, personalUser: userId })}
+          className="mt-3"
+        />
       )}
 
       {!compact && oddCentHolder && (
