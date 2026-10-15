@@ -6,7 +6,7 @@ import { useCategories, useStatement, useStatementAction } from '../../api/hooks
 import { activeMembers } from '../../components/Layout'
 import { ErrorBanner, Icon, Skeleton } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
-import { formatMoney, toCents } from '../../lib/money'
+import { formatCents, normalizeDecimal, toCents } from '../../lib/money'
 import type { StatementImport, StatementLine, Tracker, TransactionType } from '../../lib/types'
 import { ReviewRow, SelectChip, type Row } from './ReviewRow'
 import { STATUS_LABEL } from './ScanPage'
@@ -193,7 +193,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
       id: row.id,
       date: row.date,
       title: row.title.trim(),
-      amount: String(row.amount).replace(',', '.').trim(),
+      amount: normalizeDecimal(String(row.amount)),
       type: row.type,
       category: row.category,
       paid_by: row.paid_by,
@@ -293,11 +293,11 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         <span className="text-body-medium">
           <strong>{rows.length}</strong> righe ·{' '}
           <span className="amount text-error">
-            −{formatMoney(totals.expense / 100, tracker.currency)}
+            −{formatCents(totals.expense, tracker.currency)}
           </span>{' '}
           ·{' '}
           <span className="amount text-primary">
-            +{formatMoney(totals.income / 100, tracker.currency)}
+            +{formatCents(totals.income, tracker.currency)}
           </span>
         </span>
         {invalid.length > 0 && (

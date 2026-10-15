@@ -1,8 +1,13 @@
 // Sul frontend gli importi restano stringhe decimali. I calcoli si fanno in
 // centesimi interi: nessun float tocca mai un importo.
 
+/** I campi importo accettano la virgola italiana: per il calcolo serve il punto. */
+export function normalizeDecimal(raw: string): string {
+  return raw.replace(',', '.').trim()
+}
+
 export function toCents(value: string | number): number {
-  const normalized = String(value).replace(',', '.').trim()
+  const normalized = normalizeDecimal(String(value))
   if (!normalized || Number.isNaN(Number(normalized))) return 0
   return Math.round(Number(normalized) * 100)
 }
@@ -53,15 +58,21 @@ export function normalizePercentages(weights: number[]): string[] {
   return allocate(10000, weights).map(fromCents)
 }
 
-export function formatMoney(value: string | number, currency = 'EUR'): string {
-  const cents = toCents(value)
+export function formatCents(cents: number, currency = 'EUR'): string {
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency }).format(cents / 100)
 }
 
-export function formatSigned(value: string | number, currency = 'EUR'): string {
-  const cents = toCents(value)
-  const formatted = formatMoney(Math.abs(cents) / 100, currency)
+export function formatSignedCents(cents: number, currency = 'EUR'): string {
+  const formatted = formatCents(Math.abs(cents), currency)
   if (cents > 0) return `+${formatted}`
   if (cents < 0) return `−${formatted}`
   return formatted
+}
+
+export function formatMoney(value: string | number, currency = 'EUR'): string {
+  return formatCents(toCents(value), currency)
+}
+
+export function formatSigned(value: string | number, currency = 'EUR'): string {
+  return formatSignedCents(toCents(value), currency)
 }

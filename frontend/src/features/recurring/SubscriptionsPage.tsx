@@ -32,7 +32,7 @@ import {
 } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
 import { categoryIcon } from '../../lib/icons'
-import { formatMoney, toCents } from '../../lib/money'
+import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
 import type { RecurringRule, Tracker } from '../../lib/types'
 
 const FREQUENCY_LABEL: Record<string, string> = {
@@ -68,13 +68,13 @@ export function SubscriptionsPage() {
           <div className="rounded-card bg-surface-container p-5">
             <p className="text-body-medium text-on-surface-variant">Al mese</p>
             <p className="amount text-[26px] font-semibold">
-              {formatMoney(monthly / 100, tracker.currency)}
+              {formatCents(monthly, tracker.currency)}
             </p>
           </div>
           <div className="rounded-card bg-surface-container p-5">
             <p className="text-body-medium text-on-surface-variant">All'anno</p>
             <p className="amount text-[26px] font-semibold">
-              {formatMoney((monthly * 12) / 100, tracker.currency)}
+              {formatCents(monthly * 12, tracker.currency)}
             </p>
           </div>
         </div>
@@ -263,7 +263,7 @@ function RuleForm({
               name="amount"
               inputMode="decimal"
               value={amount}
-              onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+              onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
               required
             />
           </Field>

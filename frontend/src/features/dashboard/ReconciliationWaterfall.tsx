@@ -1,4 +1,4 @@
-import { formatMoney, formatSigned, toCents } from '../../lib/money'
+import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import type { ReconciliationFigures } from '../../lib/types'
 
 type Kind = 'base' | 'up' | 'down' | 'settle' | 'expected' | 'gap' | 'real'
@@ -40,8 +40,8 @@ export function ReconciliationWaterfall({
   figures: ReconciliationFigures
   currency: string
 }) {
-  const money = (cents: number) => formatMoney(cents / 100, currency)
-  const signed = (cents: number) => formatSigned(cents / 100, currency)
+  const money = (cents: number) => formatCents(cents, currency)
+  const signed = (cents: number) => formatSignedCents(cents, currency)
 
   const opening = toCents(figures.opening_balance)
   const income = toCents(figures.income)

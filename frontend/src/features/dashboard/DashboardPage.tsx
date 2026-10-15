@@ -28,7 +28,7 @@ import { useAuth } from '../../lib/auth'
 import { monthLabel, todayIso } from '../../lib/format'
 import { rangeFor } from '../../lib/period'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
-import { formatMoney, formatSigned, toCents } from '../../lib/money'
+import { formatCents, formatMoney, formatSigned, normalizeDecimal, toCents } from '../../lib/money'
 import type {
   BalancesResponse,
   Membership,
@@ -203,7 +203,7 @@ function ReconciliationPill({ tracker, delta }: { tracker: Tracker; delta: strin
           <span>
             Conti e movimenti non quadrano per{' '}
             <strong className="amount font-semibold">
-              {formatMoney(Math.abs(toCents(delta)) / 100, tracker.currency)}
+              {formatCents(Math.abs(toCents(delta)), tracker.currency)}
             </strong>
           </span>
           <Icon name="chevron_right" size={20} />
@@ -378,7 +378,7 @@ function SettleModal({
             className="field-input amount text-right"
             inputMode="decimal"
             value={amount}
-            onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+            onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
           />
         </Field>
         <Field label="Data">
@@ -613,8 +613,8 @@ function ReconciliationCard({
         {delta === 0
           ? 'I conti tornano con i movimenti segnati.'
           : delta < 0
-            ? `Sui conti ci sono ${formatMoney(-delta / 100, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
-            : `Sui conti ci sono ${formatMoney(delta / 100, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
+            ? `Sui conti ci sono ${formatCents(-delta, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
+            : `Sui conti ci sono ${formatCents(delta, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
       </p>
 
       <ReconciliationWaterfall figures={figures} currency={tracker.currency} />

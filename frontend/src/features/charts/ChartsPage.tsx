@@ -15,7 +15,7 @@ import {
 } from '../../components/ui'
 import { todayIso } from '../../lib/format'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
-import { formatMoney, formatSigned, toCents } from '../../lib/money'
+import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import { rangeFor, rangeLabel, shiftRange, type DateRange, type PeriodKind } from '../../lib/period'
 import type { Summary, SummaryParams, Tracker, TransactionType, UUID } from '../../lib/types'
 
@@ -448,7 +448,7 @@ function PeopleCard({
                         {member.display_name}
                       </span>
                       <span className="amount text-body-small text-on-surface-variant">
-                        netto {formatSigned((entry.income - entry.expense) / 100, tracker.currency)}
+                        netto {formatSignedCents(entry.income - entry.expense, tracker.currency)}
                       </span>
                     </span>
                     {(['income', 'expense'] as const).map((series) => (
@@ -466,7 +466,7 @@ function PeopleCard({
                           />
                         </span>
                         <span className="amount w-24 text-right text-body-small">
-                          {formatMoney(entry[series] / 100, tracker.currency)}
+                          {formatCents(entry[series], tracker.currency)}
                         </span>
                       </span>
                     ))}

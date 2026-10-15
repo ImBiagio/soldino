@@ -16,7 +16,7 @@ import {
 import { useBalanceHistory, useReconciliation } from '../../api/hooks'
 import { Icon, Skeleton } from '../../components/ui'
 import { formatDate, monthLabel, todayIso } from '../../lib/format'
-import { formatMoney, formatSigned, toCents } from '../../lib/money'
+import { formatCents, formatMoney, formatSignedCents, toCents } from '../../lib/money'
 import type { DateRange } from '../../lib/period'
 import type { Tracker, UUID } from '../../lib/types'
 
@@ -113,10 +113,10 @@ export function BalanceCurve({
                   ? 'bg-secondary-container text-on-secondary-container'
                   : 'bg-error-container text-on-error-container',
               )}
-              title={`Da ${formatMoney(start / 100, tracker.currency)} a ${formatMoney(end / 100, tracker.currency)}`}
+              title={`Da ${formatCents(start, tracker.currency)} a ${formatCents(end, tracker.currency)}`}
             >
               <Icon name={change >= 0 ? 'trending_up' : 'trending_down'} size={18} />
-              {formatSigned(change / 100, tracker.currency)}
+              {formatSignedCents(change, tracker.currency)}
             </span>
           )}
           <button type="button" className="chip-outlined" onClick={() => setAsTable(!asTable)}>

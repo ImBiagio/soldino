@@ -15,7 +15,7 @@ import {
 import { Avatar, ErrorBanner, Field, Icon, Modal, Segmented } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
 import { memberColor } from '../../lib/icons'
-import { formatMoney } from '../../lib/money'
+import { formatCents, normalizeDecimal } from '../../lib/money'
 import type { Tracker, Transaction, TransactionType } from '../../lib/types'
 
 interface Props {
@@ -116,7 +116,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
             inputMode="decimal"
             placeholder="0,00"
             value={amount}
-            onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+            onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
             aria-label="Importo"
           />
           <p className="text-body-medium">
@@ -245,7 +245,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
 
         {residual !== 0 && (
           <p className="text-body-small text-warning">
-            Le quote non quadrano: manca {formatMoney(residual / 100, tracker.currency)}.
+            Le quote non quadrano: manca {formatCents(residual, tracker.currency)}.
           </p>
         )}
         {residualBp !== 0 && (

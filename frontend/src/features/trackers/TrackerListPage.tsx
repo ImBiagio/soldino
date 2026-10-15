@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useCreateTracker, useReconciliation, useTrackers } from '../../api/hooks'
+import { activeMembers } from '../../components/Layout'
 import {
   Avatar,
   EmptyState,
@@ -15,7 +16,7 @@ import {
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { memberColor } from '../../lib/icons'
-import { formatMoney, toCents } from '../../lib/money'
+import { formatCents, toCents } from '../../lib/money'
 import type { Tracker } from '../../lib/types'
 
 export function TrackerListPage() {
@@ -130,7 +131,7 @@ export function TrackerListPage() {
 }
 
 function TrackerRow({ tracker }: { tracker: Tracker }) {
-  const members = tracker.members.filter((member) => member.status === 'active')
+  const members = activeMembers(tracker)
   const archived = Boolean(tracker.archived_at)
 
   return (
@@ -177,5 +178,5 @@ function ReconciliationHint({ tracker }: { tracker: Tracker }) {
   if (!data) return null
   const delta = toCents(data.delta)
   if (delta === 0) return <> · quadra</>
-  return <> · non quadra per {formatMoney(Math.abs(delta) / 100, tracker.currency)}</>
+  return <> · non quadra per {formatCents(Math.abs(delta), tracker.currency)}</>
 }

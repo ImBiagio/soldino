@@ -1,7 +1,15 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { allocate, formatMoney, fromCents, normalizePercentages, toCents } from '../lib/money'
+import { initials } from '../lib/format'
+import {
+  allocate,
+  formatMoney,
+  fromCents,
+  normalizeDecimal,
+  normalizePercentages,
+  toCents,
+} from '../lib/money'
 import { memberColor } from '../lib/icons'
 import type { Membership, SplitInput, UUID } from '../lib/types'
 import { Avatar, Icon } from './ui'
@@ -76,19 +84,20 @@ export function toSplitPayload(
     return {
       splits_input: members.map((m) => ({
         user: m.user!.id,
-        share_amount: normalizeDecimal(state.amounts[m.user!.id] ?? '0'),
+        share_amount: toDecimalString(state.amounts[m.user!.id] ?? '0'),
       })),
     }
   }
   return {
     splits_input: members.map((m) => ({
       user: m.user!.id,
-      share_pct: normalizeDecimal(state.percentages[m.user!.id] ?? '0'),
+      share_pct: toDecimalString(state.percentages[m.user!.id] ?? '0'),
     })),
   }
 }
 
-function normalizeDecimal(value: string): string {
+/** "12,5" -> "12.50": il formato che l'API si aspetta. */
+function toDecimalString(value: string): string {
   return fromCents(toCents(value))
 }
 
@@ -185,7 +194,7 @@ export function SplitWidget({
 
   /** Con due persone l'altra quota si adegua da sola; da tre in su decide l'utente. */
   const setPercentage = (userId: UUID, raw: string) => {
-    const percentages = { ...value.percentages, [userId]: raw.replace(',', '.') }
+    const percentages = { ...value.percentages, [userId]: normalizeDecimal(raw) }
     if (members.length === 2) {
       const other = members.find((m) => m.user!.id !== userId)!
       const bp = Math.min(10000, pctToBp(percentages[userId]))
@@ -347,7 +356,7 @@ export function SplitWidget({
                   <span className="amount truncate px-2 text-[14px] font-semibold text-white">
                     {compact
                       ? formatMoney(fromCents(cents), currency)
-                      : `${initialsOf(member.display_name)} ${formatMoney(fromCents(cents), currency)}`}
+                      : `${initials(member.display_name)} ${formatMoney(fromCents(cents), currency)}`}
                   </span>
                 </div>
               )
@@ -454,15 +463,6 @@ export function SplitWidget({
       )}
     </div>
   )
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('')
 }
 
 function cumulativeRatio(

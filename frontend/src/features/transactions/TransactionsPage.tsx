@@ -23,7 +23,7 @@ import {
 } from '../../components/ui'
 import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
-import { formatMoney, toCents } from '../../lib/money'
+import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
 import type { Account, Category, Tracker, Transaction } from '../../lib/types'
 import { NewEntryMenuButton } from '../../components/FabMenu'
 import { TransactionForm } from './TransactionForm'
@@ -214,7 +214,7 @@ export function TransactionsPage() {
                       monthTotal < 0 ? 'text-error' : 'text-primary',
                     )}
                   >
-                    {formatMoney(monthTotal / 100, tracker.currency)}
+                    {formatCents(monthTotal, tracker.currency)}
                   </span>
                 </div>
                 <div className="grid gap-1">
@@ -549,7 +549,7 @@ function TransactionRow({
           className="field-input amount w-[152px] rounded-nested bg-surface px-2 py-1 text-right"
           autoFocus
           value={amount}
-          onChange={(event) => setAmount(event.target.value.replace(',', '.'))}
+          onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
           onBlur={() => {
             setEditingAmount(false)
             if (amount !== tx.amount) onInlineSave({ amount })

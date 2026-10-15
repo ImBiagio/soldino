@@ -16,6 +16,7 @@ import { activeMembers } from '../../components/Layout'
 import { defaultPercentages, formatPct } from '../../components/SplitWidget'
 import { Avatar, ErrorBanner, Field, Icon, IconCircle, Modal, Skeleton } from '../../components/ui'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
+import { normalizeDecimal } from '../../lib/money'
 import type { Category, Tracker, TransactionType } from '../../lib/types'
 
 /** Gli stessi del backend (`Category.DEFAULT_COLORS`): verde entrate, rosso uscite. */
@@ -204,7 +205,7 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                 defaultValue={member.default_share_pct}
                 disabled={!isOwner}
                 onBlur={(event) => {
-                  const value = event.target.value.replace(',', '.').trim()
+                  const value = normalizeDecimal(event.target.value)
                   if (value && value !== member.default_share_pct) {
                     update.mutate({ id: member.id, default_share_pct: value })
                   }
@@ -275,7 +276,7 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
               const result = await invite.mutateAsync({
                 email: String(form.get('email')),
                 role: String(form.get('role')),
-                default_share_pct: String(form.get('pct')).replace(',', '.'),
+                default_share_pct: normalizeDecimal(String(form.get('pct'))),
               })
               setInviteLink(
                 result.invite_token

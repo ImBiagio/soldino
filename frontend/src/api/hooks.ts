@@ -47,6 +47,25 @@ function useTrackerInvalidation(trackerId: UUID) {
   }
 }
 
+/** PATCH se c'e' l'id, altrimenti POST: la stessa mutation crea e modifica. */
+function useSaveResource<T, Body extends object>(trackerId: UUID, resource: string) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  const base = `${trackerBase(trackerId)}/${resource}`
+  return useMutation({
+    mutationFn: ({ id, ...body }: Body & { id?: UUID }) =>
+      id ? api.patch<T>(`${base}/${id}`, body) : api.post<T>(base, body),
+    onSuccess: invalidate,
+  })
+}
+
+function useDeleteResource(trackerId: UUID, resource: string) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/${resource}/${id}`),
+    onSuccess: invalidate,
+  })
+}
+
 export function useTrackers() {
   return useQuery({
     queryKey: keys.trackers,
@@ -118,11 +137,7 @@ export function useUpdateMember(trackerId: UUID) {
 }
 
 export function useRemoveMember(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/members/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'members')
 }
 
 export function useCategories(trackerId: UUID) {
@@ -134,22 +149,11 @@ export function useCategories(trackerId: UUID) {
 }
 
 export function useSaveCategory(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: ({ id, ...body }: Partial<Category> & { id?: UUID }) =>
-      id
-        ? api.patch<Category>(`${trackerBase(trackerId)}/categories/${id}`, body)
-        : api.post<Category>(`${trackerBase(trackerId)}/categories`, body),
-    onSuccess: invalidate,
-  })
+  return useSaveResource<Category, Partial<Category>>(trackerId, 'categories')
 }
 
 export function useDeleteCategory(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/categories/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'categories')
 }
 
 export function useAccounts(trackerId: UUID) {
@@ -161,22 +165,11 @@ export function useAccounts(trackerId: UUID) {
 }
 
 export function useSaveAccount(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: ({ id, ...body }: Partial<Account> & { id?: UUID }) =>
-      id
-        ? api.patch<Account>(`${trackerBase(trackerId)}/accounts/${id}`, body)
-        : api.post<Account>(`${trackerBase(trackerId)}/accounts`, body),
-    onSuccess: invalidate,
-  })
+  return useSaveResource<Account, Partial<Account>>(trackerId, 'accounts')
 }
 
 export function useDeleteAccount(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/accounts/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'accounts')
 }
 
 export function usePendingItems(trackerId: UUID, status = 'open') {
@@ -191,14 +184,7 @@ export function usePendingItems(trackerId: UUID, status = 'open') {
 }
 
 export function useSavePendingItem(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: ({ id, ...body }: Partial<PendingItem> & { id?: UUID }) =>
-      id
-        ? api.patch<PendingItem>(`${trackerBase(trackerId)}/pending-items/${id}`, body)
-        : api.post<PendingItem>(`${trackerBase(trackerId)}/pending-items`, body),
-    onSuccess: invalidate,
-  })
+  return useSaveResource<PendingItem, Partial<PendingItem>>(trackerId, 'pending-items')
 }
 
 export function useConvertPendingItem(trackerId: UUID) {
@@ -211,11 +197,7 @@ export function useConvertPendingItem(trackerId: UUID) {
 }
 
 export function useDeletePendingItem(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/pending-items/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'pending-items')
 }
 
 export type TransactionFilters = Record<string, string | number | undefined>
@@ -235,22 +217,11 @@ export function useTransactions(
 }
 
 export function useSaveTransaction(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: ({ id, ...body }: Partial<TransactionPayload> & { id?: UUID }) =>
-      id
-        ? api.patch<Transaction>(`${trackerBase(trackerId)}/transactions/${id}`, body)
-        : api.post<Transaction>(`${trackerBase(trackerId)}/transactions`, body),
-    onSuccess: invalidate,
-  })
+  return useSaveResource<Transaction, Partial<TransactionPayload>>(trackerId, 'transactions')
 }
 
 export function useDeleteTransaction(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/transactions/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'transactions')
 }
 
 export function useBalances(trackerId: UUID) {
@@ -373,14 +344,7 @@ export function useRecurringRules(trackerId: UUID) {
 }
 
 export function useSaveRecurringRule(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: ({ id, ...body }: Partial<RecurringRule> & { id?: UUID }) =>
-      id
-        ? api.patch<RecurringRule>(`${trackerBase(trackerId)}/recurring-rules/${id}`, body)
-        : api.post<RecurringRule>(`${trackerBase(trackerId)}/recurring-rules`, body),
-    onSuccess: invalidate,
-  })
+  return useSaveResource<RecurringRule, Partial<RecurringRule>>(trackerId, 'recurring-rules')
 }
 
 /**
@@ -413,9 +377,5 @@ export function useRecurringOccurrence(trackerId: UUID, action: 'approve' | 'ski
 }
 
 export function useDeleteRecurringRule(trackerId: UUID) {
-  const invalidate = useTrackerInvalidation(trackerId)
-  return useMutation({
-    mutationFn: (id: UUID) => api.delete<void>(`${trackerBase(trackerId)}/recurring-rules/${id}`),
-    onSuccess: invalidate,
-  })
+  return useDeleteResource(trackerId, 'recurring-rules')
 }

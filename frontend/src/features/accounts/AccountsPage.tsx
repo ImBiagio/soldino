@@ -23,7 +23,7 @@ import {
 import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
 import { accountIcon, memberColor } from '../../lib/icons'
-import { formatMoney, formatSigned, toCents } from '../../lib/money'
+import { formatCents, formatMoney, formatSigned, normalizeDecimal, toCents } from '../../lib/money'
 import type {
   Account,
   Membership,
@@ -120,7 +120,7 @@ function PersonSection({
           </h2>
           <p className="text-body-small text-on-surface-variant">
             {accounts.length} {accounts.length === 1 ? 'conto' : 'conti'} · nei totali{' '}
-            <span className="amount">{formatMoney(included / 100, tracker.currency)}</span>
+            <span className="amount">{formatCents(included, tracker.currency)}</span>
           </p>
         </div>
         {figures && <DeltaChip tracker={tracker} delta={figures.delta} />}
@@ -159,7 +159,7 @@ function PersonSection({
                 defaultValue={account.current_balance}
                 disabled={!canWrite}
                 onBlur={(event) => {
-                  const value = event.target.value.replace(',', '.').trim()
+                  const value = normalizeDecimal(event.target.value)
                   if (value && value !== account.current_balance) {
                     save.mutate({ id: account.id, current_balance: value })
                   }
@@ -232,7 +232,7 @@ function OpeningBalance({
             defaultValue={member.opening_balance}
             disabled={!editable}
             onBlur={(event) => {
-              const value = event.target.value.replace(',', '.').trim()
+              const value = normalizeDecimal(event.target.value)
               if (value && value !== member.opening_balance) {
                 update.mutate({ id: member.id, opening_balance: value })
               }
@@ -357,7 +357,7 @@ function NewAccountModal({
             name: String(form.get('name')),
             owner: owner.user!.id,
             kind: form.get('kind') as Account['kind'],
-            current_balance: String(form.get('balance') || '0').replace(',', '.'),
+            current_balance: normalizeDecimal(String(form.get('balance') || '0')),
           })
           onClose()
         }}

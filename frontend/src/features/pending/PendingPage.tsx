@@ -22,7 +22,7 @@ import {
   RowsSkeleton,
 } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
-import { formatSigned, toCents } from '../../lib/money'
+import { formatSigned, formatSignedCents, normalizeDecimal, toCents } from '../../lib/money'
 import type { PendingItem, Tracker } from '../../lib/types'
 
 const STATUSES = [
@@ -83,7 +83,7 @@ export function PendingPage() {
             <div>
               <p className="text-body-medium">Totale in attesa</p>
               <p className="amount text-[32px] font-semibold leading-10">
-                {formatSigned(total / 100, tracker.currency)}
+                {formatSignedCents(total, tracker.currency)}
               </p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export function PendingPage() {
             const form = new FormData(event.currentTarget)
             await save.mutateAsync({
               title: String(form.get('title')),
-              amount: String(form.get('amount')).replace(',', '.'),
+              amount: normalizeDecimal(String(form.get('amount'))),
               owner: String(form.get('owner')),
               expected_date: (form.get('expected_date') as string) || null,
               note: String(form.get('note') ?? ''),
