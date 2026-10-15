@@ -1,13 +1,12 @@
 from django.contrib import admin
 from django.http import HttpResponse
 from django.urls import include, path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 
 def health(request):
     """Per l'healthcheck del container: risponde senza DB, auth ne' redirect."""
     return HttpResponse("ok", content_type="text/plain")
-
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
     path("api/health", health, name="health"),
