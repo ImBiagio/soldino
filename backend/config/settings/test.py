@@ -11,7 +11,12 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 # che fanno login si toglierebbero il posto a vicenda. Il throttling ha un test suo.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,
-    "DEFAULT_THROTTLE_RATES": {"auth": "10000/min", "refresh": "10000/min", "scan": "10000/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "10000/min",
+        "refresh": "10000/min",
+        "scan": "10000/min",
+        "banking": "10000/min",
+    },
 }
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},

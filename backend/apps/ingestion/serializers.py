@@ -27,9 +27,12 @@ class StatementLineSerializer(serializers.ModelSerializer):
             "split_mode",
             "duplicate_of",
             "transaction",
+            "external_id",
         ]
         # Posizione e provenienza della categoria le decide il server.
-        read_only_fields = ["id", "position", "category_source", "duplicate_of", "transaction"]
+        read_only_fields = [
+            "id", "position", "category_source", "duplicate_of", "transaction", "external_id",
+        ]
 
     def validate_amount(self, value):
         return validate_positive_amount(value)
@@ -64,6 +67,7 @@ class StatementImportSerializer(serializers.ModelSerializer):
         model = StatementImport
         fields = [
             "id",
+            "source",
             "filename",
             "account",
             "account_name",

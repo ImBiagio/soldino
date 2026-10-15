@@ -12,6 +12,8 @@ import {
 } from './features/auth/AuthPages'
 import { AccountPage } from './features/account/AccountPage'
 import { AccountsPage } from './features/accounts/AccountsPage'
+import { BankCallbackPage } from './features/banking/BankCallbackPage'
+import { BankPage } from './features/banking/BankPage'
 import { ChartsPage } from './features/charts/ChartsPage'
 import { ScanPage } from './features/scan/ScanPage'
 import { ScanReviewPage } from './features/scan/ScanReviewPage'
@@ -48,6 +50,14 @@ export default function App() {
       />
       <Route path="/inviti/:token" element={<AcceptInvitePage />} />
       <Route
+        path="/banca/callback"
+        element={
+          <RequireAuth>
+            <BankCallbackPage />
+          </RequireAuth>
+        }
+      />
+      <Route
         path="/"
         element={
           <RequireAuth>
@@ -69,6 +79,7 @@ export default function App() {
         <Route path="conti" element={<AccountsPage />} />
         <Route path="scan" element={<ScanPage />} />
         <Route path="scan/:statementId" element={<ScanReviewPage />} />
+        <Route path="banca" element={<BankPage />} />
         <Route path="attese" element={<PendingPage />} />
         <Route path="abbonamenti" element={<SubscriptionsPage />} />
         <Route path="impostazioni" element={<SettingsPage />} />

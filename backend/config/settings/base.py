@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "apps.transactions",
     "apps.recurring",
     "apps.ingestion",
+    "apps.banking",
 ]
 
 MIDDLEWARE = [
@@ -146,6 +147,8 @@ REST_FRAMEWORK = {
         "auth": env("THROTTLE_AUTH", "10/min"),
         "refresh": env("THROTTLE_REFRESH", "60/min"),
         "scan": env("THROTTLE_SCAN", "20/hour"),
+        # Ogni chiamata e' un accesso alla banca, che ne concede pochi al giorno.
+        "banking": env("THROTTLE_BANKING", "30/hour"),
     },
 }
 
@@ -201,6 +204,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.recurring.tasks.materialize_due_rules",
         "schedule": crontab(hour=3, minute=0),
     },
+    # Open banking (ADR 0013): le banche concedono ~4 accessi al giorno senza
+    # l'utente presente, e ogni giro ne usa due (saldo e movimenti).
+    "sync-bank-accounts": {
+        "task": "apps.banking.tasks.sync_all_bank_accounts",
+        "schedule": crontab(hour="7,19", minute=15),
+    },
     "flush-expired-tokens": {
         "task": "apps.users.tasks.flush_expired_tokens",
         "schedule": crontab(hour=4, minute=0),
@@ -234,6 +243,12 @@ FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")
 GEMINI_API_KEY = env("GEMINI_API_KEY", "")
 GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
 STATEMENT_MAX_BYTES = int(env("STATEMENT_MAX_BYTES", str(15 * 1024 * 1024)))
+
+# --- Open banking (Enable Banking, ADR 0013) ---
+# Ogni utente carica la sua applicazione: qui solo l'API e la chiave che cifra
+# le chiavi private salvate (Fernet). In sviluppo, se vuota, deriva dalla secret key.
+ENABLE_BANKING_API_URL = env("ENABLE_BANKING_API_URL", "https://api.enablebanking.com")
+BANKING_ENCRYPTION_KEY = env("BANKING_ENCRYPTION_KEY", "")
 
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173")

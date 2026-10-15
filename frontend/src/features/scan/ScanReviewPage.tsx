@@ -29,10 +29,10 @@ export function ScanReviewPage() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:gap-5 sm:p-5 md:p-7">
       <div className="flex flex-wrap items-center gap-3">
         <Link
-          to=".."
+          to={statement?.source === 'bank' ? '../../banca' : '..'}
           relative="path"
           className="state flex h-10 w-10 items-center justify-center rounded-pill"
-          aria-label="Torna agli estratti conto"
+          aria-label={statement?.source === 'bank' ? 'Torna alla banca' : 'Torna agli estratti conto'}
         >
           <Icon name="arrow_back" size={22} />
         </Link>
@@ -120,7 +120,10 @@ function Committed({ tracker, statement }: { tracker: Tracker; statement: Statem
         {statement.line_count} movimenti registrati
         {statement.committed_at && ` il ${formatDate(statement.committed_at.slice(0, 10))}`}
       </p>
-      <p className="text-body-medium">Li trovi nei movimenti, con origine &quot;scan&quot;.</p>
+      <p className="text-body-medium">
+        Li trovi nei movimenti, con origine &quot;
+        {statement.source === 'bank' ? 'open banking' : 'scan'}&quot;.
+      </p>
       <Link to={`/t/${tracker.id}/movimenti`} className="btn-filled w-fit">
         Vai ai movimenti
       </Link>
@@ -301,7 +304,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             onClick={async () => {
               if (!window.confirm("Scartare l'estratto conto e tutte le righe?")) return
               await discard.mutateAsync()
-              navigate('..', { relative: 'path' })
+              navigate(statement.source === 'bank' ? '../../banca' : '..', { relative: 'path' })
             }}
           >
             Scarta

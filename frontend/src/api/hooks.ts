@@ -3,6 +3,11 @@ import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@ta
 import { api } from '../lib/api'
 import type {
   Account,
+  Aspsp,
+  BankAccountLink,
+  BankConnection,
+  BankingStatus,
+  BankSyncResult,
   BalanceHistory,
   StatementImport,
   StatementLine,
@@ -277,7 +282,9 @@ const statementsBase = (trackerId: UUID) => `${trackerBase(trackerId)}/statement
 export function useStatements(trackerId: UUID) {
   return useQuery({
     queryKey: ['trackers', trackerId, 'statements'] as const,
-    queryFn: () => api.get<Paginated<StatementImport>>(statementsBase(trackerId)),
+    // Le bozze della banca (ADR 0013) si raggiungono dalla sezione Banca.
+    queryFn: () =>
+      api.get<Paginated<StatementImport>>(statementsBase(trackerId), { source: 'scan' }),
     // Finche' qualcosa e' in lettura la lista si aggiorna da sola.
     refetchInterval: (query) =>
       query.state.data?.results.some((s) => s.status === 'processing') ? 2500 : false,
@@ -395,4 +402,108 @@ export function useRecurringOccurrence(trackerId: UUID, action: 'approve' | 'ski
 
 export function useDeleteRecurringRule(trackerId: UUID) {
   return useDeleteResource(trackerId, 'recurring-rules')
+}
+
+/* ------------------------------------------------ open banking (ADR 0013) -- */
+
+const bankingKey = ['banking'] as const
+
+export function useBankingStatus() {
+  return useQuery({
+    queryKey: [...bankingKey, 'app'] as const,
+    queryFn: () => api.get<BankingStatus>('/api/banking/app'),
+  })
+}
+
+export function useSaveBankingApp() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ appId, key }: { appId: string; key: File }) => {
+      const form = new FormData()
+      form.append('app_id', appId)
+      form.append('key', key)
+      return api.put<BankingStatus>('/api/banking/app', form)
+    },
+    onSuccess: (status) => {
+      client.setQueryData([...bankingKey, 'app'], status)
+      client.invalidateQueries({ queryKey: bankingKey })
+    },
+  })
+}
+
+export function useDeleteBankingApp() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.delete<void>('/api/banking/app'),
+    onSuccess: () => {
+      client.invalidateQueries({ queryKey: bankingKey })
+      client.invalidateQueries({ queryKey: ['trackers'] })
+    },
+  })
+}
+
+export function useAspsps(country: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [...bankingKey, 'aspsps', country] as const,
+    queryFn: () => api.get<Aspsp[]>('/api/banking/aspsps', { country }),
+    enabled,
+    staleTime: 60 * 60 * 1000,
+  })
+}
+
+const connectionsBase = (trackerId: UUID) => `${trackerBase(trackerId)}/bank-connections`
+
+export function useBankConnections(trackerId: UUID, enabled = true) {
+  return useQuery({
+    queryKey: ['trackers', trackerId, 'bank-connections'] as const,
+    queryFn: () => api.get<BankConnection[]>(connectionsBase(trackerId)),
+    enabled,
+  })
+}
+
+/** Apre l'autorizzazione: la risposta ha l'URL della banca dove mandare l'utente. */
+export function useStartBankConnection(trackerId: UUID) {
+  return useMutation({
+    mutationFn: (aspsp: Aspsp) =>
+      api.post<{ id: UUID; url: string }>(connectionsBase(trackerId), {
+        aspsp_name: aspsp.name,
+        country: aspsp.country,
+        logo: aspsp.logo,
+        max_validity: aspsp.maximum_consent_validity,
+      }),
+  })
+}
+
+export function useCompleteBankConnection() {
+  return useMutation({
+    mutationFn: (body: { code: string; state: string }) =>
+      api.post<BankConnection>('/api/banking/complete', body),
+  })
+}
+
+export function useDeleteBankConnection(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: (id: UUID) => api.delete<void>(`${connectionsBase(trackerId)}/${id}`),
+    onSuccess: invalidate,
+  })
+}
+
+const bankAccountsBase = (trackerId: UUID) => `${trackerBase(trackerId)}/bank-accounts`
+
+export function useUpdateBankAccount(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<BankAccountLink> & { id: UUID }) =>
+      api.patch<BankAccountLink>(`${bankAccountsBase(trackerId)}/${id}`, body),
+    onSuccess: invalidate,
+  })
+}
+
+export function useSyncBankAccount(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: (id: UUID) => api.post<BankSyncResult>(`${bankAccountsBase(trackerId)}/${id}/sync`),
+    onSettled: invalidate,
+  })
 }

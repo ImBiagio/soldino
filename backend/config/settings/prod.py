@@ -1,13 +1,16 @@
 from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F403
-from .base import SECRET_KEY
+from .base import BANKING_ENCRYPTION_KEY, SECRET_KEY
 
 DEBUG = False
 
 # Con la chiave di default chiunque potrebbe firmare JWT, link di verifica e inviti.
 if not SECRET_KEY or SECRET_KEY in {"insecure-dev-key", "change-me-in-production"}:
     raise ImproperlyConfigured("DJANGO_SECRET_KEY va impostata in produzione.")
+# Cifra le chiavi private Enable Banking degli utenti: non deve dipendere dalla secret key.
+if not BANKING_ENCRYPTION_KEY:
+    raise ImproperlyConfigured("BANKING_ENCRYPTION_KEY va impostata in produzione.")
 
 SECURE_SSL_REDIRECT = True
 # L'healthcheck di Docker parla HTTP diretto col container, senza proxy.

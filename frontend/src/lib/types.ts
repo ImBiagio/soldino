@@ -227,6 +227,8 @@ export interface StatementLine {
 /** Scan di un estratto conto: righe in bozza finche' non si conferma (ADR 0008). */
 export interface StatementImport {
   id: UUID
+  /** Lo scan del PDF o la sincronizzazione con la banca (ADR 0013): stessa bozza. */
+  source: 'scan' | 'bank'
   filename: string
   account: UUID | null
   account_name: string | null
@@ -241,6 +243,71 @@ export interface StatementImport {
   line_count: number
   lines: StatementLine[]
   created_at: string
+}
+
+/* ------------------------------------------- open banking (ADR 0013) -- */
+
+export interface BankingApp {
+  app_id: UUID
+  name: string
+  environment: string
+  active: boolean
+  redirect_urls: string[]
+  verified_at: string | null
+}
+
+/** `GET /banking/app`: a che punto e' il setup dell'utente. */
+export interface BankingStatus {
+  configured: boolean
+  /** Da incollare nei Redirect URLs dell'applicazione Enable Banking. */
+  callback_url: string
+  app: BankingApp | null
+}
+
+/** Una banca disponibile (ASPSP nel gergo PSD2). */
+export interface Aspsp {
+  name: string
+  country: string
+  logo: string
+  beta: boolean
+  maximum_consent_validity: number | null
+}
+
+export interface BankAccountLink {
+  id: UUID
+  name: string
+  iban: string
+  currency: string
+  account: UUID | null
+  account_name: string | null
+  auto_commit: boolean
+  sync_from: string | null
+  last_synced_at: string | null
+  synced_until: string | null
+  last_error: string
+  draft: { id: UUID; line_count: number } | null
+}
+
+export type BankConnectionStatus = 'active' | 'expired' | 'replaced'
+
+export interface BankConnection {
+  id: UUID
+  tracker: UUID
+  aspsp_name: string
+  aspsp_country: string
+  aspsp_logo: string
+  valid_until: string | null
+  status: BankConnectionStatus
+  error: string
+  accounts: BankAccountLink[]
+  created_at: string
+}
+
+export interface BankSyncResult {
+  balance?: Money | null
+  committed?: number
+  drafted?: number
+  skipped?: string
 }
 
 /** `GET /trackers/{id}/balance-history`: saldo per cassa giorno per giorno. */

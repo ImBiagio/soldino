@@ -80,6 +80,49 @@ def find_duplicate(tracker, *, when, amount, kind, merchant):
     return candidates[0][0] if candidates else None
 
 
+def draft_line(
+    statement: StatementImport,
+    *,
+    position: int,
+    when: date,
+    title: str,
+    amount: Decimal,
+    kind: str,
+    history: dict[tuple[str, str], str],
+    suggested: str | None = None,
+    valid: dict[str, str] | None = None,
+    external_id: str = "",
+) -> StatementLine:
+    """Una riga in bozza: categoria dallo storico, poi quella suggerita, e doppioni.
+
+    Serve allo scan e alla sincronizzazione con la banca (ADR 0013).
+    """
+    tracker = statement.tracker
+    merchant = normalize_merchant(title)
+
+    category_id, source = history.get((merchant, kind)), StatementLine.CategorySource.HISTORY
+    if not category_id and suggested and (valid or {}).get(suggested) == kind:
+        category_id, source = suggested, StatementLine.CategorySource.AI
+    if not category_id:
+        source = StatementLine.CategorySource.NONE
+
+    return StatementLine(
+        statement=statement,
+        position=position,
+        date=when,
+        title=title,
+        amount=amount,
+        type=kind,
+        category_id=category_id,
+        category_source=source,
+        paid_by_id=statement.default_payer_id,
+        duplicate_of_id=find_duplicate(
+            tracker, when=when, amount=amount, kind=kind, merchant=merchant
+        ),
+        external_id=external_id,
+    )
+
+
 def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> int:
     """Trasforma la lettura in righe in bozza. Le righe illeggibili si scartano."""
     tracker = statement.tracker
@@ -95,28 +138,17 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
         title = (item.description or "").strip()[:255]
         if not when or not amount or not title:
             continue
-        kind = "income" if item.direction == "in" else "expense"
-        merchant = normalize_merchant(title)
-
-        category_id, source = history.get((merchant, kind)), StatementLine.CategorySource.HISTORY
-        if not category_id and valid.get(item.category_id or "") == kind:
-            category_id, source = item.category_id, StatementLine.CategorySource.AI
-        if not category_id:
-            source = StatementLine.CategorySource.NONE
-
-        duplicate = find_duplicate(tracker, when=when, amount=amount, kind=kind, merchant=merchant)
         lines.append(
-            StatementLine(
-                statement=statement,
+            draft_line(
+                statement,
                 position=position,
-                date=when,
+                when=when,
                 title=title,
                 amount=amount,
-                type=kind,
-                category_id=category_id,
-                category_source=source,
-                paid_by_id=statement.default_payer_id,
-                duplicate_of_id=duplicate,
+                kind="income" if item.direction == "in" else "expense",
+                history=history,
+                suggested=item.category_id,
+                valid=valid,
             )
         )
 
@@ -154,7 +186,11 @@ def run_scan(statement: StatementImport, extractor=extract_statement) -> None:
 
 @db_transaction.atomic
 def commit_statement(statement: StatementImport, request) -> list[Transaction]:
-    """OK dell'utente: ogni riga diventa un movimento, tutte o nessuna."""
+    """OK dell'utente: ogni riga diventa un movimento, tutte o nessuna.
+
+    ``request`` serve solo per ``request.user`` (chi registra): la registrazione
+    automatica della banca passa un oggetto con il solo ``user``.
+    """
     context = {"request": request, "tracker": statement.tracker}
     created = []
     for line in statement.lines.select_related("paid_by").order_by("position", "date"):
@@ -168,7 +204,11 @@ def commit_statement(statement: StatementImport, request) -> list[Transaction]:
                 "account": str(statement.account_id) if statement.account_id else None,
                 "paid_by": str(line.paid_by_id),
                 "split_mode": line.split_mode,
-                "source": Transaction.Source.SCAN,
+                "source": (
+                    Transaction.Source.BANK
+                    if statement.source == StatementImport.Source.BANK
+                    else Transaction.Source.SCAN
+                ),
             },
             context=context,
         )

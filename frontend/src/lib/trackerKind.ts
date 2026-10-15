@@ -21,7 +21,7 @@ export const KIND_OPTIONS: { value: TrackerKind; label: string; description: str
 ]
 
 /** Sezioni (segmento di URL sotto /t/:id) che un tracker "group" non mostra. */
-const GROUP_HIDDEN_SECTIONS = new Set(['conti', 'attese', 'abbonamenti', 'scan'])
+const GROUP_HIDDEN_SECTIONS = new Set(['conti', 'attese', 'abbonamenti', 'scan', 'banca'])
 
 export const isGroup = (tracker: Tracker) => tracker.kind === 'group'
 

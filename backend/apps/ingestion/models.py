@@ -14,6 +14,10 @@ from apps.trackers.models import Tracker
 
 
 class StatementImport(BaseModel):
+    class Source(models.TextChoices):
+        SCAN = "scan", "Scan del PDF"
+        BANK = "bank", "Banca (open banking)"
+
     class Status(models.TextChoices):
         PROCESSING = "processing", "In lettura"
         READY = "ready", "Da rivedere"
@@ -24,6 +28,8 @@ class StatementImport(BaseModel):
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="statements"
     )
+    # Lo scan e la sincronizzazione con la banca (ADR 0013) condividono la bozza.
+    source = models.CharField(max_length=8, choices=Source.choices, default=Source.SCAN)
     filename = models.CharField(max_length=255)
     # Il PDF serve solo finche' la lettura non riesce: poi si cancella, perche'
     # un estratto conto contiene molto piu' dei movimenti che ci interessano.
@@ -92,6 +98,8 @@ class StatementLine(BaseModel):
         blank=True,
         related_name="statement_lines",
     )
+    # Id del movimento presso la banca, solo per le righe arrivate dall'open banking.
+    external_id = models.CharField(max_length=128, blank=True)
 
     class Meta:
         ordering = ["position", "date"]

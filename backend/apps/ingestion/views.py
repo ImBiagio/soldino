@@ -36,6 +36,7 @@ class StatementViewSet(
     queryset = StatementImport.objects.select_related("account", "uploaded_by").prefetch_related(
         "lines"
     )
+    filterset_fields = ["source", "status", "account"]
 
     @property
     def throttle_scope(self):

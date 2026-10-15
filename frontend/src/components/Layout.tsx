@@ -17,6 +17,7 @@ const DESTINATIONS = [
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
   { to: 'grafici', label: 'Grafici', icon: 'bar_chart' },
   { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
+  { to: 'banca', label: 'Banca', icon: 'sync_alt' },
   { to: 'impostazioni', label: 'Setup', icon: 'tune' },
 ]
 
