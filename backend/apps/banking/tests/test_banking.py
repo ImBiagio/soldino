@@ -418,3 +418,21 @@ def test_upload_non_crea_bozze_della_banca(api, user, tracker):
     )
     assert response.status_code == 400
     assert "source" in response.data
+
+
+def test_collegamento_con_identificativi_lunghi(user, tracker, app, fake):
+    """PayPal restituisce un identification_hash ben oltre i 128 caratteri."""
+    long_hash = "h" * 600
+    base = fake.create_session
+
+    def session(code):
+        data = base(code)
+        data["accounts"][0].update(identification_hash=long_hash, uid="u" * 200)
+        return data
+
+    fake.create_session = session
+    BankConnection.objects.create(
+        user=user, tracker=tracker, aspsp_name="PayPal", aspsp_country="IT", state="lungo"
+    )
+    connection = sync_service.complete_connection(user, code="c", state="lungo")
+    assert connection.accounts.get().identification_hash == long_hash

@@ -81,8 +81,9 @@ class BankAccount(BaseModel):
     )
     # ``uid`` vale solo finche' la sessione e' autorizzata; l'hash identifica il
     # conto anche fra una sessione e l'altra (rinnovo del consenso).
-    uid = models.CharField(max_length=80)
-    identification_hash = models.CharField(max_length=128, blank=True, db_index=True)
+    # Lunghezze decise da Enable Banking: l'hash di PayPal supera i 128 caratteri.
+    uid = models.CharField(max_length=255)
+    identification_hash = models.TextField(blank=True, db_index=True)
     iban = models.CharField(max_length=34, blank=True)
     name = models.CharField(max_length=140, blank=True)
     currency = models.CharField(max_length=3, default="EUR")
