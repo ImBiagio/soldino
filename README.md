@@ -64,11 +64,19 @@ docker compose up -d --force-recreate
 | Servizio | Cosa fa |
 |---|---|
 | `db` | Postgres 16. `pg_trgm` e `unaccent` abilitate da migration |
-| `redis` | Coda dei task Celery, backend dei risultati, cache Django |
+| `redis` | Coda dei task Celery (db 1) e cache Django (db 0) |
 | `backend` | Django + DRF |
 | `worker` | Esegue i task Celery |
 | `beat` | Scheduler: accoda i task ricorrenti a orario |
 | `frontend` | Vite in dev, build statica servita da nginx in prod |
+
+**Perché Redis.** Fa due lavori, nessuno dei due sostituibile da Postgres senza
+fatica: è la **coda** da cui il `worker` prende i task (lo scan con Gemini, il
+job notturno delle ricorrenze) ed è la **cache** dove DRF tiene i contatori del
+rate limit (login, registrazione, upload dello scan), che devono essere
+condivisi fra i processi gunicorn e veloci. Non fa da result backend: il valore
+di ritorno dei task non lo legge nessuno, lo stato dello scan sta nel DB
+(`CELERY_TASK_IGNORE_RESULT`).
 
 **Redis, worker e beat sono tre pezzi della stessa cosa:** far girare codice
 fuori dal ciclo richiesta/risposta. Django scrive in coda su Redis "esegui il
@@ -79,8 +87,9 @@ questo servono due processi distinti).
 **Lo Scan dell'estratto conto** gira nel `worker` (`scan_statement`): la lettura
 con Gemini richiede 10–30 secondi e non può stare dentro una richiesta.
 
-**Il beat ha un solo job**, `materialize_due_rules` alle 3:00, che
-scrive le occorrenze scadute delle ricorrenze con `auto_commit`. Le altre
+**Il beat ha due job**: `materialize_due_rules` alle 3:00, che
+scrive le occorrenze scadute delle ricorrenze con `auto_commit`, e
+`flush_expired_tokens` alle 4:00, che pulisce la blacklist dei refresh token. Le altre
 restano proposte finché qualcuno non le approva o le salta dalla UI. Sono qui da subito perché
 il piano li vuole in compose dall'inizio (§1.2) e perché la fase 3 li rende
 indispensabili: lo Scan di un estratto conto (estrazione testo → OCR → chiamata
@@ -101,7 +110,23 @@ può esfiltrare), quella che gira su ogni richiesta sta dove il CSRF non arriva
 (header esplicito, nessun automatismo del browser). Mai `localStorage`.
 
 Il costo accettato è che un access token **non è revocabile** prima della
-scadenza — da cui i 15 minuti. Verifica email e inviti usano token firmati
+scadenza — da cui i 15 minuti. Il refresh invece sì: il **logout** mette in
+blacklist quello del cookie e il **cambio password** chiude tutte le altre
+sessioni (la corrente riceve un refresh nuovo). Il refresh si legge solo dal
+cookie, mai dal body. La rotazione non blacklista il token vecchio: due schede
+che rinnovano insieme si butterebbero fuori a vicenda.
+
+Login, registrazione e verifica email hanno un **rate limit** (10/min per IP,
+`THROTTLE_AUTH`), il refresh 60/min, l'upload dello scan 20/ora
+(`THROTTLE_SCAN`, ogni upload è una chiamata a Gemini). Il link di verifica
+email fa entrare senza password, quindi vale **una volta sola**.
+
+Ruoli: solo il proprietario modifica il tracker (nome, valuta, impostazioni),
+lo archivia o lo elimina; non si può invitare né promuovere un secondo
+proprietario. In produzione `prod.py` rifiuta di partire con la
+`DJANGO_SECRET_KEY` di default, Swagger è visibile solo allo staff loggato
+nell'admin e Postgres non espone porte (la `5433` sta solo nell'override di
+sviluppo). Verifica email e inviti usano token firmati
 stateless (`django.core.signing`), senza tabelle da mantenere.
 
 > **Nota:** cinemino usa session + CSRF, non JWT. La divergenza è deliberata,
@@ -185,11 +210,20 @@ alla dashboard (globale e per persona) e nella tab Conti.
 
 ## Struttura
 
+Le funzioni generiche che servivano in più punti stanno in un `methods.py`
+per app: `core/methods.py` (email normalizzate, token firmati, mail di
+servizio, somme di importi, validatori), `trackers/methods.py` (chi è membro
+attivo di un tracker), `transactions/methods.py` (`create_transaction`, l'unico
+modo di scrivere un movimento con i suoi split, usato da form, BTA e
+ricorrenze). La logica di dominio resta nei `services/`. Nel frontend lo stesso
+ruolo lo fanno `lib/money.ts` (`normalizeDecimal`, `formatCents`) e gli helper
+`useSaveResource` / `useDeleteResource` di `api/hooks.ts`.
+
 ```
 backend/
 ├── config/settings/     base · dev · prod · test
 └── apps/
-    ├── core/            BaseModel, money.py, scoping, permessi, normalize
+    ├── core/            BaseModel, money.py, methods.py, scoping, permessi, normalize
     ├── users/           User custom + auth JWT
     ├── trackers/        Tracker, Membership, Category, inviti
     ├── accounts/        Account, PendingItem (il foglio BTA)
@@ -243,12 +277,15 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-129 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+139 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
   `Transaction.validate_splits()`, più property test sulla ripartizione
 - `Σ net == 0` su ogni tracker — property test Hypothesis su scenari misti
+- Logout e cambio password revocano il refresh, il login ha un rate limit, il
+  link di verifica vale una volta, conversioni BTA e ricorrenze non puntano a
+  persone, categorie o conti di altri tracker (`apps/core/tests/test_security.py`)
 - Nessun endpoint restituisce dati di tracker altrui —
   `apps/trackers/tests/test_isolation.py` copre collezioni annidate, ruoli,
   inviti pendenti, split verso non membri, categorie di altri tracker

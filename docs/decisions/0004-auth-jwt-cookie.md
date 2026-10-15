@@ -40,3 +40,16 @@ Da cinemino resta invece preso il pattern dei **token firmati stateless**
 (`django.core.signing` con salt dedicato e `max_age`) per verifica email e
 inviti, invece di una tabella di token: vedi `apps/users/tokens.py` e
 `apps/trackers/invites.py`.
+
+## Aggiornamento 2026-10-15: revoca e rate limit
+
+Attivata la blacklist di SimpleJWT (`token_blacklist`). Il logout blacklista il
+refresh del cookie, il cambio password tutti quelli emessi per l'utente (la
+sessione corrente ne riceve uno nuovo). `BLACKLIST_AFTER_ROTATION` resta
+`False`: blacklistare il token ruotato farebbe uscire una delle due schede che
+rinnovano nello stesso momento. Il refresh si accetta solo dal cookie.
+
+Rate limit con `ScopedRateThrottle` (contatori nella cache Redis) su login,
+registrazione, verifica email (`auth`), refresh (`refresh`) e upload dello scan
+(`scan`). Il link di verifica email non autentica piu' un utente gia'
+verificato: prima era un link di accesso senza password valido tre giorni.
