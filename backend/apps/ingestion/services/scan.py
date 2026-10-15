@@ -1,4 +1,8 @@
-"""Dalla lettura del PDF alle righe in bozza, e dalle righe ai movimenti."""
+"""Dalla lettura del file alle righe in bozza, e dalle righe ai movimenti.
+
+Estratto conto (PDF, tante righe) e scontrino (foto, una riga) passano dalla
+stessa strada: cambiano solo il lettore e cosa si fa del file dopo.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +10,7 @@ import logging
 from collections import Counter
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from functools import partial
 
 from django.db import transaction as db_transaction
 from django.utils import timezone
@@ -17,7 +22,7 @@ from apps.transactions.models import Transaction
 from apps.transactions.serializers import TransactionSerializer
 
 from ..models import StatementImport, StatementLine
-from .gemini import ExtractedStatement, ExtractionError, extract_statement
+from .gemini import ExtractedStatement, ExtractionError, extract_receipt, extract_statement
 
 logger = logging.getLogger(__name__)
 
@@ -88,9 +93,18 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
     }
     history = history_categories(tracker)
 
+    # Scontrino senza data leggibile: e' di oggi, quasi sempre lo si fotografa subito.
+    fallback_date = timezone.localdate() if statement.is_receipt else None
+    # In un tracker per dividere le spese lo scontrino e' di tutti, di default.
+    split_mode = (
+        StatementLine.SplitMode.DEFAULT
+        if statement.is_receipt and tracker.kind == tracker.Kind.GROUP
+        else StatementLine.SplitMode.PERSONAL
+    )
+
     lines = []
     for position, item in enumerate(extracted.lines):
-        when = _parse_date(item.date)
+        when = _parse_date(item.date) or fallback_date
         amount = _parse_amount(item.amount)
         title = (item.description or "").strip()[:255]
         if not when or not amount or not title:
@@ -116,6 +130,7 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
                 category_id=category_id,
                 category_source=source,
                 paid_by_id=statement.default_payer_id,
+                split_mode=split_mode,
                 duplicate_of_id=duplicate,
             )
         )
@@ -126,20 +141,29 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
     return len(lines)
 
 
-def run_scan(statement: StatementImport, extractor=extract_statement) -> None:
-    """Legge il PDF e prepara la bozza. ``extractor`` e' sostituibile nei test."""
+def default_extractor(statement: StatementImport):
+    if statement.is_receipt:
+        return partial(extract_receipt, mime_type=statement.mime_type)
+    return extract_statement
+
+
+def run_scan(statement: StatementImport, extractor=None) -> None:
+    """Legge il file e prepara la bozza. ``extractor`` e' sostituibile nei test."""
     from django.conf import settings
 
     statement.model_name = settings.GEMINI_MODEL
+    read = extractor or default_extractor(statement)
     try:
-        extracted = extractor(bytes(statement.pdf or b""), category_catalog(statement.tracker))
+        extracted = read(bytes(statement.pdf or b""), category_catalog(statement.tracker))
         with db_transaction.atomic():
             statement.lines.all().hard_delete()
             build_lines(statement, extracted)
             statement.status = StatementImport.Status.READY
             statement.error = ""
-            # Letto: il PDF non serve piu' e non va tenuto.
-            statement.pdf = None
+            # Letto: il PDF non serve piu' e non va tenuto. La foto dello
+            # scontrino resta per la revisione e si cancella alla registrazione.
+            if not statement.is_receipt:
+                statement.pdf = None
             statement.save()
     except Exception as exc:
         # Mai lasciare l'import fermo su "in lettura": l'utente deve poter riprovare.
@@ -156,6 +180,7 @@ def run_scan(statement: StatementImport, extractor=extract_statement) -> None:
 def commit_statement(statement: StatementImport, request) -> list[Transaction]:
     """OK dell'utente: ogni riga diventa un movimento, tutte o nessuna."""
     context = {"request": request, "tracker": statement.tracker}
+    source = Transaction.Source.RECEIPT if statement.is_receipt else Transaction.Source.SCAN
     created = []
     for line in statement.lines.select_related("paid_by").order_by("position", "date"):
         serializer = TransactionSerializer(
@@ -168,7 +193,7 @@ def commit_statement(statement: StatementImport, request) -> list[Transaction]:
                 "account": str(statement.account_id) if statement.account_id else None,
                 "paid_by": str(line.paid_by_id),
                 "split_mode": line.split_mode,
-                "source": Transaction.Source.SCAN,
+                "source": source,
             },
             context=context,
         )
@@ -180,5 +205,6 @@ def commit_statement(statement: StatementImport, request) -> list[Transaction]:
 
     statement.status = StatementImport.Status.COMMITTED
     statement.committed_at = timezone.now()
-    statement.save(update_fields=["status", "committed_at", "updated_at"])
+    statement.pdf = None  # la foto dello scontrino non serve piu'
+    statement.save(update_fields=["status", "committed_at", "pdf", "updated_at"])
     return created

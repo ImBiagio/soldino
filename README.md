@@ -448,6 +448,14 @@ eliminano e aggiungono righe. Solo "Registra" le scrive nei movimenti
 Gemini che legge le **descrizioni** delle categorie. I possibili doppioni sono
 segnalati. Il PDF si cancella appena letto.
 
+**Scan scontrino** (`/t/:id/scontrino`, dal "+" → "Da scontrino",
+[ADR 0014](docs/decisions/0014-scan-scontrino.md)). "Scatta una foto" apre la
+fotocamera del telefono, "Scegli una foto" la galleria. Gemini legge
+esercente, data e totale e propone la categoria; nella revisione la foto sta
+sopra l'unica riga e si ingrandisce toccandola. "Registra spesa" scrive il
+movimento (`source=receipt`) e cancella la foto. C'è anche nei tracker per
+dividere le spese, dove la riga nasce già divisa fra tutti.
+
 **Andamento dei soldi** (`GET /trackers/{id}/balance-history?date_from&date_to&user_id`):
 il saldo per cassa giorno per giorno, come la riconciliazione. In Grafici è una
 curva che si ferma a oggi, col punto "oggi sui conti" per vedere lo scarto; in

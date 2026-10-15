@@ -59,12 +59,15 @@ class StatementImportSerializer(serializers.ModelSerializer):
     account_name = serializers.CharField(source="account.name", read_only=True, default=None)
     lines = StatementLineSerializer(many=True, read_only=True)
     line_count = serializers.SerializerMethodField()
+    has_file = serializers.SerializerMethodField()
 
     class Meta:
         model = StatementImport
         fields = [
             "id",
+            "source",
             "filename",
+            "has_file",
             "account",
             "account_name",
             "default_payer",
@@ -78,27 +81,60 @@ class StatementImportSerializer(serializers.ModelSerializer):
             "line_count",
             "lines",
             "created_at",
+            "updated_at",
         ]
         read_only_fields = fields
 
     def get_line_count(self, obj) -> int:
         return obj.lines.count()
 
+    def get_has_file(self, obj) -> bool:
+        """La foto si scarica a parte (``…/file``): qui solo se c'e' ancora."""
+        present = getattr(obj, "file_present", None)
+        return obj.pdf is not None if present is None else present
+
+
+def sniff_image(head: bytes) -> str | None:
+    """Il tipo di una foto dai primi byte, non dall'estensione o dal Content-Type."""
+    if head.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    # HEIC/HEIF (foto dell'iPhone): box "ftyp" con un brand della famiglia.
+    if head[4:8] == b"ftyp" and head[8:12] in {b"heic", b"heix", b"heim", b"heis", b"mif1"}:
+        return "image/heic"
+    return None
+
 
 class StatementUploadSerializer(serializers.Serializer):
     file = serializers.FileField()
+    source = serializers.ChoiceField(
+        choices=StatementImport.Source.choices, default=StatementImport.Source.SCAN
+    )
     account = serializers.PrimaryKeyRelatedField(
         queryset=Account.objects.all(), required=False, allow_null=True
     )
 
-    def validate_file(self, upload):
+    def validate(self, attrs):
+        upload = attrs["file"]
         if upload.size > settings.STATEMENT_MAX_BYTES:
-            raise serializers.ValidationError("Il PDF e' troppo grande (max 15 MB).")
-        head = upload.read(5)
+            raise serializers.ValidationError({"file": "Il file e' troppo grande (max 15 MB)."})
+        head = upload.read(16)
         upload.seek(0)
-        if head != b"%PDF-":
-            raise serializers.ValidationError("Serve un file PDF.")
-        return upload
+        if attrs["source"] == StatementImport.Source.RECEIPT:
+            mime_type = sniff_image(head)
+            if mime_type is None:
+                raise serializers.ValidationError(
+                    {"file": "Serve una foto (JPEG, PNG, WebP o HEIC)."}
+                )
+        elif head.startswith(b"%PDF-"):
+            mime_type = "application/pdf"
+        else:
+            raise serializers.ValidationError({"file": "Serve un file PDF."})
+        attrs["mime_type"] = mime_type
+        return attrs
 
     def validate_account(self, account):
         if account is not None and account.tracker_id != self.context["tracker"].pk:

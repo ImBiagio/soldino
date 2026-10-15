@@ -20,9 +20,11 @@ class ExtractionError(Exception):
     """Errore da mostrare all'utente cosi' com'e'."""
 
 
-# 429 limite di frequenza, 500/503 sovraccarico: errori che passano da soli.
-TRANSIENT_CODES = {429, 500, 503}
+# 429 limite di frequenza, 500/503 sovraccarico, 504 timeout lato Google: passano da soli.
+TRANSIENT_CODES = {429, 500, 503, 504}
 RETRY_PAUSES = (4, 12)
+# Per tentativo: un estratto conto lungo puo' metterci un minuto buono.
+REQUEST_TIMEOUT_MS = 90_000
 
 
 def _explain(exc, *, attempts: int) -> str:
@@ -78,7 +80,34 @@ Categorie del tracker (JSON):
 """
 
 
-def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
+RECEIPT_PROMPT = """Sei un contabile. Nella foto c'e' uno scontrino (o una ricevuta,
+una fattura semplificata). Leggilo e restituisci UNA sola spesa.
+
+Regole:
+- merchant: il nome dell'esercente come lo scriverebbe una persona, in maiuscole e
+  minuscole normali, senza forma societaria, partita IVA o indirizzo.
+  Es. "ESSELUNGA S.P.A. VIA ..." -> "Esselunga"; "BAR ROMA DI ROSSI MARIO" -> "Bar Roma".
+- date: la data dello scontrino, formato AAAA-MM-GG. Se non si legge, null.
+- total: il totale pagato (TOTALE / TOTALE COMPLESSIVO / IMPORTO PAGATO), positivo,
+  col punto decimale e due decimali. Non il subtotale, non il resto, non l'IVA.
+- category_id: fra le categorie di spesa qui sotto quella la cui descrizione calza
+  meglio con quello che si e' comprato. Se nessuna calza davvero, null. Non inventare id.
+- Se la foto non e' uno scontrino o il totale non si legge, total = null.
+
+Categorie del tracker (JSON):
+{categories}
+"""
+
+
+class ExtractedReceipt(BaseModel):
+    merchant: str = Field(description="Nome leggibile dell'esercente")
+    date: str | None = Field(default=None, description="Data dello scontrino, AAAA-MM-GG")
+    total: str | None = Field(default=None, description="Totale pagato, es. 23.40")
+    category_id: str | None = Field(default=None, description="id di una categoria o null")
+
+
+def _generate(contents, schema):
+    """Chiamata a Gemini con risposta JSON vincolata a ``schema`` e retry sui 429/5xx."""
     if not settings.GEMINI_API_KEY:
         raise ExtractionError(
             "Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e riavvia."
@@ -87,21 +116,21 @@ def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
     from google import genai
     from google.genai import errors, types
 
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
-    contents = [
-        types.Part.from_bytes(data=pdf, mime_type="application/pdf"),
-        PROMPT.format(categories=json.dumps(categories, ensure_ascii=False)),
-    ]
+    # Senza timeout una chiamata appesa lasciava l'import "in lettura" per sempre.
+    client = genai.Client(
+        api_key=settings.GEMINI_API_KEY,
+        http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
+    )
     config = types.GenerateContentConfig(
         response_mime_type="application/json",
-        response_schema=ExtractedStatement,
+        response_schema=schema,
         temperature=0,
     )
 
     for attempt, pause in enumerate((*RETRY_PAUSES, None)):
         try:
             response = client.models.generate_content(
-                model=settings.GEMINI_MODEL, contents=contents, config=config
+                model=settings.GEMINI_MODEL, contents=contents(types), config=config
             )
             break
         except errors.APIError as exc:
@@ -114,9 +143,49 @@ def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
             raise ExtractionError(f"Gemini non ha risposto: {exc}") from exc
 
     parsed = response.parsed
-    if isinstance(parsed, ExtractedStatement):
+    if isinstance(parsed, schema):
         return parsed
     try:
-        return ExtractedStatement.model_validate_json(response.text or "")
+        return schema.model_validate_json(response.text or "")
     except Exception as exc:
         raise ExtractionError("La risposta di Gemini non e' nel formato atteso.") from exc
+
+
+def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
+    return _generate(
+        lambda types: [
+            types.Part.from_bytes(data=pdf, mime_type="application/pdf"),
+            PROMPT.format(categories=json.dumps(categories, ensure_ascii=False)),
+        ],
+        ExtractedStatement,
+    )
+
+
+def extract_receipt(
+    image: bytes, categories: list[dict], *, mime_type: str
+) -> ExtractedStatement:
+    """Lo scontrino come un estratto conto di una riga: il resto della pipeline e' lo stesso."""
+    expenses = [c for c in categories if c["type"] == "expense"]
+    receipt = _generate(
+        lambda types: [
+            types.Part.from_bytes(data=image, mime_type=mime_type),
+            RECEIPT_PROMPT.format(categories=json.dumps(expenses, ensure_ascii=False)),
+        ],
+        ExtractedReceipt,
+    )
+    if not receipt.total:
+        raise ExtractionError(
+            "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
+            "dritto e ben illuminato."
+        )
+    return ExtractedStatement(
+        lines=[
+            ExtractedLine(
+                date=receipt.date or "",
+                description=receipt.merchant or "Scontrino",
+                amount=receipt.total,
+                direction="out",
+                category_id=receipt.category_id,
+            )
+        ]
+    )

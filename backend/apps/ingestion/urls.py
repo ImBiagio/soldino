@@ -23,6 +23,11 @@ urlpatterns = [
         name="statement-commit",
     ),
     path(
+        "trackers/<uuid:tracker_pk>/statements/<uuid:pk>/file",
+        StatementViewSet.as_view({"get": "file"}),
+        name="statement-file",
+    ),
+    path(
         "trackers/<uuid:tracker_pk>/statements/<uuid:pk>/retry",
         StatementViewSet.as_view({"post": "retry"}),
         name="statement-retry",

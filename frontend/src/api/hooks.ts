@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 
 import { api } from '../lib/api'
 import type {
@@ -6,6 +7,7 @@ import type {
   BalanceHistory,
   StatementImport,
   StatementLine,
+  StatementSource,
   BalancesResponse,
   Category,
   Membership,
@@ -296,14 +298,42 @@ export function useStatement(trackerId: UUID, statementId: UUID | undefined) {
 export function useUploadStatement(trackerId: UUID) {
   const invalidate = useTrackerInvalidation(trackerId)
   return useMutation({
-    mutationFn: ({ file, account }: { file: File; account?: UUID | null }) => {
+    mutationFn: ({
+      file,
+      account,
+      source = 'scan',
+    }: {
+      file: File
+      account?: UUID | null
+      source?: StatementSource
+    }) => {
       const form = new FormData()
       form.append('file', file)
+      form.append('source', source)
       if (account) form.append('account', account)
       return api.post<StatementImport>(statementsBase(trackerId), form)
     },
     onSuccess: invalidate,
   })
+}
+
+/** La foto dello scontrino come object URL, liberato quando la pagina se ne va. */
+export function useStatementFile(trackerId: UUID, statement: StatementImport | undefined) {
+  const enabled = Boolean(statement?.has_file && statement.source === 'receipt')
+  const query = useQuery({
+    queryKey: ['trackers', trackerId, 'statements', statement?.id, 'file'] as const,
+    queryFn: () => api.blob(`${statementsBase(trackerId)}/${statement!.id}/file`),
+    enabled,
+    staleTime: Infinity,
+  })
+  const [url, setUrl] = useState<string | null>(null)
+  useEffect(() => {
+    if (!query.data) return
+    const objectUrl = URL.createObjectURL(query.data)
+    setUrl(objectUrl)
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [query.data])
+  return { url: enabled ? url : null, isLoading: query.isLoading && enabled, error: query.error }
 }
 
 export function useStatementAction(trackerId: UUID, statementId: UUID) {

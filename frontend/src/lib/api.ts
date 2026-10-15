@@ -59,6 +59,8 @@ interface RequestOptions {
   body?: unknown
   params?: Record<string, string | number | undefined | null>
   skipRefresh?: boolean
+  /** Risposta binaria (es. la foto di uno scontrino) invece di JSON. */
+  blob?: boolean
 }
 
 function buildUrl(path: string, params?: RequestOptions['params']) {
@@ -98,7 +100,7 @@ function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, params, skipRefresh } = options
+  const { method = 'GET', body, params, skipRefresh, blob } = options
   // Un FormData (upload di file) va lasciato al browser: e' lui a mettere il
   // Content-Type multipart col suo boundary.
   const isForm = body instanceof FormData
@@ -119,6 +121,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   }
 
   if (response.status === 204) return undefined as T
+  if (blob && response.ok) return (await response.blob()) as T
 
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw new ApiError(response.status, payload)
@@ -131,5 +134,7 @@ export const api = {
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  // Un <img src> non manda l'header Authorization: i file protetti si scaricano qui.
+  blob: (path: string) => request<Blob>(path, { blob: true }),
   refresh: refreshAccessToken,
 }
