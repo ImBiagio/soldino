@@ -189,6 +189,16 @@ che riapplicato dà 333,30): per questo se cambia l'importo il backend
 riproporziona sugli importi salvati, e il form riapre a importi esatti un
 movimento che le percentuali non riproducono.
 
+### Chi deve cosa: semplificato o per coppia
+
+`Tracker.simplify_debts` (Setup, solo proprietario, acceso di default) decide
+come si propongono i bonifici. Acceso: dal saldo netto di ciascuno, col minor
+numero di bonifici anche fra persone senza spese in comune (Anna paga per
+Bruno, Bruno per Carla → Carla dà i soldi ad Anna). Spento: ognuno restituisce
+a chi ha pagato per lui, al netto di cosa gli deve l'altro e dei pareggi fra i
+due. In due persone coincidono; in ogni caso ognuno arriva allo stesso saldo
+netto. Vedi [ADR 0009](docs/decisions/0009-semplifica-debiti.md).
+
 ### La riconciliazione
 
 ```
@@ -277,12 +287,14 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-139 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+144 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
   `Transaction.validate_splits()`, più property test sulla ripartizione
 - `Σ net == 0` su ogni tracker — property test Hypothesis su scenari misti
+- Con i debiti semplificati o per coppia, ognuno riceve o dà esattamente il
+  proprio `net` (property test a tre persone)
 - Logout e cambio password revocano il refresh, il login ha un rate limit, il
   link di verifica vale una volta, conversioni BTA e ricorrenze non puntano a
   persone, categorie o conti di altri tracker (`apps/core/tests/test_security.py`)
