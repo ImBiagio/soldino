@@ -237,7 +237,10 @@ def test_property_i_due_modi_portano_allo_stesso_saldo(
             tracker,
             paid_by=people[payer],
             amount=str(amount),
-            splits=[{"user": p.pk, "share_pct": D(w)} for p, w in zip(people, weights, strict=True)],
+            splits=[
+                {"user": p.pk, "share_pct": D(w)}
+                for p, w in zip(people, weights, strict=True)
+            ],
         )
     balances = compute_balances(tracker.pk, _member_ids(tracker))
     pairwise = pairwise_debts(tracker.pk, _member_ids(tracker))
