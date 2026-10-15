@@ -319,6 +319,48 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ---
 
+## Deploy (produzione)
+
+**https://sold.inoo.it**, sul homeserver accanto a cinemino (`cinem.inoo.it`).
+Stesso schema di cinemino: push sul branch **`prod`** → la GitHub Action
+(`.github/workflows/prod.yml`) fa ruff, pytest, tsc ed eslint e pubblica
+`soldino-backend:prod` e `soldino-web:prod` su ghcr.io → sul server
+**Watchtower** (quello di cinemino, ogni 5 minuti) vede il tag nuovo e ricrea i
+container. Le migrazioni girano all'avvio del backend.
+
+```bash
+git push origin main:prod    # deploy: fa tutto la Action + Watchtower
+```
+
+Sul server:
+
+```
+              ┌─ edge (Caddy, ~/edge) ── unico con le porte 80/443, certificati
+internet ─────┤     cinem.inoo.it ──► cinemino-web:80
+              │     sold.inoo.it  ──► soldino-web:80   (rete Docker "edge")
+              │
+~/soldino ────┴─ web (Caddy: SPA + /api /admin /static → backend)
+                 backend (gunicorn) · worker · beat · redis · db (Postgres 16)
+```
+
+- `deploy/compose.prod.yaml` e un `.env` (modello `deploy/.env.prod.example`)
+  stanno in `~/soldino`; nessuna porta pubblicata.
+- `deploy/edge/` è il proxy condiviso: va copiato in `~/edge` quando cambia
+  (`docker compose up -d` lì). Un dominio nuovo è un blocco nel suo Caddyfile.
+- I Caddy delle app si fidano delle `X-Forwarded-*` dell'edge
+  (`trusted_proxies private_ranges`): Django vede l'HTTPS e l'admin, che si
+  apre solo dalla LAN di casa, guarda il `client_ip` vero e non l'IP dell'edge.
+- `GET /api/health` serve all'healthcheck del container (esente dal redirect HTTPS).
+
+Primo avvio (già fatto il 2026-10-15):
+
+```bash
+docker network create edge
+cd ~/soldino && docker compose -f compose.prod.yaml up -d
+cd ~/edge && docker compose up -d
+docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py createsuperuser
+```
+
 ## Invarianti verificate dai test
 
 151 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su

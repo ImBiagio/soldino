@@ -28,7 +28,8 @@ RUN DJANGO_SECRET_KEY=collectstatic-build python manage.py collectstatic --noinp
 # Utente non root: un'eventuale RCE resta confinata nel container.
 # chmod: il codice dev'essere leggibile dall'utente non root qualunque siano i
 # permessi del checkout da cui parte la build.
-RUN useradd --system --uid 10001 appuser \
+# --create-home: gunicorn 23+ apre il suo control socket nella home.
+RUN useradd --system --create-home --uid 10001 appuser \
     && chmod -R a+rX /app \
     && chown -R appuser /app/staticfiles
 USER appuser
