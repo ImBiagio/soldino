@@ -202,6 +202,11 @@ class StatementViewSet(
         return Response(self.get_serializer(statement).data, status=status.HTTP_202_ACCEPTED)
 
     def perform_destroy(self, instance):
+        if instance.source == StatementImport.Source.BANK:
+            from apps.banking.services.sync import release_draft
+
+            # La bozza della banca scartata torna alla prossima sincronizzazione.
+            release_draft(instance)
         # Scartare una bozza cancella anche il PDF, se c'e' ancora.
         instance.pdf = None
         instance.save(update_fields=["pdf", "updated_at"])

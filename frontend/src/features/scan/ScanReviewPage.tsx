@@ -395,7 +395,11 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             onClick={async () => {
               const question = receipt
                 ? 'Scartare lo scontrino? Anche la foto viene cancellata.'
-                : "Scartare l'estratto conto e tutte le righe?"
+                : statement.source === 'bank'
+                  ? 'Scartare la bozza? I movimenti torneranno alla prossima sincronizzazione. Per ignorarne uno per sempre, eliminalo dalla lista.'
+                  : statement.source === 'voice'
+                    ? 'Scartare il messaggio vocale e tutte le righe?'
+                    : "Scartare l'estratto conto e tutte le righe?"
               if (!window.confirm(question)) return
               await discard.mutateAsync()
               navigate(statement.source === 'bank' ? '../../banca' : '..', { relative: 'path' })

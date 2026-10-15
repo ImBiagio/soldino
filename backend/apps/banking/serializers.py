@@ -152,4 +152,5 @@ class SyncResultSerializer(serializers.Serializer):
     committed = serializers.IntegerField(required=False)
     drafted = serializers.IntegerField(required=False)
     skipped = serializers.CharField(required=False)
+    already_seen = serializers.IntegerField(required=False)
 

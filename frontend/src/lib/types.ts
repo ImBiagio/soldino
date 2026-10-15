@@ -322,6 +322,8 @@ export interface BankSyncResult {
   committed?: number
   drafted?: number
   skipped?: string
+  /** Letti dalla banca ma gia' visti prima (registrati o tolti in revisione). */
+  already_seen?: number
 }
 
 /** `GET /trackers/{id}/balance-history`: saldo per cassa giorno per giorno. */

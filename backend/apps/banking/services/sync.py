@@ -203,8 +203,18 @@ def _amount(raw: dict) -> Decimal | None:
         return None
 
 
-def pick_balance(balances: list[dict]) -> Decimal | None:
-    by_type = {b.get("balance_type"): b for b in balances}
+def pick_balance(balances: list[dict], currencies: tuple[str, ...] = ()) -> Decimal | None:
+    """Il saldo da mostrare: prima nella valuta del conto (o del tracker), poi per tipo.
+
+    PayPal restituisce un saldo per valuta (EUR, USD...) tutti dello stesso tipo.
+    """
+    same = [
+        b for b in balances if (b.get("balance_amount") or {}).get("currency") in currencies
+    ]
+    balances = same or balances
+    by_type: dict = {}
+    for b in balances:
+        by_type.setdefault(b.get("balance_type"), b)
     for kind in BALANCE_PREFERENCE:
         if kind in by_type:
             return _amount(by_type[kind].get("balance_amount"))
@@ -314,7 +324,10 @@ def sync_account(bank_account: BankAccount, *, today: date | None = None) -> dic
 
     try:
         client = client_for(require_app(connection.user))
-        balance = pick_balance(client.balances(bank_account.uid))
+        balance = pick_balance(
+            client.balances(bank_account.uid),
+            (bank_account.currency, account.tracker.currency),
+        )
         if bank_account.synced_until:
             date_from = bank_account.synced_until - timedelta(days=OVERLAP_DAYS)
         else:
@@ -374,7 +387,13 @@ def _store(bank_account: BankAccount, *, balance, raw: list[dict], date_from: da
     bank_account.last_synced_at = now
     bank_account.last_error = ""
     bank_account.save(update_fields=["synced_until", "last_synced_at", "last_error", "updated_at"])
-    return {"balance": balance, "committed": committed, "drafted": drafted}
+    return {
+        "balance": balance,
+        "committed": committed,
+        "drafted": drafted,
+        # Letti dalla banca ma gia' visti prima: non tornano in bozza.
+        "already_seen": len(rows) - len(fresh),
+    }
 
 
 def _auto_commit(bank_account: BankAccount, rows: list[dict], history) -> tuple[int, int]:
@@ -442,3 +461,22 @@ def is_due(bank_account: BankAccount, today: date) -> bool:
     else:
         start = today.replace(day=1)
     return last < start
+
+
+def release_draft(statement: StatementImport) -> int:
+    """"Scarta" su una bozza della banca: i suoi movimenti tornano al giro dopo.
+
+    Una riga tolta dalla revisione resta ignorata per sempre; scartare tutta la
+    bozza vuol dire "non adesso", non "mai". Le righe gia' registrate restano viste.
+    """
+    if statement.source != StatementImport.Source.BANK or statement.account_id is None:
+        return 0
+    ids = [
+        line.external_id
+        for line in statement.lines.all()
+        if line.external_id and line.transaction_id is None and line.settlement_id is None
+    ]
+    deleted, _ = SeenBankTransaction.objects.filter(
+        account_id=statement.account_id, external_id__in=ids
+    ).delete()
+    return deleted

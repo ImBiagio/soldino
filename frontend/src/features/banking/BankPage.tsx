@@ -345,12 +345,18 @@ function AccountRow({
 
       {result && !sync.isPending && (
         <p className="text-body-medium text-primary">
-          {result.balance != null && `Saldo ${formatMoney(result.balance, link.currency)}. `}
+          {result.balance != null &&
+            // PayPal ha conti multivaluta ("XXX"): il saldo e' nella valuta del tracker.
+            `Saldo ${formatMoney(result.balance, link.currency === 'XXX' ? tracker.currency : link.currency)}. `}
           {result.committed ? `${result.committed} registrati. ` : ''}
           {result.drafted
             ? `${result.drafted} da rivedere.`
             : !result.committed
-              ? 'Nessun movimento nuovo.'
+              ? result.already_seen
+                ? `Nessun movimento nuovo: ${result.already_seen} ${
+                    result.already_seen === 1 ? 'era già stato letto' : 'erano già stati letti'
+                  } (registrati o tolti in revisione).`
+                : 'Nessun movimento nuovo.'
               : ''}
         </p>
       )}

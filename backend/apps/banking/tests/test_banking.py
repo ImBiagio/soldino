@@ -471,3 +471,34 @@ def test_default_mensile_e_modificabile_dal_setup(api, user, tracker):
     )
     assert response.status_code == 200, response.data
     assert response.data["bank_sync_frequency"] == "weekly"
+
+
+def test_scartare_la_bozza_rimette_in_coda_i_movimenti(api, user, tracker, linked, fake):
+    fake.transactions_data = [tx("r1", "12.50"), tx("r2", "7.00", day="2026-10-12")]
+    sync_service.sync_account(linked)
+    draft = StatementImport.objects.get(source="bank")
+    response = api(user).delete(reverse("statement-detail", args=[tracker.pk, draft.pk]))
+    assert response.status_code == 204
+    assert not SeenBankTransaction.objects.exists()
+
+    result = sync_service.sync_account(linked)
+    assert (result["drafted"], result["already_seen"]) == (2, 0)
+
+
+def test_riga_tolta_in_revisione_resta_ignorata(api, user, tracker, linked, fake):
+    fake.transactions_data = [tx("r1", "12.50"), tx("r2", "7.00", day="2026-10-12")]
+    sync_service.sync_account(linked)
+    draft = StatementImport.objects.get(source="bank")
+    draft.lines.filter(external_id="r1").hard_delete()
+    result = sync_service.sync_account(linked)
+    assert (result["drafted"], result["already_seen"]) == (0, 2)
+
+
+def test_saldo_nella_valuta_del_conto():
+    balances = [
+        {"balance_type": "XPCD", "balance_amount": {"amount": "5.00", "currency": "USD"}},
+        {"balance_type": "XPCD", "balance_amount": {"amount": "12.00", "currency": "EUR"}},
+    ]
+    assert pick_balance(balances, ("XXX", "EUR")) == D("12.00")
+    # Senza preferenze vince il primo del tipo, non l'ultimo.
+    assert pick_balance(balances) == D("5.00")

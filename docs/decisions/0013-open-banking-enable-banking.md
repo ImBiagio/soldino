@@ -53,9 +53,13 @@ due chiamate (saldo e movimenti). (Fino al 2026-10-15 il giro era fisso, alle
   avviso doppioni. Una sola bozza aperta per conto: i giri successivi la
   allungano.
 - Ogni movimento visto si ricorda in `SeenBankTransaction` (conto Soldino +
-  id del movimento): una riga scartata dalla bozza non ritorna al giro dopo.
-  Se la banca non dà un id stabile si usa un'impronta di data, importo, verso e
-  causale.
+  id del movimento): una riga **tolta dalla revisione** non ritorna al giro
+  dopo. Scartare **tutta la bozza** ("Scarta") invece la rimette in coda: vuol
+  dire "non adesso", non "mai" (dal 2026-10-15, dopo che tre bozze PayPal
+  scartate avevano fatto sparire i loro movimenti). Se la banca non da' un id
+  stabile si usa un'impronta di data, importo, verso e causale.
+- Il saldo si sceglie nella valuta del conto o del tracker: PayPal ne
+  restituisce uno per valuta, tutti dello stesso tipo.
 
 **Registrazione automatica: scelta per conto.** Di default si rivede tutto
 (§0.6, come lo scan). Con l'interruttore "Registra in automatico" i movimenti
