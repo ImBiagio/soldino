@@ -13,12 +13,24 @@ from apps.core.models import BaseModel
 class Tracker(BaseModel):
     """Un contenitore di spese condiviso ("Spese coppia 2026")."""
 
+    class Kind(models.TextChoices):
+        # Solo un preset di interfaccia (ADR 0010): calcoli e API non guardano il tipo.
+        HOUSEHOLD = "household", "Tracking continuo"
+        GROUP = "group", "Dividere le spese"
+
     name = models.CharField(max_length=120)
     currency = models.CharField(max_length=3, default="EUR")
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="owned_trackers"
     )
     archived_at = models.DateTimeField(null=True, blank=True)
+    kind = models.CharField(
+        max_length=10,
+        choices=Kind.choices,
+        default=Kind.HOUSEHOLD,
+        help_text="Cosa mostra l'interfaccia: tracking continuo (conti, ricorrenze, "
+        "riconciliazione) o solo dividere le spese di un gruppo.",
+    )
     simplify_debts = models.BooleanField(
         default=True,
         help_text="Chiude i debiti col minor numero di bonifici, anche fra persone "

@@ -17,6 +17,7 @@ import { useBalanceHistory, useReconciliation } from '../../api/hooks'
 import { Icon, Skeleton } from '../../components/ui'
 import { formatDate, monthLabel, todayIso } from '../../lib/format'
 import { formatCents, formatMoney, formatSignedCents, toCents } from '../../lib/money'
+import { showsReconciliation } from '../../lib/trackerKind'
 import type { DateRange } from '../../lib/period'
 import type { Tracker, UUID } from '../../lib/types'
 
@@ -52,7 +53,8 @@ export function BalanceCurve({
     date_to: range.to,
     user_id: person || undefined,
   })
-  const reconciliation = useReconciliation(tracker.id)
+  // Nei gruppi niente riconciliazione, quindi niente punto "oggi sui conti".
+  const reconciliation = useReconciliation(tracker.id, showsReconciliation(tracker))
 
   const today = todayIso()
   // Il futuro non ha movimenti: la curva si ferma a oggi invece di restare piatta.

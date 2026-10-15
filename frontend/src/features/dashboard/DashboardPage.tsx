@@ -29,6 +29,7 @@ import { monthLabel, todayIso } from '../../lib/format'
 import { rangeFor } from '../../lib/period'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { formatCents, formatMoney, formatSigned, normalizeDecimal, toCents } from '../../lib/money'
+import { isGroup, showsReconciliation, showsSection } from '../../lib/trackerKind'
 import type {
   BalancesResponse,
   Membership,
@@ -49,7 +50,9 @@ export function DashboardPage() {
   const [period, setPeriod] = useState<Period>('month')
 
   // Di default la propria vista; "tutti" e' la dashboard globale del tracker.
-  const requested = params.get('vista') ?? user?.id ?? ALL
+  // In un gruppo si parte da "tutti": conta chi deve cosa fra tutti (ADR 0010).
+  const group = isGroup(tracker)
+  const requested = params.get('vista') ?? (group ? ALL : (user?.id ?? ALL))
   const person = members.find((m) => m.user!.id === requested) ?? null
   const view = person ? person.user!.id : ALL
   const setView = (next: string) => {
@@ -70,7 +73,7 @@ export function DashboardPage() {
         : { year: now.getFullYear() }),
   })
   const balances = useBalances(tracker.id)
-  const reconciliation = useReconciliation(tracker.id)
+  const reconciliation = useReconciliation(tracker.id, showsReconciliation(tracker))
   const figures = person
     ? reconciliation.data?.people.find((p) => p.user.id === person.user!.id)
     : reconciliation.data
@@ -93,10 +96,20 @@ export function DashboardPage() {
         {balances.isLoading || !balances.data ? (
           <DashboardSkeleton />
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1fr_1.35fr]">
-            <div className="grid content-start gap-4">
-              <MonthCard tracker={tracker} person={person} />
-              <ProposalsCard tracker={tracker} />
+          <div
+            className={clsx(
+              'grid gap-4',
+              group ? 'lg:grid-cols-[1.35fr_1fr]' : 'lg:grid-cols-[1fr_1.35fr]',
+            )}
+          >
+            {/* In un gruppo chi deve cosa viene prima, anche su mobile. */}
+            <div className={clsx('grid content-start gap-4', group && 'order-last')}>
+              {group ? (
+                <GroupTotalCard tracker={tracker} balances={balances.data} person={person} />
+              ) : (
+                <MonthCard tracker={tracker} person={person} />
+              )}
+              {showsSection(tracker, 'abbonamenti') && <ProposalsCard tracker={tracker} />}
             </div>
 
             <div className="grid content-start gap-4">
@@ -468,6 +481,63 @@ function MonthCard({ tracker, person }: { tracker: Tracker; person: Membership |
           {formatSigned(data.net, tracker.currency)}
         </span>
       </div>
+    </section>
+  )
+}
+
+/* ------------------------------------------- card totale (tracker group) -- */
+
+/** Al posto di entrate/uscite del mese: quanto ha speso il gruppo e chi ha pagato. */
+function GroupTotalCard({
+  tracker,
+  balances,
+  person,
+}: {
+  tracker: Tracker
+  balances: BalancesResponse
+  person: Membership | null
+}) {
+  // Senza filtri di periodo: un viaggio si guarda tutto insieme, non per mese.
+  const { data, isLoading } = useSummary(tracker.id, { user_id: person?.user?.id })
+  const rows = person
+    ? balances.balances.filter((balance) => balance.user.id === person.user!.id)
+    : balances.balances
+
+  if (isLoading || !data) return <Skeleton className="h-[144px] rounded-panel" />
+
+  return (
+    <section className="rounded-panel bg-surface-container p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-label-small uppercase tracking-wide text-on-surface-variant">
+          Speso in tutto{person && ` · quota di ${person.display_name}`}
+        </p>
+        <Icon name="payments" size={18} className="text-on-surface-variant" />
+      </div>
+      <p className="amount text-[30px] font-semibold leading-9 text-error">
+        {formatMoney(data.total_expense, tracker.currency)}
+      </p>
+      <div className="my-3 h-px bg-outline-variant" />
+      {rows.map((balance) => (
+        <div key={balance.user.id} className="flex items-center gap-3 py-1.5">
+          <Avatar
+            name={balance.user.display_name}
+            size={32}
+            color={memberColor(balances.balances.indexOf(balance))}
+          />
+          <span className="min-w-0 flex-1 truncate text-body-medium">
+            {balance.user.display_name}
+            <span className="block text-body-small text-on-surface-variant">
+              quota <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
+            </span>
+          </span>
+          <span className="text-right">
+            <span className="block text-body-small text-on-surface-variant">ha pagato</span>
+            <span className="amount font-semibold">
+              {formatMoney(balance.paid, tracker.currency)}
+            </span>
+          </span>
+        </div>
+      ))}
     </section>
   )
 }

@@ -16,6 +16,7 @@ import { Avatar, ErrorBanner, Field, Icon, Modal, Segmented } from '../../compon
 import { formatDate, todayIso } from '../../lib/format'
 import { memberColor } from '../../lib/icons'
 import { formatCents, normalizeDecimal } from '../../lib/money'
+import { isGroup, showsIncome } from '../../lib/trackerKind'
 import type { Tracker, Transaction, TransactionType } from '../../lib/types'
 
 interface Props {
@@ -41,8 +42,10 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
   const [split, setSplit] = useState<SplitState>(() =>
     editing
       ? splitStateFromTransaction(members, editing.splits, editing.paid_by, editing.amount)
-      : initialSplitState(members, defaultPayer),
+      : initialSplitState(members, defaultPayer, isGroup(tracker) ? 'default' : 'personal'),
   )
+  // In un gruppo solo spese; un'entrata gia' registrata si modifica come prima.
+  const typeSwitch = showsIncome(tracker) || editing?.type === 'income'
 
   const categories = useCategories(tracker.id)
   const accounts = useAccounts(tracker.id)
@@ -77,17 +80,19 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
       wide
       title={editing ? 'Modifica movimento' : type === 'expense' ? 'Nuova spesa' : 'Nuova entrata'}
       headerRight={
-        <Segmented
-          value={type}
-          onChange={(value) => {
-            setType(value)
-            setCategory('')
-          }}
-          options={[
-            { value: 'expense', label: 'Spesa' },
-            { value: 'income', label: 'Entrata' },
-          ]}
-        />
+        typeSwitch && (
+          <Segmented
+            value={type}
+            onChange={(value) => {
+              setType(value)
+              setCategory('')
+            }}
+            options={[
+              { value: 'expense', label: 'Spesa' },
+              { value: 'income', label: 'Entrata' },
+            ]}
+          />
+        )
       }
     >
       <form

@@ -17,6 +17,7 @@ import type {
   Summary,
   SummaryParams,
   Tracker,
+  TrackerKind,
   Transaction,
   TransactionPayload,
   UUID,
@@ -86,7 +87,7 @@ export function useUpdateTracker(trackerId: UUID) {
   const invalidate = useTrackerInvalidation(trackerId)
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (body: Partial<Pick<Tracker, 'name' | 'currency' | 'simplify_debts'>>) =>
+    mutationFn: (body: Partial<Pick<Tracker, 'name' | 'currency' | 'kind' | 'simplify_debts'>>) =>
       api.patch<Tracker>(trackerBase(trackerId), body),
     onSuccess: () => {
       invalidate()
@@ -119,7 +120,7 @@ export function useDeleteTracker(trackerId: UUID) {
 export function useCreateTracker() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (body: { name: string; currency?: string }) =>
+    mutationFn: (body: { name: string; currency?: string; kind?: TrackerKind }) =>
       api.post<Tracker>('/api/trackers', body),
     onSuccess: () => client.invalidateQueries({ queryKey: keys.trackers }),
   })
@@ -340,10 +341,12 @@ export function useBalanceHistory(
   })
 }
 
-export function useReconciliation(trackerId: UUID) {
+/** ``enabled`` falso nei tracker "group", dove la riconciliazione non si mostra. */
+export function useReconciliation(trackerId: UUID, enabled = true) {
   return useQuery({
     queryKey: keys.reconciliation(trackerId),
     queryFn: () => api.get<Reconciliation>(`${trackerBase(trackerId)}/reconciliation`),
+    enabled,
   })
 }
 

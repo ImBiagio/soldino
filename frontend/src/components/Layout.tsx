@@ -5,6 +5,7 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-rout
 import { useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/icons'
+import { showsSection } from '../lib/trackerKind'
 import type { Membership, Tracker } from '../lib/types'
 import { FabMenu } from './FabMenu'
 import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
@@ -14,14 +15,21 @@ const DESTINATIONS = [
   { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
   { to: 'conti', label: 'Conti', icon: 'account_balance' },
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
-  { to: 'grafici', label: 'Grafici', icon: 'bar_chart', menuOnMobile: true },
-  { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew', menuOnMobile: true },
-  { to: 'impostazioni', label: 'Setup', icon: 'tune', menuOnMobile: true },
+  { to: 'grafici', label: 'Grafici', icon: 'bar_chart' },
+  { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
+  { to: 'impostazioni', label: 'Setup', icon: 'tune' },
 ]
 
-/** Sul mobile la bottom bar tiene quattro voci: le altre passano nel menu. */
-const MOBILE_DESTINATIONS = DESTINATIONS.filter((destination) => !destination.menuOnMobile)
-const MENU_DESTINATIONS = DESTINATIONS.filter((destination) => destination.menuOnMobile)
+/**
+ * Sul mobile la bottom bar tiene le prime quattro voci visibili, le altre
+ * passano nel menu. In un tracker "group" le voci sono quattro in tutto.
+ */
+const MOBILE_SLOTS = 4
+
+function destinationsFor(tracker: Tracker) {
+  const visible = DESTINATIONS.filter((destination) => showsSection(tracker, destination.to))
+  return { all: visible, bar: visible.slice(0, MOBILE_SLOTS), menu: visible.slice(MOBILE_SLOTS) }
+}
 
 export function activeMembers(tracker: Tracker): Membership[] {
   return tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user)
@@ -45,8 +53,9 @@ export function TrackerLayout() {
     )
   }
 
+  const destinations = destinationsFor(tracker)
   const section = location.pathname.split('/')[3] ?? ''
-  const inMenuSection = MENU_DESTINATIONS.some((destination) => destination.to === section)
+  const inMenuSection = destinations.menu.some((destination) => destination.to === section)
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -67,7 +76,7 @@ export function TrackerLayout() {
         <FabMenu tracker={tracker} placement="rail" />
 
         <div className="mt-6 flex flex-col items-center gap-3.5">
-          {DESTINATIONS.map((destination) => (
+          {destinations.all.map((destination) => (
             <RailItem key={destination.label} {...destination} />
           ))}
         </div>
@@ -94,7 +103,7 @@ export function TrackerLayout() {
         aria-label="Sezioni"
         className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex justify-around bg-surface-container-low px-2 pt-3 md:hidden"
       >
-        {MOBILE_DESTINATIONS.map((destination) => (
+        {destinations.bar.map((destination) => (
           <BottomItem key={destination.label} {...destination} />
         ))}
         {/* Senza questa voce il menu (e quindi Grafici e Setup) su mobile non si apriva. */}
@@ -251,7 +260,7 @@ function MenuSheet({
         ))}
 
         <div className="mt-2 grid gap-2">
-          {MENU_DESTINATIONS.map((destination) => (
+          {destinationsFor(tracker).menu.map((destination) => (
             <button
               key={destination.to}
               type="button"

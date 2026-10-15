@@ -27,6 +27,7 @@ import {
 } from '../../components/ui'
 import { categoryColor, categoryIcon, memberColor } from '../../lib/icons'
 import { normalizeDecimal } from '../../lib/money'
+import { KindPicker } from './TrackerListPage'
 import type { Category, Tracker, TransactionType } from '../../lib/types'
 
 /** Gli stessi del backend (`Category.DEFAULT_COLORS`): verde entrate, rosso uscite. */
@@ -49,12 +50,36 @@ export function SettingsPage() {
     <div className="p-5 md:p-7">
       <div className="panel grid gap-5 p-6 md:p-7">
         <h1 className="text-title-large">Setup del tracker</h1>
+        <KindSection tracker={tracker} isOwner={isOwner} />
         <MembersSection tracker={tracker} isOwner={isOwner} />
         <DebtsSection tracker={tracker} isOwner={isOwner} />
         <CategoriesSection tracker={tracker} />
         {isOwner && <LifecycleSection tracker={tracker} />}
       </div>
     </div>
+  )
+}
+
+/* --------------------------------------------------------------- tipo -- */
+
+function KindSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean }) {
+  const update = useUpdateTracker(tracker.id)
+  const value = (update.isPending && update.variables?.kind) || tracker.kind
+
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <h2 className="text-body-large font-medium">Tipo di tracker</h2>
+      <p className="mb-3 mt-1 text-body-small text-on-surface-variant">
+        Cambia solo cosa si vede: movimenti, conti e ricorrenze restano tutti, e tornando indietro
+        ricompaiono. {!isOwner && 'Lo decide il proprietario del tracker.'}
+      </p>
+      <KindPicker
+        value={value}
+        disabled={!isOwner || update.isPending}
+        onChange={(kind) => kind !== tracker.kind && update.mutate({ kind })}
+      />
+      <ErrorBanner error={update.error} />
+    </section>
   )
 }
 

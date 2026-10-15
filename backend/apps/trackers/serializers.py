@@ -54,6 +54,7 @@ class TrackerSerializer(serializers.ModelSerializer):
             "currency",
             "owner",
             "archived_at",
+            "kind",
             "simplify_debts",
             "members",
             "my_role",

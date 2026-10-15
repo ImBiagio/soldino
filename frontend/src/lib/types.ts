@@ -30,12 +30,16 @@ export interface Membership {
   created_at: string
 }
 
+export type TrackerKind = 'household' | 'group'
+
 export interface Tracker {
   id: UUID
   name: string
   currency: string
   owner: User
   archived_at: string | null
+  /** Preset di interfaccia (ADR 0010): i calcoli non cambiano, cambia cosa si vede. */
+  kind: TrackerKind
   /** Debiti chiusi col minor numero di bonifici; spento = ognuno restituisce a chi ha pagato. */
   simplify_debts: boolean
   members: Membership[]

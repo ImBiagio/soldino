@@ -36,9 +36,14 @@ export function defaultPercentages(members: Membership[]): Record<UUID, string> 
   return Object.fromEntries(members.map((m, i) => [m.user!.id, pcts[i]])) as Record<UUID, string>
 }
 
-export function initialSplitState(members: Membership[], paidBy: UUID): SplitState {
+/** ``mode``: "personal" nel tracking continuo, "default" nei gruppi (ADR 0010). */
+export function initialSplitState(
+  members: Membership[],
+  paidBy: UUID,
+  mode: SplitMode = 'personal',
+): SplitState {
   return {
-    mode: 'personal',
+    mode,
     personalUser: paidBy,
     percentages: defaultPercentages(members),
     amounts: Object.fromEntries(members.map((m) => [m.user!.id, '0.00'])) as Record<UUID, string>,

@@ -17,13 +17,15 @@ import {
 import { useAuth } from '../../lib/auth'
 import { memberColor } from '../../lib/icons'
 import { formatCents, toCents } from '../../lib/money'
-import type { Tracker } from '../../lib/types'
+import { KIND_OPTIONS, isGroup, showsReconciliation } from '../../lib/trackerKind'
+import type { Tracker, TrackerKind } from '../../lib/types'
 
 export function TrackerListPage() {
   const { data, isLoading, error } = useTrackers()
   const { user, logout } = useAuth()
   const create = useCreateTracker()
   const [open, setOpen] = useState(false)
+  const [kind, setKind] = useState<TrackerKind>('household')
 
   const [showArchived, setShowArchived] = useState(false)
   const trackers = data?.results ?? []
@@ -113,7 +115,7 @@ export function TrackerListPage() {
           onSubmit={async (event) => {
             event.preventDefault()
             const form = new FormData(event.currentTarget)
-            await create.mutateAsync({ name: String(form.get('name')) })
+            await create.mutateAsync({ name: String(form.get('name')), kind })
             setOpen(false)
           }}
         >
@@ -121,6 +123,7 @@ export function TrackerListPage() {
           <Field label="Nome" hint="Es. “Spese casa 2026”">
             <input className="field-input" name="name" required autoFocus />
           </Field>
+          <KindPicker value={kind} onChange={setKind} />
           <button className="btn-filled w-full" disabled={create.isPending}>
             Crea
           </button>
@@ -142,13 +145,14 @@ function TrackerRow({ tracker }: { tracker: Tracker }) {
         archived ? 'bg-surface-container-low opacity-70' : 'bg-secondary-container',
       )}
     >
-      <IconCircle name="savings" color="var(--primary)" size={44} />
+      <IconCircle name={isGroup(tracker) ? 'groups' : 'savings'} color="var(--primary)" size={44} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-body-large font-semibold">{tracker.name}</p>
         <p className="text-body-small text-on-surface-variant">
           {members.length} {members.length === 1 ? 'membro' : 'membri'} · {tracker.currency}
           {archived && ' · archiviato'}
-          <ReconciliationHint tracker={tracker} />
+          {isGroup(tracker) && ' · dividere le spese'}
+          {showsReconciliation(tracker) && <ReconciliationHint tracker={tracker} />}
         </p>
       </div>
       <div className="hidden sm:flex">
@@ -179,4 +183,48 @@ function ReconciliationHint({ tracker }: { tracker: Tracker }) {
   const delta = toCents(data.delta)
   if (delta === 0) return <> · quadra</>
   return <> · non quadra per {formatCents(Math.abs(delta), tracker.currency)}</>
+}
+
+/** Il tipo di tracker: due card radio, si cambia poi dal Setup (ADR 0010). */
+export function KindPicker({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: TrackerKind
+  onChange: (kind: TrackerKind) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tipo di tracker">
+      {KIND_OPTIONS.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={value === option.value}
+          disabled={disabled}
+          onClick={() => onChange(option.value)}
+          className={clsx(
+            'state flex items-start gap-3 rounded-card p-4 text-left disabled:opacity-60',
+            value === option.value
+              ? 'bg-secondary-container text-on-secondary-container'
+              : 'bg-surface-container-low',
+          )}
+        >
+          <Icon
+            name={value === option.value ? 'radio_button_checked' : 'radio_button_unchecked'}
+            size={22}
+            className={value === option.value ? 'text-primary' : 'text-on-surface-variant'}
+          />
+          <span className="min-w-0">
+            <span className="block text-body-large font-medium">{option.label}</span>
+            <span className="block text-body-small text-on-surface-variant">
+              {option.description}
+            </span>
+          </span>
+        </button>
+      ))}
+    </div>
+  )
 }

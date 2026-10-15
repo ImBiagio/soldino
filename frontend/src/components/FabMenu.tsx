@@ -2,6 +2,7 @@ import clsx from 'clsx'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { showsSection } from '../lib/trackerKind'
 import type { Tracker } from '../lib/types'
 import { Icon } from './ui'
 
@@ -10,6 +11,10 @@ const ACTIONS = [
   { path: 'movimenti?new=1', icon: 'edit', label: 'A mano' },
   { path: 'scan', icon: 'document_scanner', label: 'Da estratto conto' },
 ]
+
+/** In un tracker "group" lo scan non c'e': resta solo "A mano", e niente menu. */
+const actionsFor = (tracker: Tracker) =>
+  ACTIONS.filter((action) => showsSection(tracker, action.path))
 
 function useCloseOnEscape(open: boolean, close: () => void) {
   useEffect(() => {
@@ -37,7 +42,9 @@ export function FabMenu({
   const close = () => setOpen(false)
   useCloseOnEscape(open, close)
   const mobile = placement === 'mobile'
-  const actions = mobile ? [...ACTIONS].reverse() : ACTIONS
+  const available = actionsFor(tracker)
+  const actions = mobile ? [...available].reverse() : available
+  const direct = available.length === 1 ? available[0] : null
 
   return (
     <>
@@ -91,10 +98,10 @@ export function FabMenu({
 
         <button
           type="button"
-          onClick={() => setOpen(!open)}
-          aria-label={open ? 'Chiudi' : 'Nuovo inserimento'}
-          aria-expanded={open}
-          aria-haspopup="menu"
+          onClick={() => (direct ? navigate(`/t/${tracker.id}/${direct.path}`) : setOpen(!open))}
+          aria-label={open ? 'Chiudi' : direct ? 'Nuova spesa' : 'Nuovo inserimento'}
+          aria-expanded={direct ? undefined : open}
+          aria-haspopup={direct ? undefined : 'menu'}
           className={clsx(
             'state flex items-center justify-center transition-all duration-200 ease-m3',
             open
@@ -131,6 +138,7 @@ export function NewEntryMenuButton({
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const actions = actionsFor(tracker)
   useCloseOnEscape(open, () => setOpen(false))
 
   useEffect(() => {
@@ -141,6 +149,19 @@ export function NewEntryMenuButton({
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
   }, [open])
+
+  if (actions.length === 1) {
+    return (
+      <button
+        type="button"
+        className={clsx('btn-filled', className)}
+        onClick={() => navigate(`/t/${tracker.id}/${actions[0].path}`)}
+      >
+        <Icon name="add" size={20} />
+        Nuova spesa
+      </button>
+    )
+  }
 
   return (
     <div ref={ref} className={clsx('relative', className)}>
@@ -164,7 +185,7 @@ export function NewEntryMenuButton({
           role="menu"
           className="absolute right-0 top-full z-50 mt-1 min-w-[220px] overflow-hidden rounded-row bg-surface-container py-2 shadow-fab-mobile"
         >
-          {ACTIONS.map((action) => (
+          {actions.map((action) => (
             <button
               key={action.path}
               type="button"
