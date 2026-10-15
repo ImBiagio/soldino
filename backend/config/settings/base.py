@@ -175,7 +175,10 @@ SIMPLE_JWT = {
 }
 
 # Il refresh token vive in un cookie httpOnly; l'access token sta in memoria nel frontend.
-REFRESH_COOKIE_NAME = "soldino_refresh"
+# I cookie non distinguono le porte: due stack sullo stesso host (es. un
+# worktree su :5174/:8001 accanto a quello principale) devono usare nomi
+# diversi, altrimenti il login su uno sovrascrive il cookie dell'altro.
+REFRESH_COOKIE_NAME = env("REFRESH_COOKIE_NAME", "soldino_refresh")
 REFRESH_COOKIE_SECURE = env_bool("REFRESH_COOKIE_SECURE", True)
 REFRESH_COOKIE_SAMESITE = env("REFRESH_COOKIE_SAMESITE", "Lax")
 REFRESH_COOKIE_PATH = "/api/auth"

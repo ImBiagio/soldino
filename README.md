@@ -57,6 +57,16 @@ e si rimedia con:
 docker compose up -d --force-recreate
 ```
 
+### Due stack sulla stessa macchina
+
+Un secondo stack (un worktree con `COMPOSE_PROJECT_NAME` suo, app su `:5174`,
+API su `:8001`) deve avere anche un **`REFRESH_COOKIE_NAME` diverso**, es.
+`soldino_refresh_kind`, nell'`environment` del backend. I cookie non
+distinguono le porte: con lo stesso nome il login su uno stack sovrascrive il
+cookie dell'altro, e al reload successivo quello finisce su `/accedi` con due
+`401 Utente non valido` sul refresh. Meglio anche una `DJANGO_SECRET_KEY`
+diversa, così i token di uno stack non valgono sull'altro.
+
 ---
 
 ## I servizi, e perché ci sono
@@ -114,7 +124,10 @@ scadenza — da cui i 15 minuti. Il refresh invece sì: il **logout** mette in
 blacklist quello del cookie e il **cambio password** chiude tutte le altre
 sessioni (la corrente riceve un refresh nuovo). Il refresh si legge solo dal
 cookie, mai dal body. La rotazione non blacklista il token vecchio: due schede
-che rinnovano insieme si butterebbero fuori a vicenda.
+che rinnovano insieme si butterebbero fuori a vicenda. Il frontend tiene comunque
+**un solo refresh in volo** (`frontend/src/lib/api.ts`): il doppio effetto di
+StrictMode all'avvio e le query che prendono 401 insieme aspettano la stessa
+risposta.
 
 Login, registrazione e verifica email hanno un **rate limit** (10/min per IP,
 `THROTTLE_AUTH`), il refresh 60/min, l'upload dello scan 20/ora
@@ -308,7 +321,7 @@ docker compose run --rm --no-deps frontend npm run api:generate
 
 ## Invarianti verificate dai test
 
-149 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+151 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -316,8 +329,9 @@ docker compose run --rm --no-deps frontend npm run api:generate
 - `Σ net == 0` su ogni tracker — property test Hypothesis su scenari misti
 - Con i debiti semplificati o per coppia, ognuno riceve o dà esattamente il
   proprio `net` (property test a tre persone)
-- Logout e cambio password revocano il refresh, il login ha un rate limit, il
-  link di verifica vale una volta, conversioni BTA e ricorrenze non puntano a
+- Logout e cambio password revocano il refresh, due refresh in parallelo con lo
+  stesso cookie passano entrambi, il nome del cookie separa due stack, il login
+  ha un rate limit, il link di verifica vale una volta, conversioni BTA e ricorrenze non puntano a
   persone, categorie o conti di altri tracker (`apps/core/tests/test_security.py`)
 - Nessun endpoint restituisce dati di tracker altrui —
   `apps/trackers/tests/test_isolation.py` copre collezioni annidate, ruoli,

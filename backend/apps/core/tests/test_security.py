@@ -56,6 +56,31 @@ def test_cambio_password_chiude_le_altre_sessioni(user):
     assert _refresh(laptop) == 200
 
 
+def test_due_refresh_in_parallelo_restano_validi(user):
+    # Due richieste partite insieme portano lo stesso cookie: con la rotazione
+    # senza blacklist devono passare entrambe, e i due token nuovi restare buoni.
+    cookie = _login(user).cookies[settings.REFRESH_COOKIE_NAME].value
+    tabs = [APIClient(), APIClient()]
+    for tab in tabs:
+        tab.cookies[settings.REFRESH_COOKIE_NAME] = cookie
+    assert [_refresh(tab) for tab in tabs] == [200, 200]
+    assert [_refresh(tab) for tab in tabs] == [200, 200]
+
+
+def test_il_nome_del_cookie_separa_gli_stack(user, settings):
+    # Un secondo stack sullo stesso host (altre porte) usa un altro nome:
+    # il cookie del primo non gli arriva e non lo sovrascrive.
+    other = _login(user)
+    settings.REFRESH_COOKIE_NAME = "soldino_refresh_worktree"
+    client = _login(user)
+    assert "soldino_refresh_worktree" in client.cookies
+    assert _refresh(client) == 200
+
+    response = other.post("/api/auth/refresh")
+    assert response.status_code == 401
+    assert response.data["detail"] == "Refresh token assente."
+
+
 def test_il_refresh_non_si_accetta_dal_body(user):
     token = _login(user).cookies[settings.REFRESH_COOKIE_NAME].value
     response = APIClient().post("/api/auth/refresh", {"refresh": token}, format="json")

@@ -53,3 +53,19 @@ Rate limit con `ScopedRateThrottle` (contatori nella cache Redis) su login,
 registrazione, verifica email (`auth`), refresh (`refresh`) e upload dello scan
 (`scan`). Il link di verifica email non autentica piu' un utente gia'
 verificato: prima era un link di accesso senza password valido tre giorni.
+
+## Aggiornamento 2026-10-15: reload che slogga
+
+Sintomo: a volte un reload portava su `/accedi`, con due `POST /api/auth/refresh`
+in parallelo e tutti e due `401 Utente non valido`. Causa: due stack di sviluppo
+sulla stessa macchina (`:5173/:8000` e un worktree su `:5174/:8001`) usavano lo
+stesso cookie `soldino_refresh`. I cookie non distinguono le porte, quindi il
+login su uno stack sovrascriveva il cookie dell'altro. Con la stessa
+`DJANGO_SECRET_KEY` il token straniero passava la firma e si fermava solo
+sull'utente, che nell'altro DB non esiste. I refresh doppi non c'entravano: con
+`BLACKLIST_AFTER_ROTATION=False` passano entrambi, ed è coperto da un test.
+
+Decisione: il nome del cookie diventa configurabile (`REFRESH_COOKIE_NAME`,
+default `soldino_refresh`) e ogni stack in più ne usa uno suo. Il frontend tiene
+un solo refresh in volo, così il doppio effetto di StrictMode e le query che
+prendono 401 insieme non ruotano il cookie una volta a testa.

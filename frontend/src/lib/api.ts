@@ -71,7 +71,12 @@ function buildUrl(path: string, params?: RequestOptions['params']) {
   return url.toString()
 }
 
-async function refreshAccessToken(): Promise<boolean> {
+// Un solo refresh in volo: il doppio effetto di StrictMode all'avvio e le
+// query che prendono 401 insieme (access scaduto) aspettano la stessa risposta
+// invece di ruotare il cookie una volta a testa.
+let refreshing: Promise<boolean> | null = null
+
+async function doRefresh(): Promise<boolean> {
   const response = await fetch(buildUrl('/api/auth/refresh'), {
     method: 'POST',
     credentials: 'include',
@@ -81,6 +86,13 @@ async function refreshAccessToken(): Promise<boolean> {
   const data = (await response.json()) as { access: string }
   accessToken = data.access
   return true
+}
+
+function refreshAccessToken(): Promise<boolean> {
+  refreshing ??= doRefresh().finally(() => {
+    refreshing = null
+  })
+  return refreshing
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
