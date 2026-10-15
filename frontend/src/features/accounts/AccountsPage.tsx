@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { useState } from 'react'
-import { Link, useOutletContext } from 'react-router-dom'
+import { useOutletContext } from 'react-router-dom'
 
 import {
   useAccounts,
@@ -9,6 +9,7 @@ import {
   useSaveAccount,
   useUpdateMember,
 } from '../../api/hooks'
+import { NewAccountModal } from './NewAccountModal'
 import { activeMembers } from '../../components/Layout'
 import {
   Avatar,
@@ -17,7 +18,6 @@ import {
   Icon,
   IconButton,
   IconCircle,
-  Modal,
   RowsSkeleton,
   StatusPill,
   Switch,
@@ -311,69 +311,5 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
       <span className="text-on-surface-variant">{label}</span>
       <span className="amount">{value}</span>
     </p>
-  )
-}
-
-/* -------------------------------------------------------- nuovo conto -- */
-
-function NewAccountModal({
-  tracker,
-  owner,
-  onClose,
-}: {
-  tracker: Tracker
-  owner: Membership
-  onClose: () => void
-}) {
-  const save = useSaveAccount(tracker.id)
-
-  return (
-    <Modal open onClose={onClose} title={`Nuovo conto di ${owner.display_name}`}>
-      <form
-        className="grid gap-3"
-        onSubmit={async (event) => {
-          event.preventDefault()
-          const form = new FormData(event.currentTarget)
-          await save.mutateAsync({
-            name: String(form.get('name')),
-            owner: owner.user!.id,
-            kind: form.get('kind') as Account['kind'],
-            current_balance: normalizeDecimal(String(form.get('balance') || '0')),
-          })
-          onClose()
-        }}
-      >
-        <ErrorBanner error={save.error} />
-        <Field label="Nome">
-          <input className="field-input" name="name" required autoFocus placeholder="Hype, BBVA…" />
-        </Field>
-        <Field label="Tipo">
-          <select className="field-input" name="kind" defaultValue="bank">
-            {Object.entries(ACCOUNT_KIND_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Saldo attuale">
-          <input
-            className="field-input amount text-right"
-            name="balance"
-            inputMode="decimal"
-            defaultValue="0.00"
-          />
-        </Field>
-        <button className="btn-filled w-full" disabled={save.isPending}>
-          Aggiungi
-        </button>
-        <p className="text-body-small text-on-surface-variant">
-          Il saldo si aggiorna a mano da questa pagina, quando guardi la banca.{' '}
-          <Link to={`/t/${tracker.id}/attese`} className="text-primary underline">
-            I soldi attesi o già promessi vanno in In attesa.
-          </Link>
-        </p>
-      </form>
-    </Modal>
   )
 }

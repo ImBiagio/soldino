@@ -21,6 +21,7 @@ from .serializers import (
     LinesReplaceSerializer,
     StatementImportSerializer,
     StatementUploadSerializer,
+    VoiceInputSerializer,
 )
 from .services.scan import commit_statement
 from .tasks import scan_statement
@@ -50,10 +51,17 @@ class StatementViewSet(
     )
     filterset_fields = ["source", "status", "account"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        # ?open=1: solo cio' che aspetta qualcuno (la schermata "Da rivedere").
+        if self.action == "list" and self.request.query_params.get("open"):
+            qs = qs.exclude(status=StatementImport.Status.COMMITTED)
+        return qs
+
     @property
     def throttle_scope(self):
         # Solo cio' che chiama Gemini: la revisione fa polling ogni 2,5 secondi.
-        return "scan" if self.action in {"create", "retry"} else None
+        return "scan" if self.action in {"create", "retry", "voice"} else None
 
     @extend_schema(request=StatementUploadSerializer, responses={201: StatementImportSerializer})
     def create(self, request, tracker_pk=None):
@@ -73,6 +81,26 @@ class StatementViewSet(
             # Le righe di un estratto conto sono di chi intesta il conto; lo
             # scontrino senza conto e' di chi l'ha fotografato.
             default_payer=account.owner if account else request.user,
+        )
+        db_transaction.on_commit(lambda: scan_statement.delay(str(statement.pk)))
+        return Response(self.get_serializer(statement).data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=VoiceInputSerializer, responses={201: StatementImportSerializer})
+    @action(detail=False, methods=["post"])
+    def voice(self, request, tracker_pk=None):
+        """Movimento a voce: il testo dettato si legge in background, come uno scontrino."""
+        tracker = self.get_tracker()
+        payload = VoiceInputSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        text = payload.validated_data["text"]
+        statement = StatementImport.objects.create(
+            tracker=tracker,
+            uploaded_by=request.user,
+            source=StatementImport.Source.VOICE,
+            filename=text[:255],
+            transcript=text,
+            mime_type="text/plain",
+            default_payer=request.user,
         )
         db_transaction.on_commit(lambda: scan_statement.delay(str(statement.pk)))
         return Response(self.get_serializer(statement).data, status=status.HTTP_201_CREATED)
@@ -164,7 +192,8 @@ class StatementViewSet(
             and statement.updated_at < timezone.now() - timedelta(minutes=10)
         )
         retryable = statement.status == StatementImport.Status.FAILED or stuck
-        if not retryable or not statement.pdf:
+        # La voce non ha file: si rilegge il testo.
+        if not retryable or not (statement.pdf or statement.transcript):
             return Response({"detail": "Niente da rileggere."}, status=status.HTTP_409_CONFLICT)
         statement.status = StatementImport.Status.PROCESSING
         statement.error = ""

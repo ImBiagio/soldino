@@ -25,6 +25,7 @@ class Transaction(BaseModel):
         SCAN = "scan", "Scan estratto conto"
         RECEIPT = "receipt", "Scontrino"
         BANK = "bank", "Open banking"
+        VOICE = "voice", "Messaggio vocale"
         RECURRING = "recurring", "Ricorrenza"
 
     tracker = models.ForeignKey(Tracker, on_delete=models.CASCADE, related_name="transactions")

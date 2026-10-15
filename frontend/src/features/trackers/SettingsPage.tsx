@@ -23,6 +23,7 @@ import {
   IconButton,
   IconCircle,
   Modal,
+  Segmented,
   Skeleton,
   Switch,
 } from '../../components/ui'
@@ -30,6 +31,7 @@ import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/co
 import { categoryIcon } from '../../lib/icons'
 import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
+import { showsSection } from '../../lib/trackerKind'
 import { KindPicker } from './TrackerListPage'
 import type { Category, Tracker, TransactionType } from '../../lib/types'
 
@@ -44,6 +46,7 @@ export function SettingsPage() {
         <KindSection tracker={tracker} isOwner={isOwner} />
         <MembersSection tracker={tracker} isOwner={isOwner} />
         <DebtsSection tracker={tracker} isOwner={isOwner} />
+        {showsSection(tracker, 'banca') && <BankSyncSection tracker={tracker} isOwner={isOwner} />}
         <CategoriesSection tracker={tracker} />
         {isOwner && <LifecycleSection tracker={tracker} />}
       </div>
@@ -102,6 +105,53 @@ function DebtsSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean
           onChange={(next) => update.mutate({ simplify_debts: next })}
           label="Semplifica i debiti"
         />
+      </div>
+      <ErrorBanner error={update.error} />
+    </section>
+  )
+}
+
+/* ------------------------------------------------------------- banca -- */
+
+const BANK_SYNC_OPTIONS: { value: Tracker['bank_sync_frequency']; label: string }[] = [
+  { value: 'daily', label: 'Ogni giorno' },
+  { value: 'weekly', label: 'Ogni settimana' },
+  { value: 'monthly', label: 'Ogni mese' },
+]
+
+const BANK_SYNC_HINT: Record<Tracker['bank_sync_frequency'], string> = {
+  daily: 'Ogni mattina saldo e movimenti del giorno prima.',
+  weekly: 'Il lunedì mattina saldo e movimenti della settimana passata.',
+  monthly: 'Il primo del mese saldo e movimenti del mese appena chiuso, come un estratto conto.',
+}
+
+/** Ogni quanto si leggono i conti collegati in Banca (ADR 0013): default mensile. */
+function BankSyncSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean }) {
+  const update = useUpdateTracker(tracker.id)
+  const value = update.isPending
+    ? (update.variables?.bank_sync_frequency ?? tracker.bank_sync_frequency)
+    : tracker.bank_sync_frequency
+
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <h2 className="text-body-large font-medium">Lettura dei conti in banca</h2>
+      <p className="mt-1 text-body-small text-on-surface-variant">
+        {BANK_SYNC_HINT[value]} I movimenti arrivano in Da rivedere, o si registrano da soli sui
+        conti con &quot;Registra in automatico&quot;. Dalla Banca puoi sempre fare &quot;Sincronizza
+        ora&quot;. {!isOwner && 'Lo decide il proprietario del tracker.'}
+      </p>
+      <div className="mt-3">
+        {isOwner ? (
+          <Segmented
+            value={value}
+            options={BANK_SYNC_OPTIONS}
+            onChange={(next) => update.mutate({ bank_sync_frequency: next })}
+          />
+        ) : (
+          <span className="text-body-medium font-medium">
+            {BANK_SYNC_OPTIONS.find((o) => o.value === value)?.label}
+          </span>
+        )}
       </div>
       <ErrorBanner error={update.error} />
     </section>

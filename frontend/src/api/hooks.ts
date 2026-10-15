@@ -94,7 +94,11 @@ export function useUpdateTracker(trackerId: UUID) {
   const invalidate = useTrackerInvalidation(trackerId)
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (body: Partial<Pick<Tracker, 'name' | 'currency' | 'kind' | 'simplify_debts'>>) =>
+    mutationFn: (
+      body: Partial<
+        Pick<Tracker, 'name' | 'currency' | 'kind' | 'simplify_debts' | 'bank_sync_frequency'>
+      >,
+    ) =>
       api.patch<Tracker>(trackerBase(trackerId), body),
     onSuccess: () => {
       invalidate()
@@ -288,6 +292,28 @@ export function useStatements(trackerId: UUID) {
     // Finche' qualcosa e' in lettura la lista si aggiorna da sola.
     refetchInterval: (query) =>
       query.state.data?.results.some((s) => s.status === 'processing') ? 2500 : false,
+  })
+}
+
+/** Bozze ancora da rivedere (in lettura, da rivedere, non riuscite): "Da rivedere". */
+export function useOpenStatements(trackerId: UUID | undefined) {
+  return useQuery({
+    queryKey: ['trackers', trackerId, 'statements', 'open'] as const,
+    enabled: Boolean(trackerId),
+    queryFn: () =>
+      api.get<Paginated<StatementImport>>(statementsBase(trackerId!), { open: 1, page_size: 200 }),
+    refetchInterval: (query) =>
+      query.state.data?.results.some((s) => s.status === 'processing') ? 2500 : false,
+  })
+}
+
+/** Movimento a voce: il testo si legge in background, come uno scontrino. */
+export function useSendVoice(trackerId: UUID) {
+  const invalidate = useTrackerInvalidation(trackerId)
+  return useMutation({
+    mutationFn: (text: string) =>
+      api.post<StatementImport>(`${statementsBase(trackerId)}/voice`, { text }),
+    onSuccess: invalidate,
   })
 }
 

@@ -13,6 +13,11 @@ urlpatterns = [
         detail_map={"get": "retrieve", "delete": "destroy"},
     ),
     path(
+        "trackers/<uuid:tracker_pk>/statements/voice",
+        StatementViewSet.as_view({"post": "voice"}),
+        name="statement-voice",
+    ),
+    path(
         "trackers/<uuid:tracker_pk>/statements/<uuid:pk>/lines",
         StatementViewSet.as_view({"put": "replace_lines"}),
         name="statement-lines",

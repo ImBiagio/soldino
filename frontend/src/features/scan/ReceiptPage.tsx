@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useOutletContext } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 
 import { useStatements, useUploadStatement } from '../../api/hooks'
 import { EmptyState, ErrorBanner, Icon, RowsSkeleton } from '../../components/ui'
@@ -15,20 +15,28 @@ import { StatusBadge } from './status'
  */
 export function ReceiptPage() {
   const tracker = useOutletContext<Tracker>()
-  const navigate = useNavigate()
   const upload = useUploadStatement(tracker.id)
   const statements = useStatements(tracker.id)
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [sent, setSent] = useState(0)
 
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview])
 
-  const send = async (file: File | undefined) => {
+  // Foto e via: la lettura gira in background e la spesa arriva in "Da rivedere".
+  // Si resta qui, pronti per lo scontrino successivo.
+  const send = async (input: HTMLInputElement) => {
+    const file = input.files?.[0]
+    input.value = '' // la stessa foto si puo' riscegliere
     if (!file) return
     setPreview(URL.createObjectURL(file))
-    const created = await upload.mutateAsync({ file, source: 'receipt' })
-    navigate(created.id)
+    try {
+      await upload.mutateAsync({ file, source: 'receipt' })
+      setSent((count) => count + 1)
+    } finally {
+      setPreview(null)
+    }
   }
 
   const receipts = (statements.data?.results ?? []).filter((s) => s.source === 'receipt')
@@ -38,8 +46,12 @@ export function ReceiptPage() {
       <div>
         <h1 className="text-title-large">Scan scontrino</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Fotografa lo scontrino: Gemini legge esercente, data e totale e propone la categoria.
-          Prima di registrare la spesa la rivedi con la foto accanto.
+          Fotografa lo scontrino e vai: Gemini legge esercente, data e totale in background e
+          propone la categoria. La spesa ti aspetta in{' '}
+          <Link to="../da-rivedere" relative="path" className="text-primary underline">
+            Da rivedere
+          </Link>
+          , con la foto accanto.
         </p>
       </div>
 
@@ -89,16 +101,25 @@ export function ReceiptPage() {
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(event) => send(event.target.files?.[0])}
+          onChange={(event) => send(event.currentTarget)}
         />
         <input
           ref={galleryRef}
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(event) => send(event.target.files?.[0])}
+          onChange={(event) => send(event.currentTarget)}
         />
         <ErrorBanner error={upload.error} />
+        {sent > 0 && !upload.isPending && !upload.error && (
+          <p className="flex items-center gap-2 rounded-card bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
+            <Icon name="check_circle" size={20} />
+            {sent === 1
+              ? 'Scontrino caricato: lo leggo in background, lo trovi in Da rivedere.'
+              : `${sent} scontrini caricati: li leggo in background, li trovi in Da rivedere.`}{' '}
+            Puoi scattarne un altro.
+          </p>
+        )}
         <p className="text-body-small text-on-surface-variant">
           La foto viene inviata a Google Gemini per la lettura e cancellata da Soldino quando
           registri o scarti la spesa.

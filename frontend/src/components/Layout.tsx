@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import { useTracker, useTrackers } from '../api/hooks'
+import { useOpenStatements, useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/colors'
 import { showsSection } from '../lib/trackerKind'
@@ -13,6 +13,7 @@ import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 const DESTINATIONS = [
   { to: '', label: 'Oggi', icon: 'dashboard', end: true },
   { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
+  { to: 'da-rivedere', label: 'Da rivedere', icon: 'inbox' },
   { to: 'conti', label: 'Conti', icon: 'account_balance' },
   { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
   { to: 'grafici', label: 'Grafici', icon: 'bar_chart' },
@@ -36,11 +37,15 @@ export function activeMembers(tracker: Tracker): Membership[] {
   return tracker.members.filter((m): m is Membership => m.status === 'active' && !!m.user)
 }
 
-const SCAN_SECTIONS = new Set(['scan', 'scontrino'])
+const SCAN_SECTIONS = new Set(['scan', 'scontrino', 'voce'])
 
 export function TrackerLayout() {
   const { trackerId } = useParams()
   const { data: tracker, isLoading } = useTracker(trackerId)
+  // Il numero accanto a "Da rivedere": bozze pronte o da riprovare.
+  const waiting = (useOpenStatements(trackerId).data?.results ?? []).filter(
+    (s) => s.status !== 'processing',
+  ).length
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -80,7 +85,11 @@ export function TrackerLayout() {
 
         <div className="mt-6 flex flex-col items-center gap-3.5">
           {destinations.all.map((destination) => (
-            <RailItem key={destination.label} {...destination} />
+            <RailItem
+              key={destination.label}
+              {...destination}
+              badge={destination.to === 'da-rivedere' ? waiting : 0}
+            />
           ))}
         </div>
       </nav>
@@ -108,7 +117,11 @@ export function TrackerLayout() {
         className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex justify-around bg-surface-container-low px-2 pt-3 md:hidden"
       >
         {destinations.bar.map((destination) => (
-          <BottomItem key={destination.label} {...destination} />
+          <BottomItem
+            key={destination.label}
+            {...destination}
+            badge={destination.to === 'da-rivedere' ? waiting : 0}
+          />
         ))}
         {/* Senza questa voce il menu (e quindi Grafici e Setup) su mobile non si apriva. */}
         <button
@@ -143,16 +156,28 @@ export function TrackerLayout() {
   )
 }
 
+/** Badge M3 sull'icona: quante cose aspettano. */
+function Badge({ count }: { count: number }) {
+  if (!count) return null
+  return (
+    <span className="absolute -top-1 left-8 min-w-[16px] rounded-pill bg-error px-1 text-center text-[11px] font-medium leading-4 text-on-error">
+      {count > 99 ? '99+' : count}
+    </span>
+  )
+}
+
 function RailItem({
   to,
   label,
   icon,
   end,
+  badge = 0,
 }: {
   to: string
   label: string
   icon: string
   end?: boolean
+  badge?: number
 }) {
   return (
     <NavLink to={to} end={end} className="group flex flex-col items-center gap-1">
@@ -165,9 +190,10 @@ function RailItem({
                 ? 'bg-secondary-container text-on-secondary-container'
                 : 'text-on-surface-variant',
             )}
-            style={{ width: 56, height: 32, borderRadius: 16 }}
+            style={{ width: 56, height: 32, borderRadius: 16, position: 'relative' }}
           >
             <Icon name={icon} size={24} filled={isActive} />
+            <Badge count={badge} />
           </span>
           <span
             className={clsx(
@@ -188,11 +214,13 @@ function BottomItem({
   label,
   icon,
   end,
+  badge = 0,
 }: {
   to: string
   label: string
   icon: string
   end?: boolean
+  badge?: number
 }) {
   return (
     <NavLink to={to} end={end} className="flex flex-1 flex-col items-center gap-1">
@@ -205,9 +233,10 @@ function BottomItem({
                 ? 'bg-secondary-container text-on-secondary-container'
                 : 'text-on-surface-variant',
             )}
-            style={{ width: 56, height: 32, borderRadius: 16 }}
+            style={{ width: 56, height: 32, borderRadius: 16, position: 'relative' }}
           >
             <Icon name={icon} size={24} filled={isActive} />
+            <Badge count={badge} />
           </span>
           <span
             className={clsx(

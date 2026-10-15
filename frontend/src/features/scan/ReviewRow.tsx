@@ -106,6 +106,7 @@ export function ReviewRow({
   onRemove: () => void
 }) {
   const expense = row.type === 'expense'
+  const transfer = row.type === 'transfer'
   const category = categories.find((c) => c.id === row.category)
   const options = categories.filter((c) => c.type === row.type && !c.archived)
   const payerIndex = Math.max(
@@ -114,22 +115,30 @@ export function ReviewRow({
   )
   const payer = members[payerIndex]
   const source = SOURCE[row.category_source ?? '']
+  const receiverIndex = members.findIndex((m) => m.user!.id === row.to_user)
+  const receiver = receiverIndex >= 0 ? members[receiverIndex] : null
+  // Uscita -> entrata -> pareggio (solo se c'e' qualcuno a cui dare i soldi).
+  const nextType = (): Partial<Row> => {
+    if (expense) return { type: 'income', category: null }
+    if (!transfer && members.length > 1) {
+      const other = members.find((m) => m.user!.id !== row.paid_by)
+      return { type: 'transfer', category: null, to_user: other?.user?.id ?? null }
+    }
+    return { type: 'expense', category: null, to_user: null }
+  }
+  const tone = transfer ? 'text-on-surface' : expense ? 'text-error' : 'text-primary'
+  const sign = transfer ? '' : expense ? '−' : '+'
   const amountOk = toCents(row.amount) > 0
 
   const amount = (
     <span className="inline-flex items-center">
-      <span
-        className={clsx(
-          'amount -mr-2 shrink-0 text-title-medium font-semibold',
-          expense ? 'text-error' : 'text-primary',
-        )}
-      >
-        {expense ? '−' : '+'}
+      <span className={clsx('amount -mr-2 shrink-0 text-title-medium font-semibold', tone)}>
+        {sign}
       </span>
       <input
         className={clsx(
           'amount shrink-0 rounded-nested border-none bg-transparent px-1.5 py-1 text-right text-title-medium font-semibold outline-none transition hover:bg-surface-container-low focus:bg-surface-container',
-          expense ? 'text-error' : 'text-primary',
+          tone,
           !amountOk && 'bg-error-container',
         )}
         // Il campo si stringe sul numero (font mono): il segno resta attaccato.
@@ -156,17 +165,27 @@ export function ReviewRow({
     <div className="flex items-start gap-3 rounded-row bg-surface px-3 py-2.5 sm:px-4">
       <button
         type="button"
-        onClick={() => onChange({ type: expense ? 'income' : 'expense', category: null })}
+        onClick={() => onChange(nextType())}
         className={clsx(
           'state mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-pill',
-          expense
-            ? 'bg-error-container text-on-error-container'
-            : 'bg-secondary-container text-on-secondary-container',
+          transfer
+            ? 'bg-surface-container-high text-on-surface'
+            : expense
+              ? 'bg-error-container text-on-error-container'
+              : 'bg-secondary-container text-on-secondary-container',
         )}
-        title={expense ? 'Uscita: tocca per farla entrata' : 'Entrata: tocca per farla uscita'}
-        aria-label={expense ? 'Uscita' : 'Entrata'}
+        title={
+          transfer
+            ? 'Pareggio: soldi dati a un altro membro. Tocca per farlo uscita'
+            : expense
+              ? 'Uscita: tocca per farla entrata'
+              : members.length > 1
+                ? 'Entrata: tocca per farla pareggio'
+                : 'Entrata: tocca per farla uscita'
+        }
+        aria-label={transfer ? 'Pareggio' : expense ? 'Uscita' : 'Entrata'}
       >
-        <Icon name={expense ? 'remove' : 'add'} size={22} />
+        <Icon name={transfer ? 'swap_horiz' : expense ? 'remove' : 'add'} size={22} />
       </button>
 
       <div className="min-w-0 flex-1">
@@ -201,59 +220,98 @@ export function ReviewRow({
             />
           </label>
 
-          <SelectChip
-            ariaLabel="Categoria"
-            value={row.category ?? ''}
-            onChange={(value) => onChange({ category: value || null, category_source: 'manual' })}
-            options={[
-              { value: '', label: 'Senza categoria' },
-              ...options.map((c) => ({ value: c.id, label: c.name })),
-            ]}
-            tone={category ? 'tonal' : 'outlined'}
-            leading={
-              <span
-                className="flex h-5 w-5 items-center justify-center rounded-pill text-white"
-                style={{ background: category ? categoryColor(category) : 'var(--outline)' }}
-              >
-                <Icon name={category ? categoryIcon(category) : 'sell'} size={13} />
-              </span>
-            }
-            label={category?.name ?? 'Categoria'}
-            trailing={
-              source && category ? (
-                <span title={source.label} className="opacity-70">
-                  <Icon name={source.icon} size={15} />
+          {!transfer && (
+            <SelectChip
+              ariaLabel="Categoria"
+              value={row.category ?? ''}
+              onChange={(value) => onChange({ category: value || null, category_source: 'manual' })}
+              options={[
+                { value: '', label: 'Senza categoria' },
+                ...options.map((c) => ({ value: c.id, label: c.name })),
+              ]}
+              tone={category ? 'tonal' : 'outlined'}
+              leading={
+                <span
+                  className="flex h-5 w-5 items-center justify-center rounded-pill text-white"
+                  style={{ background: category ? categoryColor(category) : 'var(--outline)' }}
+                >
+                  <Icon name={category ? categoryIcon(category) : 'sell'} size={13} />
                 </span>
-              ) : undefined
-            }
-            title={source && category ? source.label : undefined}
-          />
+              }
+              label={category?.name ?? 'Categoria'}
+              trailing={
+                source && category ? (
+                  <span title={source.label} className="opacity-70">
+                    <Icon name={source.icon} size={15} />
+                  </span>
+                ) : undefined
+              }
+              title={source && category ? source.label : undefined}
+            />
+          )}
 
           <SelectChip
             ariaLabel="Chi paga"
             value={row.paid_by}
             onChange={(value) => onChange({ paid_by: value })}
-            options={members.map((m) => ({ value: m.user!.id, label: `Paga ${m.display_name}` }))}
+            options={members.map((m) => ({
+              value: m.user!.id,
+              label: transfer ? `Da ${m.display_name}` : `Paga ${m.display_name}`,
+            }))}
             leading={
               payer && (
                 <Avatar name={payer.display_name} size={20} color={memberColor(payerIndex)} />
               )
             }
-            label={payer ? firstName(payer.display_name) : 'Chi paga'}
-            title="Chi ha pagato"
+            label={
+              payer
+                ? transfer
+                  ? `Da ${firstName(payer.display_name)}`
+                  : firstName(payer.display_name)
+                : 'Chi paga'
+            }
+            title={transfer ? 'Chi dà i soldi' : 'Chi ha pagato'}
           />
 
-          <SelectChip
-            ariaLabel="Divisione"
-            value={row.split_mode}
-            onChange={(value) => onChange({ split_mode: value as Row['split_mode'] })}
-            options={[
-              { value: 'personal', label: 'Solo sua' },
-              { value: 'default', label: 'Divisa di default' },
-            ]}
-            leading={<Icon name={row.split_mode === 'default' ? 'group' : 'person'} size={16} />}
-            label={row.split_mode === 'default' ? 'Divisa' : 'Solo sua'}
-          />
+          {transfer ? (
+            <SelectChip
+              ariaLabel="A chi"
+              value={row.to_user ?? ''}
+              onChange={(value) => onChange({ to_user: value || null })}
+              options={[
+                { value: '', label: 'A chi…' },
+                ...members
+                  .filter((m) => m.user!.id !== row.paid_by)
+                  .map((m) => ({ value: m.user!.id, label: `A ${m.display_name}` })),
+              ]}
+              tone={receiver ? 'tonal' : 'warning'}
+              leading={
+                receiver ? (
+                  <Avatar
+                    name={receiver.display_name}
+                    size={20}
+                    color={memberColor(receiverIndex)}
+                  />
+                ) : (
+                  <Icon name="arrow_forward" size={16} />
+                )
+              }
+              label={receiver ? `A ${firstName(receiver.display_name)}` : 'A chi?'}
+              title="Chi riceve i soldi"
+            />
+          ) : (
+            <SelectChip
+              ariaLabel="Divisione"
+              value={row.split_mode}
+              onChange={(value) => onChange({ split_mode: value as Row['split_mode'] })}
+              options={[
+                { value: 'personal', label: 'Solo sua' },
+                { value: 'default', label: 'Divisa di default' },
+              ]}
+              leading={<Icon name={row.split_mode === 'default' ? 'group' : 'person'} size={16} />}
+              label={row.split_mode === 'default' ? 'Divisa' : 'Solo sua'}
+            />
+          )}
 
           {row.duplicate_of && (
             <span

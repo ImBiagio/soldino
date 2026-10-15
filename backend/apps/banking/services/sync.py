@@ -17,6 +17,7 @@ from django.utils.dateparse import parse_datetime
 from apps.core.money import quantize
 from apps.ingestion.models import StatementImport, StatementLine
 from apps.ingestion.services.scan import commit_statement, draft_line, history_categories
+from apps.trackers.models import Tracker
 
 from ..models import BankAccount, BankConnection, BankingApp, SeenBankTransaction
 from .crypto import decrypt, encrypt, load_private_key
@@ -419,3 +420,25 @@ def syncable_accounts():
         connection__status=BankConnection.Status.ACTIVE,
         account__tracker__archived_at__isnull=True,
     ).select_related("connection", "account", "account__tracker")
+
+
+def is_due(bank_account: BankAccount, today: date) -> bool:
+    """Tocca alla sincronizzazione programmata, secondo il tracker (default mensile).
+
+    - ogni giorno: se oggi non si e' ancora letto;
+    - ogni settimana: se non si e' letto da lunedi';
+    - ogni mese: se non si e' letto dal primo del mese: il giro del 1° porta
+      tutto il mese appena chiuso, come un estratto conto.
+    "Sincronizza ora" conta come lettura: sposta il giro successivo.
+    """
+    if bank_account.last_synced_at is None:
+        return True
+    last = timezone.localdate(bank_account.last_synced_at)
+    frequency = bank_account.account.tracker.bank_sync_frequency
+    if frequency == Tracker.BankSync.DAILY:
+        start = today
+    elif frequency == Tracker.BankSync.WEEKLY:
+        start = today - timedelta(days=today.weekday())
+    else:
+        start = today.replace(day=1)
+    return last < start

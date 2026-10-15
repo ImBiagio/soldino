@@ -204,11 +204,11 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.recurring.tasks.materialize_due_rules",
         "schedule": crontab(hour=3, minute=0),
     },
-    # Open banking (ADR 0013): le banche concedono ~4 accessi al giorno senza
-    # l'utente presente, e ogni giro ne usa due (saldo e movimenti).
+    # Open banking (ADR 0013): ogni mattina, ma legge solo i conti a cui tocca
+    # secondo Tracker.bank_sync_frequency (giorno, settimana, mese; default mese).
     "sync-bank-accounts": {
         "task": "apps.banking.tasks.sync_all_bank_accounts",
-        "schedule": crontab(hour="7,19", minute=15),
+        "schedule": crontab(hour=6, minute=15),
     },
     "flush-expired-tokens": {
         "task": "apps.users.tasks.flush_expired_tokens",

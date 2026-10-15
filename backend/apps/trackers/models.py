@@ -31,6 +31,16 @@ class Tracker(BaseModel):
         help_text="Cosa mostra l'interfaccia: tracking continuo (conti, ricorrenze, "
         "riconciliazione) o solo dividere le spese di un gruppo.",
     )
+    class BankSync(models.TextChoices):
+        DAILY = "daily", "Ogni giorno"
+        WEEKLY = "weekly", "Ogni settimana"
+        MONTHLY = "monthly", "Ogni mese"
+
+    # Ogni quanto la sincronizzazione programmata legge i conti in banca dei
+    # membri (ADR 0013): mensile = un "estratto conto" del mese appena chiuso.
+    bank_sync_frequency = models.CharField(
+        max_length=8, choices=BankSync.choices, default=BankSync.MONTHLY
+    )
     simplify_debts = models.BooleanField(
         default=True,
         help_text="Chiude i debiti col minor numero di bonifici, anche fra persone "

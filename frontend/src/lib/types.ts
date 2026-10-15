@@ -42,6 +42,8 @@ export interface Tracker {
   kind: TrackerKind
   /** Debiti chiusi col minor numero di bonifici; spento = ognuno restituisce a chi ha pagato. */
   simplify_debts: boolean
+  /** Ogni quanto si leggono i conti in banca (ADR 0013), default mensile. */
+  bank_sync_frequency: 'daily' | 'weekly' | 'monthly'
   members: Membership[]
   my_role: MemberRole | null
   created_at: string
@@ -210,15 +212,20 @@ export interface ReconciliationFigures {
 export type StatementStatus = 'processing' | 'ready' | 'failed' | 'committed'
 /** Da dove vengono le righe: PDF dell'estratto conto o foto di uno scontrino (ADR 0014). */
 /** Lo scan del PDF, la foto dello scontrino o la banca (ADR 0013): stessa bozza. */
-export type StatementSource = 'scan' | 'receipt' | 'bank'
+export type StatementSource = 'scan' | 'receipt' | 'bank' | 'voice'
 export type CategorySource = 'history' | 'ai' | 'manual' | ''
+
+/** In bozza c'e' anche il pareggio ("ho dato 10 euro a Maurizio"): diventa un Settlement. */
+export type StatementLineType = TransactionType | 'transfer'
 
 export interface StatementLine {
   id?: UUID
   date: string
   title: string
   amount: Money
-  type: TransactionType
+  type: StatementLineType
+  /** Solo per i pareggi: chi riceve i soldi da `paid_by`. */
+  to_user?: UUID | null
   category: UUID | null
   category_source?: CategorySource
   paid_by: UUID
@@ -232,6 +239,8 @@ export interface StatementImport {
   id: UUID
   source: StatementSource
   filename: string
+  /** Il testo dettato, per i movimenti a voce. */
+  transcript: string
   /** La foto dello scontrino c'e' ancora (fino alla registrazione): si scarica a parte. */
   has_file: boolean
   account: UUID | null

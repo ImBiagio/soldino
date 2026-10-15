@@ -436,3 +436,38 @@ def test_collegamento_con_identificativi_lunghi(user, tracker, app, fake):
     )
     connection = sync_service.complete_connection(user, code="c", state="lungo")
     assert connection.accounts.get().identification_hash == long_hash
+
+
+@pytest.mark.parametrize(
+    ("frequency", "last", "today", "due"),
+    [
+        ("monthly", date(2026, 10, 15), date(2026, 10, 31), False),
+        ("monthly", date(2026, 10, 15), date(2026, 11, 1), True),
+        ("weekly", date(2026, 10, 12), date(2026, 10, 18), False),  # lun -> dom
+        ("weekly", date(2026, 10, 12), date(2026, 10, 19), True),
+        ("daily", date(2026, 10, 15), date(2026, 10, 15), False),
+        ("daily", date(2026, 10, 15), date(2026, 10, 16), True),
+    ],
+)
+def test_frequenza_della_sincronizzazione(linked, frequency, last, today, due):
+    from datetime import datetime
+
+    from apps.banking.services.sync import is_due
+
+    tracker = linked.account.tracker
+    tracker.bank_sync_frequency = frequency
+    tracker.save()
+    linked.last_synced_at = timezone.make_aware(datetime(last.year, last.month, last.day, 12))
+    linked.save()
+    linked.refresh_from_db()
+    assert is_due(linked, today) is due
+
+
+def test_default_mensile_e_modificabile_dal_setup(api, user, tracker):
+    assert tracker.bank_sync_frequency == "monthly"
+    response = api(user).patch(
+        reverse("tracker-detail", args=[tracker.pk]), {"bank_sync_frequency": "weekly"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    assert response.data["bank_sync_frequency"] == "weekly"

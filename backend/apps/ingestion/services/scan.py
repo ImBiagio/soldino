@@ -17,12 +17,19 @@ from django.utils import timezone
 
 from apps.core.money import quantize
 from apps.core.normalize import normalize_merchant
+from apps.trackers.methods import active_member_ids, active_memberships
 from apps.trackers.models import Category
 from apps.transactions.models import Transaction
-from apps.transactions.serializers import TransactionSerializer
+from apps.transactions.serializers import SettlementSerializer, TransactionSerializer
 
 from ..models import StatementImport, StatementLine
-from .gemini import ExtractedStatement, ExtractionError, extract_receipt, extract_statement
+from .gemini import (
+    ExtractedStatement,
+    ExtractionError,
+    extract_receipt,
+    extract_statement,
+    extract_voice,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,13 +105,30 @@ def draft_line(
     valid: dict[str, str] | None = None,
     split_mode: str = StatementLine.SplitMode.PERSONAL,
     external_id: str = "",
+    paid_by_id=None,
+    to_user_id=None,
 ) -> StatementLine:
     """Una riga in bozza: categoria dallo storico, poi quella suggerita, e doppioni.
 
-    Serve allo scan e alla sincronizzazione con la banca (ADR 0013).
+    Serve allo scan, allo scontrino, alla voce e alla banca (ADR 0013). Un
+    pareggio (soldi dati a un altro membro) non ha categoria ne' doppioni.
     """
     tracker = statement.tracker
     merchant = normalize_merchant(title)
+    paid_by_id = paid_by_id or statement.default_payer_id
+
+    if kind == StatementLine.Type.TRANSFER:
+        return StatementLine(
+            statement=statement,
+            position=position,
+            date=when,
+            title=title,
+            amount=amount,
+            type=kind,
+            paid_by_id=paid_by_id,
+            to_user_id=to_user_id,
+            external_id=external_id,
+        )
 
     category_id, source = history.get((merchant, kind)), StatementLine.CategorySource.HISTORY
     if not category_id and suggested and (valid or {}).get(suggested) == kind:
@@ -121,7 +145,7 @@ def draft_line(
         type=kind,
         category_id=category_id,
         category_source=source,
-        paid_by_id=statement.default_payer_id,
+        paid_by_id=paid_by_id,
         split_mode=split_mode,
         duplicate_of_id=find_duplicate(
             tracker, when=when, amount=amount, kind=kind, merchant=merchant
@@ -147,6 +171,8 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
         else StatementLine.SplitMode.PERSONAL
     )
 
+    members = active_member_ids(tracker)
+
     lines = []
     for position, item in enumerate(extracted.lines):
         when = _parse_date(item.date) or fallback_date
@@ -154,6 +180,20 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
         title = (item.description or "").strip()[:255]
         if not when or not amount or not title:
             continue
+        # Solo la voce dice chi paga, a chi e se la spesa e' divisa: si accetta
+        # un id solo se e' davvero un membro attivo.
+        payer = getattr(item, "payer_id", None)
+        payer = payer if payer in members else None
+        to_user = getattr(item, "to_id", None)
+        to_user = to_user if to_user in members and to_user != (
+            payer or str(statement.default_payer_id)
+        ) else None
+        kind = "income" if item.direction == "in" else "expense"
+        if getattr(item, "kind", None) == StatementLine.Type.TRANSFER and to_user:
+            kind = StatementLine.Type.TRANSFER
+        line_split = split_mode
+        if getattr(item, "shared", False):
+            line_split = StatementLine.SplitMode.DEFAULT
         lines.append(
             draft_line(
                 statement,
@@ -161,11 +201,13 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
                 when=when,
                 title=title,
                 amount=amount,
-                kind="income" if item.direction == "in" else "expense",
+                kind=kind,
                 history=history,
                 suggested=item.category_id,
                 valid=valid,
-                split_mode=split_mode,
+                split_mode=line_split,
+                paid_by_id=payer,
+                to_user_id=to_user,
             )
         )
 
@@ -175,9 +217,28 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
     return len(lines)
 
 
+def voice_context(statement: StatementImport) -> dict:
+    """Quello che serve a Gemini per capire "ho dato 10 euro a Maurizio"."""
+    speaker = statement.uploaded_by
+    return {
+        "members": [
+            {"id": str(m.user_id), "name": m.user.display_name or m.user.email}
+            for m in active_memberships(statement.tracker).select_related("user")
+        ],
+        "speaker": {"id": str(speaker.pk), "name": speaker.display_name or speaker.email},
+        "today": timezone.localdate(statement.created_at).isoformat(),
+    }
+
+
 def default_extractor(statement: StatementImport):
     if statement.is_receipt:
         return partial(extract_receipt, mime_type=statement.mime_type)
+    if statement.is_voice:
+        context = voice_context(statement)
+        # La voce non ha file: si legge il testo trascritto.
+        return lambda _file, categories: extract_voice(
+            statement.transcript, categories, **context
+        )
     return extract_statement
 
 
@@ -223,9 +284,28 @@ def commit_statement(statement: StatementImport, request) -> list[Transaction]:
     source = {
         StatementImport.Source.RECEIPT: Transaction.Source.RECEIPT,
         StatementImport.Source.BANK: Transaction.Source.BANK,
+        StatementImport.Source.VOICE: Transaction.Source.VOICE,
     }.get(statement.source, Transaction.Source.SCAN)
     created = []
     for line in statement.lines.select_related("paid_by").order_by("position", "date"):
+        if line.type == StatementLine.Type.TRANSFER:
+            # Soldi dati a un altro membro: e' un pareggio, non una spesa.
+            settlement = SettlementSerializer(
+                data={
+                    "from_user": str(line.paid_by_id),
+                    "to_user": str(line.to_user_id) if line.to_user_id else None,
+                    "amount": str(line.amount),
+                    "date": line.date.isoformat(),
+                    "note": line.title,
+                },
+                context=context,
+            )
+            settlement.is_valid(raise_exception=True)
+            line.settlement = settlement.save(
+                tracker=statement.tracker, created_by=request.user
+            )
+            line.save(update_fields=["settlement", "updated_at"])
+            continue
         serializer = TransactionSerializer(
             data={
                 "type": line.type,

@@ -56,6 +56,7 @@ class TrackerSerializer(serializers.ModelSerializer):
             "archived_at",
             "kind",
             "simplify_debts",
+            "bank_sync_frequency",
             "members",
             "my_role",
             "created_at",

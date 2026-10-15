@@ -36,9 +36,14 @@ ogni chiamata fatta per conto di quell'utente. Il wizard nella sezione
   consenso, i conti si riconoscono dall'`identification_hash` e mantengono
   abbinamento e impostazioni.
 
-**Sincronizzazione.** Due volte al giorno (Celery beat, 7:15 e 19:15) e a
-richiesta: le banche limitano a circa 4 accessi al giorno senza l'utente
-presente, e ogni giro fa due chiamate (saldo e movimenti).
+**Sincronizzazione.** Programmata secondo `Tracker.bank_sync_frequency`, scelta
+nel Setup: ogni giorno, ogni settimana (il lunedì) o **ogni mese (default)**, il
+1° del mese con tutto il mese appena chiuso, come un estratto conto. Il task di
+Celery beat gira ogni mattina alle 6:15 e legge solo i conti a cui tocca;
+"Sincronizza ora" resta sempre disponibile e conta come lettura. Le banche
+limitano a circa 4 accessi al giorno senza l'utente presente e ogni giro fa
+due chiamate (saldo e movimenti). (Fino al 2026-10-15 il giro era fisso, alle
+7:15 e alle 19:15.)
 
 - Il **saldo** aggiorna `Account.current_balance` (contabile se c'è, poi
   disponibile), con `balance_updated_at`.

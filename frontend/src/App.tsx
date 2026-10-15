@@ -14,6 +14,8 @@ import { AccountPage } from './features/account/AccountPage'
 import { AccountsPage } from './features/accounts/AccountsPage'
 import { BankCallbackPage } from './features/banking/BankCallbackPage'
 import { BankPage } from './features/banking/BankPage'
+import { InboxPage } from './features/inbox/InboxPage'
+import { VoicePage } from './features/voice/VoicePage'
 import { ChartsPage } from './features/charts/ChartsPage'
 import { ReceiptPage } from './features/scan/ReceiptPage'
 import { ScanPage } from './features/scan/ScanPage'
@@ -83,6 +85,9 @@ export default function App() {
         <Route path="scontrino" element={<ReceiptPage />} />
         <Route path="scontrino/:statementId" element={<ScanReviewPage />} />
         <Route path="banca" element={<BankPage />} />
+        <Route path="voce" element={<VoicePage />} />
+        <Route path="voce/:statementId" element={<ScanReviewPage />} />
+        <Route path="da-rivedere" element={<InboxPage />} />
         <Route path="attese" element={<PendingPage />} />
         <Route path="abbonamenti" element={<SubscriptionsPage />} />
         <Route path="impostazioni" element={<SettingsPage />} />

@@ -31,9 +31,9 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
       body: (
         <>
           <p>
-            Enable Banking è il servizio autorizzato (AISP, vigilato in Finlandia) che legge saldo
-            e movimenti dalla tua banca. Per uso personale è gratuito: la tua applicazione legge
-            solo i conti che colleghi tu.
+            Enable Banking è il servizio autorizzato (AISP, vigilato in Finlandia) che legge saldo e
+            movimenti dalla tua banca. Per uso personale è gratuito: la tua applicazione legge solo
+            i conti che colleghi tu.
           </p>
           <p>
             Apri la pagina di accesso, scrivi la tua email e segui il link che ti arriva:
@@ -46,7 +46,7 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
     {
       title: "Registra l'applicazione",
       image: '/banca/02-registra.png',
-      imageAlt: "Il modulo per aggiungere una nuova applicazione nel pannello di Enable Banking",
+      imageAlt: 'Il modulo per aggiungere una nuova applicazione nel pannello di Enable Banking',
       body: (
         <>
           <p>
@@ -77,8 +77,8 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
           </ul>
           <p>
             Il browser scarica un file <code>.pem</code> che si chiama come l&apos;application ID
-            (es. <code>aaaaaaaa-bbbb-….pem</code>). È la chiave della tua applicazione: tienila
-            per te, ti serve tra due passi.
+            (es. <code>aaaaaaaa-bbbb-….pem</code>). È la chiave della tua applicazione: tienila per
+            te, ti serve tra due passi.
           </p>
           <ExternalLink href={CONTROL_PANEL}>Apri API applications</ExternalLink>
         </>
@@ -100,9 +100,9 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
           </p>
           <p>
             Ripeti per <strong>ogni conto</strong> che vuoi in Soldino: in modalità gratuita
-            l&apos;applicazione legge solo i conti sotto <strong>Linked accounts</strong>. Quando
-            è pronta vedi <strong>Active</strong> e &quot;Account Information · Restricted&quot;.
-            Non si scarica nessun file, la chiave resta una.
+            l&apos;applicazione legge solo i conti sotto <strong>Linked accounts</strong>. Quando è
+            pronta vedi <strong>Active</strong> e &quot;Account Information · Restricted&quot;. Non
+            si scarica nessun file, la chiave resta una.
           </p>
           <ExternalLink href={CONTROL_PANEL}>Apri API applications</ExternalLink>
         </>

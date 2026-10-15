@@ -24,14 +24,17 @@ class StatementLineSerializer(serializers.ModelSerializer):
             "category",
             "category_source",
             "paid_by",
+            "to_user",
             "split_mode",
             "duplicate_of",
             "transaction",
+            "settlement",
             "external_id",
         ]
         # Posizione e provenienza della categoria le decide il server.
         read_only_fields = [
-            "id", "position", "category_source", "duplicate_of", "transaction", "external_id",
+            "id", "position", "category_source", "duplicate_of", "transaction", "settlement",
+            "external_id",
         ]
 
     def validate_amount(self, value):
@@ -50,6 +53,20 @@ class StatementLineSerializer(serializers.ModelSerializer):
         paid_by = attrs.get("paid_by")
         if paid_by and not is_active_member(tracker, paid_by):
             raise serializers.ValidationError({"paid_by": "Deve essere un membro del tracker."})
+        if attrs.get("type") == StatementLine.Type.TRANSFER:
+            # Pareggio: da chi a chi, fra due membri diversi, senza categoria.
+            to_user = attrs.get("to_user")
+            if to_user is None or not is_active_member(tracker, to_user):
+                raise serializers.ValidationError(
+                    {"to_user": "Il pareggio va a un altro membro del tracker."}
+                )
+            if paid_by and to_user.pk == paid_by.pk:
+                raise serializers.ValidationError(
+                    {"to_user": "Chi da' e chi riceve devono essere diversi."}
+                )
+            attrs["category"] = None
+        else:
+            attrs["to_user"] = None
         return attrs
 
 
@@ -71,6 +88,7 @@ class StatementImportSerializer(serializers.ModelSerializer):
             "source",
             "filename",
             "has_file",
+            "transcript",
             "account",
             "account_name",
             "default_payer",
@@ -149,3 +167,8 @@ class StatementUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError("Il conto appartiene a un altro tracker.")
         return account
 
+
+class VoiceInputSerializer(serializers.Serializer):
+    """Una frase dettata (o scritta): "ho dato 10 euro a Maurizio per le spese di casa"."""
+
+    text = serializers.CharField(max_length=2000, trim_whitespace=True)

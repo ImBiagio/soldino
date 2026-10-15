@@ -7,10 +7,11 @@ import { showsSection } from '../lib/trackerKind'
 import type { Tracker } from '../lib/types'
 import { Icon } from './ui'
 
-/** Le strade per inserire movimenti: a mano, da scontrino, dall'estratto conto. */
+/** Le strade per inserire movimenti: a mano, da scontrino, a voce, dall'estratto conto. */
 const ACTIONS = [
   { path: 'movimenti?new=1', icon: 'edit', label: 'A mano' },
   { path: 'scontrino', icon: 'photo_camera', label: 'Da scontrino' },
+  { path: 'voce', icon: 'mic', label: 'A voce' },
   { path: 'scan', icon: 'document_scanner', label: 'Da estratto conto' },
 ]
 

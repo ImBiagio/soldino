@@ -19,6 +19,7 @@ class StatementImport(BaseModel):
         SCAN = "scan", "Estratto conto (PDF)"
         RECEIPT = "receipt", "Scontrino (foto)"
         BANK = "bank", "Banca (open banking)"
+        VOICE = "voice", "Messaggio vocale"
 
     class Status(models.TextChoices):
         PROCESSING = "processing", "In lettura"
@@ -40,6 +41,8 @@ class StatementImport(BaseModel):
     # perche' in revisione la si guarda accanto alla riga.
     pdf = models.BinaryField(null=True, blank=True, editable=False)
     mime_type = models.CharField(max_length=40, default="application/pdf")
+    # Quello che si e' detto (o scritto) per un movimento a voce: resta per la revisione.
+    transcript = models.TextField(blank=True)
     account = models.ForeignKey(
         "accounts.Account", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -63,6 +66,10 @@ class StatementImport(BaseModel):
     def is_receipt(self) -> bool:
         return self.source == self.Source.RECEIPT
 
+    @property
+    def is_voice(self) -> bool:
+        return self.source == self.Source.VOICE
+
 
 class StatementLine(BaseModel):
     class CategorySource(models.TextChoices):
@@ -70,6 +77,12 @@ class StatementLine(BaseModel):
         AI = "ai", "Suggerita"
         MANUAL = "manual", "Scelta a mano"
         NONE = "", "Nessuna"
+
+    class Type(models.TextChoices):
+        EXPENSE = "expense", "Spesa"
+        INCOME = "income", "Entrata"
+        # Soldi dati a un altro membro ("ho dato 10 euro a Maurizio"): diventa un pareggio.
+        TRANSFER = "transfer", "Pareggio"
 
     class SplitMode(models.TextChoices):
         PERSONAL = "personal", "Solo di chi paga"
@@ -80,7 +93,7 @@ class StatementLine(BaseModel):
     date = models.DateField()
     title = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=12, decimal_places=2)
-    type = models.CharField(max_length=10, choices=[("expense", "Spesa"), ("income", "Entrata")])
+    type = models.CharField(max_length=10, choices=Type.choices)
     category = models.ForeignKey(
         "trackers.Category", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -89,6 +102,17 @@ class StatementLine(BaseModel):
     )
     paid_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="+"
+    )
+    # Solo per i pareggi: chi riceve i soldi da ``paid_by``.
+    to_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, null=True, blank=True, related_name="+"
+    )
+    settlement = models.ForeignKey(
+        "transactions.Settlement",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="statement_lines",
     )
     split_mode = models.CharField(
         max_length=10, choices=SplitMode.choices, default=SplitMode.PERSONAL

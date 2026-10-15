@@ -25,6 +25,7 @@ export function ScanReviewPage() {
   const { statementId } = useParams()
   const { data: statement, isLoading, error } = useStatement(tracker.id, statementId)
   const receipt = statement?.source === 'receipt'
+  const voice = statement?.source === 'voice'
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 p-3 sm:gap-5 sm:p-5 md:p-7">
@@ -38,16 +39,27 @@ export function ScanReviewPage() {
               ? 'Torna alla banca'
               : receipt
                 ? 'Torna agli scontrini'
-                : 'Torna agli estratti conto'
+                : voice
+                  ? 'Torna ai vocali'
+                  : 'Torna agli estratti conto'
           }
         >
           <Icon name="arrow_back" size={22} />
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-title-large">
-            {receipt ? 'Scontrino' : (statement?.filename ?? 'Estratto conto')}
+            {receipt
+              ? 'Scontrino'
+              : voice
+                ? 'Messaggio vocale'
+                : (statement?.filename ?? 'Estratto conto')}
           </h1>
-          {statement && !receipt && (
+          {statement && voice && (
+            <p className="text-body-small italic text-on-surface-variant">
+              “{statement.transcript}”
+            </p>
+          )}
+          {statement && !receipt && !voice && (
             <p className="text-body-small text-on-surface-variant">
               {statement.account_name ?? 'Nessun conto'}
               {statement.period_start &&
@@ -158,7 +170,9 @@ function Committed({ tracker, statement }: { tracker: Tracker; statement: Statem
       <p className="text-title-medium">
         {statement.source === 'receipt'
           ? 'Spesa registrata'
-          : `${statement.line_count} movimenti registrati`}
+          : `${statement.line_count} ${
+              statement.line_count === 1 ? 'movimento registrato' : 'movimenti registrati'
+            }`}
         {statement.committed_at && ` il ${formatDate(statement.committed_at.slice(0, 10))}`}
       </p>
       <p className="text-body-medium">
@@ -166,7 +180,9 @@ function Committed({ tracker, statement }: { tracker: Tracker; statement: Statem
           ? 'La trovi nei movimenti. La foto dello scontrino è stata cancellata.'
           : statement.source === 'bank'
             ? 'Li trovi nei movimenti, con origine "open banking".'
-            : 'Li trovi nei movimenti, con origine "scan".'}
+            : statement.source === 'voice'
+              ? 'Spese ed entrate sono nei movimenti (origine "voce"), i pareggi nei debiti.'
+              : 'Li trovi nei movimenti, con origine "scan".'}
       </p>
       <Link to={`/t/${tracker.id}/movimenti`} className="btn-filled w-fit">
         Vai ai movimenti
@@ -235,18 +251,27 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
       type: row.type,
       category: row.category,
       paid_by: row.paid_by,
+      to_user: row.type === 'transfer' ? (row.to_user ?? null) : null,
       split_mode: row.split_mode,
     }))
 
-  const invalid = rows.filter((row) => !row.title.trim() || toCents(row.amount) <= 0 || !row.date)
+  const invalid = rows.filter(
+    (row) =>
+      !row.title.trim() ||
+      toCents(row.amount) <= 0 ||
+      !row.date ||
+      (row.type === 'transfer' && !row.to_user),
+  )
   const totals = rows.reduce(
     (acc, row) => {
-      acc[row.type] += Math.max(toCents(row.amount), 0)
+      // I pareggi spostano soldi fra membri: non sono ne' spese ne' entrate.
+      if (row.type !== 'transfer') acc[row.type] += Math.max(toCents(row.amount), 0)
       return acc
     },
     { expense: 0, income: 0 } as Record<TransactionType, number>,
   )
   const duplicates = rows.filter((row) => row.duplicate_of).length
+  const transfers = rows.filter((row) => row.type === 'transfer').length
 
   const saveDraft = async () => {
     const saved = await save.mutateAsync(payload())
@@ -346,7 +371,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             </>
           ) : (
             <>
-              <strong>{rows.length}</strong> righe ·{' '}
+              <strong>{rows.length}</strong> {rows.length === 1 ? 'riga' : 'righe'} ·{' '}
               <span className="amount text-error">
                 −{formatCents(totals.expense, tracker.currency)}
               </span>{' '}
@@ -354,6 +379,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
               <span className="amount text-primary">
                 +{formatCents(totals.income, tracker.currency)}
               </span>
+              {transfers > 0 && ` · ${transfers} ${transfers === 1 ? 'pareggio' : 'pareggi'}`}
             </>
           )}
         </span>

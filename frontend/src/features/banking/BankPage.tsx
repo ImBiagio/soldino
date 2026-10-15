@@ -9,7 +9,6 @@ import {
   useBankingStatus,
   useDeleteBankConnection,
   useDeleteBankingApp,
-  useSaveAccount,
   useStartBankConnection,
   useSyncBankAccount,
   useUpdateBankAccount,
@@ -19,6 +18,8 @@ import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
 import { formatMoney } from '../../lib/money'
 import type { Account, Aspsp, BankAccountLink, BankConnection, Tracker } from '../../lib/types'
+import { activeMembers } from '../../components/Layout'
+import { NewAccountModal } from '../accounts/NewAccountModal'
 import { SetupWizard } from './SetupWizard'
 
 /** Sotto questa soglia il consenso va rinnovato presto: lo si dice in giallo. */
@@ -36,8 +37,8 @@ export function BankPage() {
         <h1 className="text-title-large">Banca</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
           Saldo e movimenti letti dalla banca con l&apos;open banking. I movimenti arrivano in una
-          bozza da rivedere come lo scan, oppure si registrano da soli se attivi
-          l&apos;interruttore sul conto.
+          bozza da rivedere come lo scan, oppure si registrano da soli se attivi l&apos;interruttore
+          sul conto.
         </p>
       </div>
 
@@ -184,8 +185,8 @@ function ConnectionCard({
 
       {highlight && connection.accounts.some((a) => !a.account) && (
         <p className="rounded-card bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
-          Banca collegata. Ora abbina ogni conto a un conto di Soldino: scegli da quando importare
-          e se registrare in automatico.
+          Banca collegata. Ora abbina ogni conto a un conto di Soldino: scegli da quando importare e
+          se registrare in automatico.
         </p>
       )}
 
@@ -221,7 +222,7 @@ function AccountRow({
 }) {
   const { user } = useAuth()
   const accounts = useAccounts(tracker.id)
-  const saveAccount = useSaveAccount(tracker.id)
+  const [creating, setCreating] = useState(false)
   const update = useUpdateBankAccount(tracker.id)
   const sync = useSyncBankAccount(tracker.id)
   const [syncFrom, setSyncFrom] = useState(link.sync_from ?? firstOfMonth())
@@ -233,16 +234,14 @@ function AccountRow({
   )
   const label = link.name || link.iban || 'Conto'
 
+  const me = activeMembers(tracker).find((m) => m.user?.id === user?.id)
   const assign = async (value: string) => {
-    let accountId = value || null
     if (value === NEW_ACCOUNT) {
-      const created = await saveAccount.mutateAsync({
-        name: label.slice(0, 80),
-        owner: user!.id,
-        kind: 'bank',
-      })
-      accountId = created.id
+      // Lo stesso modulo della pagina Conti: nome, tipo, saldo, nei totali.
+      setCreating(true)
+      return
     }
+    const accountId = value || null
     await update.mutateAsync({ id: link.id, account: accountId, sync_from: syncFrom })
     // Appena abbinato si legge subito: saldo e primi movimenti senza aspettare stasera.
     if (accountId) sync.mutate(link.id)
@@ -280,7 +279,7 @@ function AccountRow({
           <select
             className="field-input"
             value={link.account ?? ''}
-            disabled={disabled || update.isPending || saveAccount.isPending}
+            disabled={disabled || update.isPending}
             onChange={(event) => assign(event.target.value)}
           >
             <option value="">Non abbinato (non si sincronizza)</option>
@@ -359,7 +358,17 @@ function AccountRow({
       {link.last_error && !sync.isPending && !sync.error && (
         <p className="text-body-medium text-error">{link.last_error}</p>
       )}
-      <ErrorBanner error={update.error ?? saveAccount.error ?? sync.error} />
+      <ErrorBanner error={update.error ?? sync.error} />
+      {creating && me && (
+        <NewAccountModal
+          tracker={tracker}
+          owner={me}
+          defaultName={label.slice(0, 80)}
+          fromBank
+          onClose={() => setCreating(false)}
+          onCreated={(account) => assign(account.id)}
+        />
+      )}
     </div>
   )
 }
