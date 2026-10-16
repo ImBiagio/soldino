@@ -52,7 +52,7 @@ export function SubscriptionsPage() {
 
   return (
     <div className="p-5 md:p-7">
-      <div className="panel p-6 md:p-7">
+      <div className="panel sm:p-6 md:p-7">
         <h1 className="text-title-large">Ricorrenze</h1>
         <p className="mt-1 text-body-medium text-on-surface-variant">
           Le proposte da approvare stanno in cima: senza conferma automatica nulla viene scritto.
@@ -109,9 +109,9 @@ export function SubscriptionsPage() {
                   color="var(--tertiary)"
                   size={44}
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="flex flex-wrap items-center gap-2 truncate text-body-large font-medium">
-                    {rule.title}
+                <div className="min-w-[10rem] flex-1">
+                  <p className="flex flex-wrap items-center gap-2 text-body-large font-medium">
+                    <span className="min-w-0 truncate">{rule.title}</span>
                     {rule.is_subscription && (
                       <span className="rounded-pill bg-tertiary-container px-2 py-0.5 text-body-small text-on-tertiary-container">
                         abbonamento
@@ -130,15 +130,17 @@ export function SubscriptionsPage() {
                       ` · ${formatMoney(rule.monthly_cost, tracker.currency)}/mese`}
                   </p>
                 </div>
-                <span className="amount text-[16px] font-semibold">
-                  {formatMoney(rule.amount, tracker.currency)}
-                </span>
-                <Switch
-                  checked={rule.active}
-                  onChange={(checked) => save.mutate({ id: rule.id, active: checked })}
-                  label={`Attiva ${rule.title}`}
-                />
-                <IconButton icon="close" label="Elimina" onClick={() => remove.mutate(rule.id)} />
+                <div className="ml-auto flex items-center gap-4">
+                  <span className="amount text-[16px] font-semibold">
+                    {formatMoney(rule.amount, tracker.currency)}
+                  </span>
+                  <Switch
+                    checked={rule.active}
+                    onChange={(checked) => save.mutate({ id: rule.id, active: checked })}
+                    label={`Attiva ${rule.title}`}
+                  />
+                  <IconButton icon="close" label="Elimina" onClick={() => remove.mutate(rule.id)} />
+                </div>
                 {proposalIds.has(rule.id) && <span className="sr-only">proposta in sospeso</span>}
               </div>
             ))
@@ -162,28 +164,31 @@ function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule 
       <ErrorBanner error={approve.error ?? skip.error} />
       <div className="flex flex-wrap items-center gap-4">
         <Icon name="inbox" size={24} />
-        <div className="min-w-0 flex-1">
+        {/* Con un minimo di larghezza i pulsanti vanno a capo invece di schiacciare il testo. */}
+        <div className="min-w-[10rem] flex-1">
           <p className="truncate text-body-large font-medium">
             {rule.title} · {formatMoney(rule.amount, tracker.currency)}
           </p>
           <p className="text-body-small">Proposta per il {formatDate(rule.next_run)}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => approve.mutate(rule)}
-          disabled={busy}
-          className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
-        >
-          {approve.isPending ? 'Approvo…' : 'Approva'}
-        </button>
-        <IconButton
-          icon="close"
-          label="Salta questa occorrenza"
-          onClick={() => skip.mutate(rule)}
-          disabled={busy}
-          inheritColor
-          className="disabled:opacity-50"
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => approve.mutate(rule)}
+            disabled={busy}
+            className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
+          >
+            {approve.isPending ? 'Approvo…' : 'Approva'}
+          </button>
+          <IconButton
+            icon="close"
+            label="Salta questa occorrenza"
+            onClick={() => skip.mutate(rule)}
+            disabled={busy}
+            inheritColor
+            className="disabled:opacity-50"
+          />
+        </div>
       </div>
     </div>
   )

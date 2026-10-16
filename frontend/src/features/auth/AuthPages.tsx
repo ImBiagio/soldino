@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
-import { ErrorBanner, Field, Icon, Skeleton } from '../../components/ui'
+import { ErrorBanner, Field, Icon, PasswordInput, Skeleton } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 
@@ -124,12 +124,10 @@ export function LoginPage() {
           />
         </Field>
         <Field label="Password">
-          <input
-            className="field-input"
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             value={password}
-            onChange={(event) => setPassword(event.target.value)}
+            onChange={setPassword}
             required
           />
         </Field>
@@ -221,12 +219,10 @@ export function RegisterPage() {
             error={error instanceof ApiError ? error.fieldErrors().password : undefined}
             hint="Almeno 10 caratteri."
           >
-            <input
-              className="field-input"
-              type="password"
+            <PasswordInput
               autoComplete="new-password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              onChange={setPassword}
               required
             />
           </Field>
@@ -340,24 +336,15 @@ export function NewPasswordFields({
   return (
     <>
       <Field label="Nuova password" error={error} hint="Almeno 10 caratteri.">
-        <input
-          className="field-input"
-          type="password"
+        <PasswordInput
           autoComplete="new-password"
           value={password}
-          onChange={(event) => onPassword(event.target.value)}
+          onChange={onPassword}
           required
         />
       </Field>
       <Field label="Ripeti la nuova password" error={mismatch ? 'Non coincide.' : undefined}>
-        <input
-          className="field-input"
-          type="password"
-          autoComplete="new-password"
-          value={confirm}
-          onChange={(event) => onConfirm(event.target.value)}
-          required
-        />
+        <PasswordInput autoComplete="new-password" value={confirm} onChange={onConfirm} required />
       </Field>
     </>
   )

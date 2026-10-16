@@ -287,7 +287,7 @@ function SelectChip({
   useClickOutside(ref, open, () => setOpen(false))
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <Chip
         selected={Boolean(selected)}
         icon={selected ? 'check' : undefined}
@@ -429,7 +429,7 @@ function TransactionRow({
   return (
     <div
       className={clsx(
-        'flex items-center gap-4 rounded-row px-5 py-3.5',
+        'flex items-center gap-3 rounded-row py-3.5 pl-4 pr-2 sm:gap-4 sm:px-5',
         isIncome ? 'bg-secondary-container' : 'bg-surface-container-low',
       )}
     >
@@ -535,7 +535,7 @@ function TransactionRow({
 
       {editingAmount ? (
         <input
-          className="field-input amount w-[152px] rounded-nested bg-surface px-2 py-1 text-right"
+          className="field-input amount w-28 rounded-nested bg-surface px-2 py-1 text-right sm:w-[152px]"
           autoFocus
           value={amount}
           onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
@@ -557,10 +557,10 @@ function TransactionRow({
           onClick={() => setEditingAmount(true)}
           title="Tocca per correggere"
           className={clsx(
-            'amount shrink-0 whitespace-nowrap text-right text-[16px] font-semibold sm:text-amount-row',
+            // Larghezza fissa solo da sm in su: su mobile toglieva spazio alla descrizione.
+            'amount min-w-[6.5rem] shrink-0 whitespace-nowrap text-right text-[16px] font-semibold sm:w-[152px] sm:text-amount-row',
             isIncome ? 'text-primary' : 'text-error',
           )}
-          style={{ width: 152 }}
         >
           {isIncome ? '+' : '−'}
           {formatMoney(tx.amount, tracker.currency)}

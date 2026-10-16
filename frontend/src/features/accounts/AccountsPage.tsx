@@ -110,7 +110,8 @@ function PersonSection({
     <section className="rounded-panel bg-surface-container-low p-5 md:p-6">
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Avatar name={member.display_name} size={40} color={color} />
-        <div className="min-w-0 flex-1">
+        {/* Con un minimo di larghezza la pill dello scarto va a capo invece di schiacciare il nome. */}
+        <div className="min-w-[9rem] flex-1">
           <h2 className="truncate text-title-medium">
             {member.display_name}
             {isMe && <span className="text-on-surface-variant"> · tu</span>}
@@ -145,7 +146,8 @@ function PersonSection({
               className="flex flex-wrap items-center gap-3 rounded-nested bg-surface px-4 py-3"
             >
               <IconCircle name={accountIcon(account.kind)} color="var(--tertiary)" size={40} />
-              <div className="min-w-0 flex-1">
+              {/* Su mobile i controlli vanno a capo tutti insieme, a destra. */}
+              <div className="min-w-[10rem] flex-1">
                 <p className="truncate text-body-large font-medium">{account.name}</p>
                 <p className="text-body-small text-on-surface-variant">
                   {ACCOUNT_KIND_LABEL[account.kind]}
@@ -153,36 +155,40 @@ function PersonSection({
                     ` · aggiornato il ${formatDate(account.balance_updated_at.slice(0, 10))}`}
                 </p>
               </div>
-              <input
-                key={account.current_balance}
-                className="field-input amount w-32 text-right"
-                inputMode="decimal"
-                defaultValue={account.current_balance}
-                disabled={!canWrite}
-                onBlur={(event) => {
-                  const value = normalizeDecimal(event.target.value)
-                  if (value && value !== account.current_balance) {
-                    save.mutate({ id: account.id, current_balance: value })
-                  }
-                }}
-                aria-label={`Saldo di ${account.name}`}
-              />
-              <Switch
-                checked={account.include_in_totals}
-                onChange={(checked) => save.mutate({ id: account.id, include_in_totals: checked })}
-                label={`${account.name} nei totali`}
-              />
-              {canWrite && (
-                <IconButton
-                  icon="close"
-                  label={`Elimina ${account.name}`}
-                  onClick={() => {
-                    if (window.confirm(`Eliminare il conto ${account.name}?`)) {
-                      remove.mutate(account.id)
+              <div className="ml-auto flex items-center gap-3">
+                <input
+                  key={account.current_balance}
+                  className="field-input amount w-32 text-right"
+                  inputMode="decimal"
+                  defaultValue={account.current_balance}
+                  disabled={!canWrite}
+                  onBlur={(event) => {
+                    const value = normalizeDecimal(event.target.value)
+                    if (value && value !== account.current_balance) {
+                      save.mutate({ id: account.id, current_balance: value })
                     }
                   }}
+                  aria-label={`Saldo di ${account.name}`}
                 />
-              )}
+                <Switch
+                  checked={account.include_in_totals}
+                  onChange={(checked) =>
+                    save.mutate({ id: account.id, include_in_totals: checked })
+                  }
+                  label={`${account.name} nei totali`}
+                />
+                {canWrite && (
+                  <IconButton
+                    icon="close"
+                    label={`Elimina ${account.name}`}
+                    onClick={() => {
+                      if (window.confirm(`Eliminare il conto ${account.name}?`)) {
+                        remove.mutate(account.id)
+                      }
+                    }}
+                  />
+                )}
+              </div>
             </div>
           ))}
           {canWrite && (

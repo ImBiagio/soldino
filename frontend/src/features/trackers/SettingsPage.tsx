@@ -41,7 +41,7 @@ export function SettingsPage() {
 
   return (
     <div className="p-5 md:p-7">
-      <div className="panel grid gap-5 p-6 md:p-7">
+      <div className="panel grid gap-5 sm:p-6 md:p-7">
         <h1 className="text-title-large">Setup del tracker</h1>
         <KindSection tracker={tracker} isOwner={isOwner} />
         <MembersSection tracker={tracker} isOwner={isOwner} />
@@ -284,7 +284,8 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
           return (
             <div key={member.id} className="flex flex-wrap items-center gap-4">
               <Avatar name={member.display_name} size={40} color={memberColor(index)} />
-              <div className="min-w-0 flex-1">
+              {/* Con un minimo di larghezza i controlli vanno a capo invece di schiacciare il nome. */}
+              <div className="min-w-[8rem] flex-1">
                 <p className="truncate text-body-large font-medium">{member.display_name}</p>
                 <p className="flex flex-wrap items-center gap-2 text-body-small text-on-surface-variant">
                   {ROLE_LABEL[member.role]}
@@ -296,58 +297,60 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                 </p>
               </div>
 
-              <div
-                className="hidden h-2 overflow-hidden rounded sm:block"
-                style={{ width: 140, background: 'var(--outline-variant)' }}
-              >
+              <div className="ml-auto flex items-center gap-3 sm:gap-4">
                 <div
-                  className="h-full rounded"
-                  style={{
-                    width: `${(weight / maxWeight) * 100}%`,
-                    background: memberColor(index),
-                  }}
-                />
-              </div>
-
-              <input
-                key={member.default_share_pct}
-                className="field-input amount w-[72px] text-right"
-                inputMode="decimal"
-                defaultValue={member.default_share_pct}
-                disabled={!isOwner}
-                onBlur={(event) => {
-                  const value = normalizeDecimal(event.target.value)
-                  if (value && value !== member.default_share_pct) {
-                    update.mutate({ id: member.id, default_share_pct: value })
-                  }
-                }}
-                aria-label={`Peso di ${member.display_name}`}
-              />
-              <span className="w-24 text-body-small text-on-surface-variant">
-                {member.user && effective[member.user.id] !== undefined
-                  ? `= ${formatPct(effective[member.user.id])}%`
-                  : 'conta da attivo'}
-              </span>
-
-              {isOwner && member.role !== 'owner' && (
-                <>
-                  <select
-                    className="field-input w-auto"
-                    value={member.role}
-                    onChange={(event) =>
-                      update.mutate({ id: member.id, role: event.target.value as never })
-                    }
-                    aria-label={`Ruolo di ${member.display_name}`}
-                  >
-                    <RoleOptions />
-                  </select>
-                  <IconButton
-                    icon="close"
-                    label="Rimuovi"
-                    onClick={() => remove.mutate(member.id)}
+                  className="hidden h-2 overflow-hidden rounded sm:block"
+                  style={{ width: 140, background: 'var(--outline-variant)' }}
+                >
+                  <div
+                    className="h-full rounded"
+                    style={{
+                      width: `${(weight / maxWeight) * 100}%`,
+                      background: memberColor(index),
+                    }}
                   />
-                </>
-              )}
+                </div>
+
+                <input
+                  key={member.default_share_pct}
+                  className="field-input amount w-[72px] text-right"
+                  inputMode="decimal"
+                  defaultValue={member.default_share_pct}
+                  disabled={!isOwner}
+                  onBlur={(event) => {
+                    const value = normalizeDecimal(event.target.value)
+                    if (value && value !== member.default_share_pct) {
+                      update.mutate({ id: member.id, default_share_pct: value })
+                    }
+                  }}
+                  aria-label={`Peso di ${member.display_name}`}
+                />
+                <span className="w-24 text-body-small text-on-surface-variant">
+                  {member.user && effective[member.user.id] !== undefined
+                    ? `= ${formatPct(effective[member.user.id])}%`
+                    : 'conta da attivo'}
+                </span>
+
+                {isOwner && member.role !== 'owner' && (
+                  <>
+                    <select
+                      className="field-input w-auto"
+                      value={member.role}
+                      onChange={(event) =>
+                        update.mutate({ id: member.id, role: event.target.value as never })
+                      }
+                      aria-label={`Ruolo di ${member.display_name}`}
+                    >
+                      <RoleOptions />
+                    </select>
+                    <IconButton
+                      icon="close"
+                      label="Rimuovi"
+                      onClick={() => remove.mutate(member.id)}
+                    />
+                  </>
+                )}
+              </div>
             </div>
           )
         })}

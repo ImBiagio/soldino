@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { memberColor } from '../lib/colors'
 import { initials } from '../lib/format'
@@ -238,7 +238,7 @@ export function Chip({
       )}
     >
       {icon && <Icon name={icon} size={18} />}
-      {children ?? label}
+      {children ?? <span className="truncate">{label}</span>}
       {trailingIcon && <Icon name={trailingIcon} size={18} />}
     </button>
   )
@@ -269,6 +269,42 @@ export function Field({
         <p className="mt-1 px-4 text-body-small text-on-surface-variant">{hint}</p>
       )}
       {error && <p className="mt-1 px-4 text-body-small text-error">{error}</p>}
+    </div>
+  )
+}
+
+/** Input password con l'occhio per mostrarla: va dentro un `Field`. */
+export function PasswordInput({
+  value,
+  onChange,
+  autoComplete,
+  required,
+}: {
+  value: string
+  onChange: (value: string) => void
+  autoComplete: 'current-password' | 'new-password'
+  required?: boolean
+}) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        className="field-input min-w-0 flex-1"
+        type={visible ? 'text' : 'password'}
+        autoComplete={autoComplete}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+      />
+      <IconButton
+        icon={visible ? 'visibility_off' : 'visibility'}
+        label={visible ? 'Nascondi password' : 'Mostra password'}
+        onClick={() => setVisible((current) => !current)}
+        className="-my-2 -mr-2 shrink-0"
+      />
     </div>
   )
 }
@@ -484,8 +520,11 @@ export function Modal({
 
   if (!open) return null
   return (
+    // z-60: sopra il "+" del mobile (z-50), che altrimenti copre il fondo del form.
+    // In basso con mt-auto e non con items-end: con items-end un form piu' alto
+    // dello schermo usciva dall'alto e la sua parte iniziale non si raggiungeva.
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto sm:items-start sm:p-6"
+      className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto sm:p-6"
       style={{ background: 'var(--scrim)' }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose()
@@ -497,7 +536,7 @@ export function Modal({
         aria-label={title}
         className={clsx(
           'w-full bg-surface shadow-sheet',
-          'rounded-t-panel sm:my-auto sm:rounded-panel',
+          'mt-auto rounded-t-panel sm:my-auto sm:rounded-panel',
           wide ? 'sm:max-w-[620px]' : 'sm:max-w-[520px]',
         )}
         style={{ animation: 'none' }}

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { Avatar, ErrorBanner, Field, Icon } from '../../components/ui'
+import { Avatar, ErrorBanner, Field, Icon, PasswordInput } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import type { User } from '../../lib/types'
@@ -14,7 +14,7 @@ export function AccountPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-5 md:p-7">
-      <div className="panel grid gap-5 p-6 md:p-7">
+      <div className="panel grid gap-5 sm:p-6 md:p-7">
         <header className="flex flex-wrap items-center gap-3">
           <Link to="/" className="btn-text btn-sm -ml-2" aria-label="Torna ai tracker">
             <Icon name="arrow_back" size={20} />
@@ -174,12 +174,10 @@ function PasswordSection({ user }: { user: User }) {
       >
         {!fields.current_password && !fields.new_password && <ErrorBanner error={error} />}
         <Field label="Password attuale" error={fields.current_password}>
-          <input
-            className="field-input"
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             value={current}
-            onChange={(event) => setCurrent(event.target.value)}
+            onChange={setCurrent}
             required
           />
         </Field>

@@ -67,7 +67,7 @@ export function InboxPage() {
                 <h2 className="flex-1 text-title-medium">
                   {meta.label}
                   {group.length > 0 && (
-                    <span className="ml-2 text-body-medium text-on-surface-variant">
+                    <span className="ml-2 inline-block whitespace-nowrap text-body-medium text-on-surface-variant">
                       {group.length} da rivedere
                       {source !== 'receipt' &&
                         lines > 0 &&

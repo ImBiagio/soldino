@@ -35,7 +35,7 @@ export function TrackerListPage() {
 
   return (
     <div className="mx-auto max-w-3xl p-5 md:p-7">
-      <div className="panel p-6 md:p-7">
+      <div className="panel sm:p-6 md:p-7">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="" width={48} height={48} />

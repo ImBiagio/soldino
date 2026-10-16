@@ -94,7 +94,10 @@ export function TrackerLayout() {
         </div>
       </nav>
 
-      <div className="min-w-0 flex-1 pb-28 md:pb-0">
+      {/* Su mobile lo spazio in fondo supera barra e "+", che sta a 96px + 56px. */}
+      <div
+        className={clsx('min-w-0 flex-1 md:pb-0', SCAN_SECTIONS.has(section) ? 'pb-28' : 'pb-44')}
+      >
         {tracker.archived_at && (
           <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-surface-container-high px-4 py-3 text-body-medium md:mx-7">
             <Icon name="archive" size={20} className="text-on-surface-variant" />

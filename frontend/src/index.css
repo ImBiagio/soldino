@@ -47,6 +47,13 @@
     line-height: 24px;
   }
 
+  /* Un figlio di grid ha min-width:auto e non scende sotto il suo contenuto:
+     una riga `truncate` o un input bastano ad allargare la pagina su mobile.
+     Cosi' le colonne restano larghe quanto lo schermo e il testo si tronca. */
+  .grid > * {
+    min-width: 0;
+  }
+
   :focus-visible {
     outline: 3px solid var(--primary);
     outline-offset: 2px;
@@ -152,8 +159,8 @@
 
   /* --- Chip --- */
   .chip {
-    @apply state inline-flex shrink-0 items-center gap-1.5 rounded-pill px-3.5 py-[9px]
-           text-body-medium font-medium transition;
+    @apply state inline-flex max-w-full shrink-0 items-center gap-1.5 whitespace-nowrap rounded-pill
+           px-3.5 py-[9px] text-body-medium font-medium transition;
     transition-timing-function: var(--ease-m3);
   }
   .chip-selected {

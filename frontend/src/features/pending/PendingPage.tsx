@@ -46,7 +46,7 @@ export function PendingPage() {
 
   return (
     <div className="p-5 md:p-7">
-      <div className="panel p-6 md:p-7">
+      <div className="panel sm:p-6 md:p-7">
         <h1 className="text-title-large">In attesa</h1>
         <p className="mt-1 text-body-medium text-on-surface-variant">
           Soldi attesi o già impegnati che non sono ancora un movimento.
