@@ -13,6 +13,7 @@ import {
 import { memberColor } from '../lib/colors'
 import type { Membership, SplitInput, UUID } from '../lib/types'
 import { Avatar, Icon, MemberChips, StatusPill } from './ui'
+import { gettext, interpolate, intlLocale } from '../lib/i18n'
 
 export type SplitMode = 'personal' | 'default' | 'percent' | 'amount'
 
@@ -130,13 +131,19 @@ function pctToBp(value: string | undefined): number {
 
 /** "50", "66,67": niente decimali inutili. */
 export function formatPct(value: string | number): string {
-  return new Intl.NumberFormat('it-IT', { maximumFractionDigits: 2 }).format(Number(value) || 0)
+  return new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 2 }).format(
+    Number(value) || 0,
+  )
 }
 
 /** Etichetta della chip "di default": le percentuali effettive, non i pesi grezzi. */
 function defaultModeLabel(members: Membership[]): string {
   const pcts = defaultPercentages(members)
-  return `${members.map((m) => Math.round(Number(pcts[m.user!.id]))).join('/')} di default`
+  return interpolate(
+    gettext('%(shares)s di default'),
+    { shares: members.map((m) => Math.round(Number(pcts[m.user!.id]))).join('/') },
+    true,
+  )
 }
 
 interface Props {
@@ -269,24 +276,32 @@ export function SplitWidget({
 
   const barHeight = compact ? 32 : 40
   const modes: { id: SplitMode; label: string }[] = [
-    { id: 'personal', label: 'Solo mia' },
+    { id: 'personal', label: gettext('Solo mia') },
     { id: 'default', label: defaultModeLabel(members) },
-    { id: 'percent', label: 'Percentuali' },
-    { id: 'amount', label: 'Importi esatti' },
+    { id: 'percent', label: gettext('Percentuali') },
+    { id: 'amount', label: gettext('Importi esatti') },
   ]
 
   return (
     <div className={clsx('rounded-card bg-surface-container-low', compact ? 'p-4' : 'p-5')}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-body-large font-medium">Come si divide</p>
+        <p className="text-body-large font-medium">{gettext('Come si divide')}</p>
         <StatusPill ok={balanced}>
           {residualBp !== 0
             ? residualBp > 0
-              ? `Manca il ${formatPct(fromCents(residualBp))}%`
-              : `Oltre di ${formatPct(fromCents(-residualBp))}%`
+              ? interpolate(
+                  gettext('Manca il %(pct)s%'),
+                  { pct: formatPct(fromCents(residualBp)) },
+                  true,
+                )
+              : interpolate(
+                  gettext('Oltre di %(pct)s%'),
+                  { pct: formatPct(fromCents(-residualBp)) },
+                  true,
+                )
             : residual === 0
-              ? `Quadra: ${formatMoney(fromCents(allocated), currency)}`
-              : `Residuo ${formatMoney(fromCents(residual), currency)}`}
+              ? interpolate(gettext('Quadra: %s'), [formatMoney(fromCents(allocated), currency)])
+              : interpolate(gettext('Residuo %s'), [formatMoney(fromCents(residual), currency)])}
         </StatusPill>
       </div>
 
@@ -323,7 +338,7 @@ export function SplitWidget({
                     amounts: { ...value.amounts, [member.user!.id]: event.target.value },
                   })
                 }
-                aria-label={`Importo di ${member.display_name}`}
+                aria-label={interpolate(gettext('Importo di %s'), [member.display_name])}
               />
             </div>
           ))}
@@ -367,9 +382,14 @@ export function SplitWidget({
                   <button
                     key={`handle-${member.id}`}
                     type="button"
-                    aria-label={`Sposta la quota fra ${member.display_name} e ${
-                      visibleMembers[index + 1].display_name
-                    }`}
+                    aria-label={interpolate(
+                      gettext('Sposta la quota fra %(first)s e %(second)s'),
+                      {
+                        first: member.display_name,
+                        second: visibleMembers[index + 1].display_name,
+                      },
+                      true,
+                    )}
                     onPointerDown={(event) => {
                       event.preventDefault()
                       setDragging(index)
@@ -392,7 +412,7 @@ export function SplitWidget({
                   : `${formatPct(value.percentages[visibleMembers[0]?.user?.id ?? ''] ?? 0)}%`}
               </span>
               {value.mode !== 'personal' && members.length > 1 && (
-                <span className="text-outline">trascina la maniglia per cambiare</span>
+                <span className="text-outline">{gettext('trascina la maniglia per cambiare')}</span>
               )}
               {visibleMembers.length > 1 && (
                 <span>
@@ -427,7 +447,7 @@ export function SplitWidget({
                 inputMode="decimal"
                 value={value.percentages[member.user!.id] ?? '0'}
                 onChange={(event) => setPercentage(member.user!.id, event.target.value)}
-                aria-label={`Percentuale di ${member.display_name}`}
+                aria-label={interpolate(gettext('Percentuale di %s'), [member.display_name])}
               />
               <span className="text-body-medium text-on-surface-variant">%</span>
             </div>
@@ -446,8 +466,13 @@ export function SplitWidget({
 
       {!compact && oddCentHolder && (
         <p className="mt-3 text-body-small text-on-surface-variant">
-          Il centesimo dispari va a {oddCentHolder.display_name}: la somma delle quote è sempre
-          esattamente il totale.
+          {interpolate(
+            gettext(
+              'Il centesimo dispari va a %(name)s: la somma delle quote è sempre esattamente il totale.',
+            ),
+            { name: oddCentHolder.display_name },
+            true,
+          )}
         </p>
       )}
     </div>

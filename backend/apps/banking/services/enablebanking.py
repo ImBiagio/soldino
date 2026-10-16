@@ -12,12 +12,17 @@ from typing import Any
 import httpx
 import jwt
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
 
 class BankingError(Exception):
-    """Errore da mostrare all'utente. ``session_lost``: va rifatta l'autorizzazione."""
+    """Errore da mostrare all'utente. ``session_lost``: va rifatta l'autorizzazione.
+
+    Dal worker (sincronizzazione programmata) il testo finisce su
+    ``BankAccount.last_error`` nella lingua di default.
+    """
 
     def __init__(self, message: str, *, status: int | None = None, session_lost: bool = False):
         super().__init__(message)
@@ -34,28 +39,36 @@ def _explain(response: httpx.Response) -> BankingError:
     code = response.status_code
     if code == 401:
         return BankingError(
-            "Enable Banking ha rifiutato la firma: controlla che application ID e file .pem "
-            "siano della stessa applicazione.",
+            _(
+                "Enable Banking ha rifiutato la firma: controlla che application ID e file .pem "
+                "siano della stessa applicazione."
+            ),
             status=code,
         )
     if "application does not exist" in str(detail).lower():
         return BankingError(
-            "Enable Banking non conosce questo application ID: controlla che sia quello "
-            "dell'applicazione (e' il nome del file .pem).",
+            _(
+                "Enable Banking non conosce questo application ID: controlla che sia quello "
+                "dell'applicazione (e' il nome del file .pem)."
+            ),
             status=code,
         )
     if code in (403, 404) and "session" in str(detail).lower():
         return BankingError(
-            "Il consenso della banca non e' piu' valido: rinnova il collegamento.",
+            _("Il consenso della banca non e' piu' valido: rinnova il collegamento."),
             status=code,
             session_lost=True,
         )
     if code == 429:
         return BankingError(
-            "La banca ha raggiunto il limite di accessi giornalieri: riprova domani.",
+            _("La banca ha raggiunto il limite di accessi giornalieri: riprova domani."),
             status=code,
         )
-    return BankingError(f"Enable Banking ha risposto con un errore ({code}): {detail}", status=code)
+    return BankingError(
+        _("Enable Banking ha risposto con un errore (%(code)s): %(detail)s")
+        % {"code": code, "detail": detail},
+        status=code,
+    )
 
 
 class EnableBankingClient:
@@ -84,7 +97,9 @@ class EnableBankingClient:
                 **kwargs,
             )
         except httpx.HTTPError as exc:
-            raise BankingError(f"Enable Banking non risponde: {exc}") from exc
+            raise BankingError(
+                _("Enable Banking non risponde: %(error)s") % {"error": exc}
+            ) from exc
         if response.status_code >= 400:
             raise _explain(response)
         return response.json() if response.content else {}
@@ -125,7 +140,7 @@ class EnableBankingClient:
         """Tutte le pagine dei movimenti dal ``date_from`` in poi."""
         params: dict[str, str] = {"date_from": date_from}
         items: list[dict] = []
-        for _ in range(50):  # paracadute: nessuna banca pagina cosi' tanto
+        for _page in range(50):  # paracadute: nessuna banca pagina cosi' tanto
             data = self._request("GET", f"/accounts/{uid}/transactions", params=params)
             items.extend(data.get("transactions") or [])
             key = data.get("continuation_key")

@@ -6,6 +6,7 @@ import clsx from 'clsx'
 import type { SelectHTMLAttributes } from 'react'
 
 import { useAccounts, useCategories } from '../api/hooks'
+import { gettext } from '../lib/i18n'
 import type { Membership, TransactionType, UUID } from '../lib/types'
 
 type NativeSelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'>
@@ -28,7 +29,7 @@ export function CategorySelect({
   )
   return (
     <select className={clsx('field-input', className)} {...props}>
-      <option value="">Senza categoria</option>
+      <option value="">{gettext('Senza categoria')}</option>
       {options.map((c) => (
         <option key={c.id} value={c.id}>
           {c.name}
@@ -46,7 +47,7 @@ export function AccountSelect({
   const accounts = useAccounts(trackerId)
   return (
     <select className={clsx('field-input', className)} {...props}>
-      <option value="">Nessuno</option>
+      <option value="">{gettext('Nessuno')}</option>
       {(accounts.data?.results ?? []).map((a) => (
         <option key={a.id} value={a.id}>
           {a.name}

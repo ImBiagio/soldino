@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { activeMembers } from '../../components/Layout'
 import { Avatar, Icon, IconButton } from '../../components/ui'
 import { monthLabel } from '../../lib/format'
+import { gettext, interpolate } from '../../lib/i18n'
 import { categoryColor, memberColor } from '../../lib/colors'
 import { categoryIcon } from '../../lib/icons'
 import { toCents } from '../../lib/money'
@@ -15,9 +16,12 @@ type Members = ReturnType<typeof activeMembers>
 const SOURCE: Record<string, { icon: string; label: string }> = {
   history: {
     icon: 'history',
-    label: 'Dallo storico: questo esercente era già in questa categoria',
+    label: gettext('Dallo storico: questo esercente era già in questa categoria'),
   },
-  ai: { icon: 'auto_awesome', label: 'Suggerita leggendo le descrizioni delle categorie' },
+  ai: {
+    icon: 'auto_awesome',
+    label: gettext('Suggerita leggendo le descrizioni delle categorie'),
+  },
 }
 
 const CHIP =
@@ -80,7 +84,7 @@ export function SelectChip({
 
 function shortDate(iso: string): string {
   const [, month, day] = iso.split('-').map(Number)
-  if (!month || !day) return 'Data'
+  if (!month || !day) return gettext('Data')
   return `${day} ${monthLabel(month).slice(0, 3)}`
 }
 
@@ -147,14 +151,18 @@ export function ReviewRow({
         value={row.amount}
         onChange={(event) => onChange({ amount: event.target.value.replace('.', ',') })}
         placeholder="0,00"
-        aria-label="Importo"
+        aria-label={gettext('Importo')}
       />
     </span>
   )
   const removeButton = (
     <IconButton
       icon="delete"
-      label={`Elimina ${row.title || 'riga'}`}
+      label={
+        row.title
+          ? interpolate(gettext('Elimina %(title)s'), { title: row.title }, true)
+          : gettext('Elimina riga')
+      }
       onClick={onRemove}
       size="md"
       className="shrink-0"
@@ -176,14 +184,16 @@ export function ReviewRow({
         )}
         title={
           transfer
-            ? 'Pareggio: soldi dati a un altro membro. Tocca per farlo uscita'
+            ? gettext('Pareggio: soldi dati a un altro membro. Tocca per farlo uscita')
             : expense
-              ? 'Uscita: tocca per farla entrata'
+              ? gettext('Uscita: tocca per farla entrata')
               : members.length > 1
-                ? 'Entrata: tocca per farla pareggio'
-                : 'Entrata: tocca per farla uscita'
+                ? gettext('Entrata: tocca per farla pareggio')
+                : gettext('Entrata: tocca per farla uscita')
         }
-        aria-label={transfer ? 'Pareggio' : expense ? 'Uscita' : 'Entrata'}
+        aria-label={
+          transfer ? gettext('Pareggio') : expense ? gettext('Uscita') : gettext('Entrata')
+        }
       >
         <Icon name={transfer ? 'swap_horiz' : expense ? 'remove' : 'add'} size={22} />
       </button>
@@ -194,8 +204,8 @@ export function ReviewRow({
             className="min-w-0 flex-1 rounded-nested border-none bg-transparent px-1.5 py-1 text-body-large font-medium text-on-surface outline-none transition hover:bg-surface-container-low focus:bg-surface-container"
             value={row.title}
             onChange={(event) => onChange({ title: event.target.value })}
-            placeholder="Descrizione"
-            aria-label="Descrizione"
+            placeholder={gettext('Descrizione')}
+            aria-label={gettext('Descrizione')}
           />
           <div className="hidden shrink-0 items-center sm:flex">{amount}</div>
         </div>
@@ -216,17 +226,17 @@ export function ReviewRow({
               value={row.date}
               onChange={(event) => event.target.value && onChange({ date: event.target.value })}
               onClick={(event) => event.currentTarget.showPicker?.()}
-              aria-label="Data"
+              aria-label={gettext('Data')}
             />
           </label>
 
           {!transfer && (
             <SelectChip
-              ariaLabel="Categoria"
+              ariaLabel={gettext('Categoria')}
               value={row.category ?? ''}
               onChange={(value) => onChange({ category: value || null, category_source: 'manual' })}
               options={[
-                { value: '', label: 'Senza categoria' },
+                { value: '', label: gettext('Senza categoria') },
                 ...options.map((c) => ({ value: c.id, label: c.name })),
               ]}
               tone={category ? 'tonal' : 'outlined'}
@@ -238,7 +248,7 @@ export function ReviewRow({
                   <Icon name={category ? categoryIcon(category) : 'sell'} size={13} />
                 </span>
               }
-              label={category?.name ?? 'Categoria'}
+              label={category?.name ?? gettext('Categoria')}
               trailing={
                 source && category ? (
                   <span title={source.label} className="opacity-70">
@@ -251,12 +261,14 @@ export function ReviewRow({
           )}
 
           <SelectChip
-            ariaLabel="Chi paga"
+            ariaLabel={gettext('Chi paga')}
             value={row.paid_by}
             onChange={(value) => onChange({ paid_by: value })}
             options={members.map((m) => ({
               value: m.user!.id,
-              label: transfer ? `Da ${m.display_name}` : `Paga ${m.display_name}`,
+              label: transfer
+                ? interpolate(gettext('Da %(name)s'), { name: m.display_name }, true)
+                : interpolate(gettext('Paga %(name)s'), { name: m.display_name }, true),
             }))}
             leading={
               payer && (
@@ -266,23 +278,30 @@ export function ReviewRow({
             label={
               payer
                 ? transfer
-                  ? `Da ${firstName(payer.display_name)}`
+                  ? interpolate(
+                      gettext('Da %(name)s'),
+                      { name: firstName(payer.display_name) },
+                      true,
+                    )
                   : firstName(payer.display_name)
-                : 'Chi paga'
+                : gettext('Chi paga')
             }
-            title={transfer ? 'Chi dà i soldi' : 'Chi ha pagato'}
+            title={transfer ? gettext('Chi dà i soldi') : gettext('Chi ha pagato')}
           />
 
           {transfer ? (
             <SelectChip
-              ariaLabel="A chi"
+              ariaLabel={gettext('A chi')}
               value={row.to_user ?? ''}
               onChange={(value) => onChange({ to_user: value || null })}
               options={[
-                { value: '', label: 'A chi…' },
+                { value: '', label: gettext('A chi…') },
                 ...members
                   .filter((m) => m.user!.id !== row.paid_by)
-                  .map((m) => ({ value: m.user!.id, label: `A ${m.display_name}` })),
+                  .map((m) => ({
+                    value: m.user!.id,
+                    label: interpolate(gettext('A %(name)s'), { name: m.display_name }, true),
+                  })),
               ]}
               tone={receiver ? 'tonal' : 'warning'}
               leading={
@@ -296,20 +315,28 @@ export function ReviewRow({
                   <Icon name="arrow_forward" size={16} />
                 )
               }
-              label={receiver ? `A ${firstName(receiver.display_name)}` : 'A chi?'}
-              title="Chi riceve i soldi"
+              label={
+                receiver
+                  ? interpolate(
+                      gettext('A %(name)s'),
+                      { name: firstName(receiver.display_name) },
+                      true,
+                    )
+                  : gettext('A chi?')
+              }
+              title={gettext('Chi riceve i soldi')}
             />
           ) : (
             <SelectChip
-              ariaLabel="Divisione"
+              ariaLabel={gettext('Divisione')}
               value={row.split_mode}
               onChange={(value) => onChange({ split_mode: value as Row['split_mode'] })}
               options={[
-                { value: 'personal', label: 'Solo sua' },
-                { value: 'default', label: 'Divisa di default' },
+                { value: 'personal', label: gettext('Solo sua') },
+                { value: 'default', label: gettext('Divisa di default') },
               ]}
               leading={<Icon name={row.split_mode === 'default' ? 'group' : 'person'} size={16} />}
-              label={row.split_mode === 'default' ? 'Divisa' : 'Solo sua'}
+              label={row.split_mode === 'default' ? gettext('Divisa') : gettext('Solo sua')}
             />
           )}
 
@@ -319,10 +346,10 @@ export function ReviewRow({
                 CHIP,
                 'border-transparent bg-warning-container text-on-warning-container',
               )}
-              title="Stessa data, importo e tipo di un movimento già registrato"
+              title={gettext('Stessa data, importo e tipo di un movimento già registrato')}
             >
               <Icon name="content_copy" size={15} />
-              Doppione?
+              {gettext('Doppione?')}
             </span>
           )}
         </div>

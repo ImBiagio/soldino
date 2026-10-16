@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import transaction as db_transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.translation import gettext as _
 
 from apps.core.money import quantize
 from apps.ingestion.models import StatementImport, StatementLine
@@ -46,7 +47,7 @@ def client_for(app: BankingApp) -> EnableBankingClient:
 def require_app(user) -> BankingApp:
     app = BankingApp.objects.filter(user=user).first()
     if app is None:
-        raise BankingError("Prima configura la tua applicazione Enable Banking.")
+        raise BankingError(_("Prima configura la tua applicazione Enable Banking."))
     return app
 
 
@@ -60,10 +61,13 @@ def save_app(user, *, app_id: str, pem: bytes, client_class=None) -> BankingApp:
     redirect_urls = info.get("redirect_urls") or []
     if callback_url() not in redirect_urls:
         raise BankingError(
-            f"L'applicazione non ha {callback_url()} tra gli URL di ritorno (Redirect URLs): "
-            "aggiungilo nel pannello di Enable Banking e riprova."
+            _(
+                "L'applicazione non ha %(url)s tra gli URL di ritorno (Redirect URLs): "
+                "aggiungilo nel pannello di Enable Banking e riprova."
+            )
+            % {"url": callback_url()}
         )
-    app, _ = BankingApp.all_objects.update_or_create(
+    app, _created = BankingApp.all_objects.update_or_create(
         user=user,
         defaults={
             "app_id": app_id,
@@ -129,7 +133,7 @@ def complete_connection(user, *, code: str, state: str) -> BankConnection:
         .first()
     )
     if connection is None:
-        raise BankingError("Collegamento non trovato: riparti dalla sezione Banca.")
+        raise BankingError(_("Collegamento non trovato: riparti dalla sezione Banca."))
     if connection.status != BankConnection.Status.PENDING:
         return connection  # ricarica della pagina di ritorno: gia' fatto
 
@@ -313,14 +317,17 @@ def sync_account(bank_account: BankAccount, *, today: date | None = None) -> dic
     connection = bank_account.connection
     account = bank_account.account
     if account is None:
-        return {"skipped": "non abbinato"}
+        return {"skipped": _("non abbinato")}
     if not connection.is_usable:
-        bank_account.last_error = "Il consenso della banca e' scaduto: rinnova il collegamento."
+        # Anche dal worker (giro programmato): li' resta nella lingua di default.
+        bank_account.last_error = _(
+            "Il consenso della banca e' scaduto: rinnova il collegamento."
+        )
         bank_account.save(update_fields=["last_error", "updated_at"])
         if connection.status == BankConnection.Status.ACTIVE:
             connection.status = BankConnection.Status.EXPIRED
             connection.save(update_fields=["status", "updated_at"])
-        return {"skipped": "consenso scaduto"}
+        return {"skipped": _("consenso scaduto")}
 
     try:
         client = client_for(require_app(connection.user))
@@ -334,6 +341,7 @@ def sync_account(bank_account: BankAccount, *, today: date | None = None) -> dic
             date_from = bank_account.sync_from or today - timedelta(days=DEFAULT_HISTORY_DAYS)
         raw = client.transactions(bank_account.uid, date_from=date_from.isoformat())
     except BankingError as exc:
+        # Dal worker il messaggio e' nella lingua di default (vedi BankingError).
         bank_account.last_error = str(exc)
         bank_account.save(update_fields=["last_error", "updated_at"])
         if exc.session_lost:
@@ -476,7 +484,7 @@ def release_draft(statement: StatementImport) -> int:
         for line in statement.lines.all()
         if line.external_id and line.transaction_id is None and line.settlement_id is None
     ]
-    deleted, _ = SeenBankTransaction.objects.filter(
+    deleted, _by_model = SeenBankTransaction.objects.filter(
         account_id=statement.account_id, external_id__in=ids
     ).delete()
     # I giri successivi ripartono da qualche giorno prima dell'ultima data letta:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.accounts.models import Account
@@ -45,24 +46,24 @@ class StatementLineSerializer(serializers.ModelSerializer):
         category = attrs.get("category")
         if category is not None:
             if category.tracker_id != tracker.pk:
-                raise serializers.ValidationError({"category": "Categoria di un altro tracker."})
+                raise serializers.ValidationError({"category": _("Categoria di un altro tracker.")})
             if category.type != attrs.get("type"):
                 raise serializers.ValidationError(
-                    {"category": "La categoria e' di tipo diverso dal movimento."}
+                    {"category": _("La categoria e' di tipo diverso dal movimento.")}
                 )
         paid_by = attrs.get("paid_by")
         if paid_by and not is_active_member(tracker, paid_by):
-            raise serializers.ValidationError({"paid_by": "Deve essere un membro del tracker."})
+            raise serializers.ValidationError({"paid_by": _("Deve essere un membro del tracker.")})
         if attrs.get("type") == StatementLine.Type.TRANSFER:
             # Pareggio: da chi a chi, fra due membri diversi, senza categoria.
             to_user = attrs.get("to_user")
             if to_user is None or not is_active_member(tracker, to_user):
                 raise serializers.ValidationError(
-                    {"to_user": "Il pareggio va a un altro membro del tracker."}
+                    {"to_user": _("Il pareggio va a un altro membro del tracker.")}
                 )
             if paid_by and to_user.pk == paid_by.pk:
                 raise serializers.ValidationError(
-                    {"to_user": "Chi da' e chi riceve devono essere diversi."}
+                    {"to_user": _("Chi da' e chi riceve devono essere diversi.")}
                 )
             attrs["category"] = None
         else:
@@ -146,25 +147,25 @@ class StatementUploadSerializer(serializers.Serializer):
     def validate(self, attrs):
         upload = attrs["file"]
         if upload.size > settings.STATEMENT_MAX_BYTES:
-            raise serializers.ValidationError({"file": "Il file e' troppo grande (max 15 MB)."})
+            raise serializers.ValidationError({"file": _("Il file e' troppo grande (max 15 MB).")})
         head = upload.read(16)
         upload.seek(0)
         if attrs["source"] == StatementImport.Source.RECEIPT:
             mime_type = sniff_image(head)
             if mime_type is None:
                 raise serializers.ValidationError(
-                    {"file": "Serve una foto (JPEG, PNG, WebP o HEIC)."}
+                    {"file": _("Serve una foto (JPEG, PNG, WebP o HEIC).")}
                 )
         elif head.startswith(b"%PDF-"):
             mime_type = "application/pdf"
         else:
-            raise serializers.ValidationError({"file": "Serve un file PDF."})
+            raise serializers.ValidationError({"file": _("Serve un file PDF.")})
         attrs["mime_type"] = mime_type
         return attrs
 
     def validate_account(self, account):
         if account is not None and account.tracker_id != self.context["tracker"].pk:
-            raise serializers.ValidationError("Il conto appartiene a un altro tracker.")
+            raise serializers.ValidationError(_("Il conto appartiene a un altro tracker."))
         return account
 
 

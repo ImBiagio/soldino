@@ -2,6 +2,7 @@
 // solo per l'aritmetica dei giorni: nessun orario arriva mai all'API.
 
 import { monthLabel } from './format'
+import { gettext, interpolate } from './i18n'
 
 export type PeriodKind = 'month' | 'quarter' | 'year' | 'custom'
 
@@ -45,7 +46,12 @@ export function shiftRange(
 export function rangeLabel(kind: PeriodKind, range: DateRange): string {
   const [year, month] = parts(range.from)
   if (kind === 'year') return String(year)
-  if (kind === 'quarter') return `${Math.floor((month - 1) / 3) + 1}° trimestre ${year}`
+  if (kind === 'quarter')
+    return interpolate(
+      gettext('%(quarter)s° trimestre %(year)s'),
+      { quarter: Math.floor((month - 1) / 3) + 1, year },
+      true,
+    )
   if (kind === 'month') return `${monthLabel(month)} ${year}`
   const fmt = (value: string) => value.split('-').reverse().join('/')
   return `${fmt(range.from)} – ${fmt(range.to)}`

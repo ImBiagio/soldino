@@ -31,6 +31,7 @@ import {
   Switch,
 } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
+import { gettext, interpolate } from '../../lib/i18n'
 import { categoryIcon } from '../../lib/icons'
 import { FREQUENCY_LABEL, FREQUENCY_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
@@ -53,20 +54,22 @@ export function SubscriptionsPage() {
   return (
     <div className="p-5 md:p-7">
       <div className="panel sm:p-6 md:p-7">
-        <h1 className="text-title-large">Ricorrenze</h1>
+        <h1 className="text-title-large">{gettext('Ricorrenze')}</h1>
         <p className="mt-1 text-body-medium text-on-surface-variant">
-          Le proposte da approvare stanno in cima: senza conferma automatica nulla viene scritto.
+          {gettext(
+            'Le proposte da approvare stanno in cima: senza conferma automatica nulla viene scritto.',
+          )}
         </p>
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <div className="rounded-card bg-surface-container p-5">
-            <p className="text-body-medium text-on-surface-variant">Al mese</p>
+            <p className="text-body-medium text-on-surface-variant">{gettext('Al mese')}</p>
             <p className="amount text-[26px] font-semibold">
               {formatCents(monthly, tracker.currency)}
             </p>
           </div>
           <div className="rounded-card bg-surface-container p-5">
-            <p className="text-body-medium text-on-surface-variant">All'anno</p>
+            <p className="text-body-medium text-on-surface-variant">{gettext("All'anno")}</p>
             <p className="amount text-[26px] font-semibold">
               {formatCents(monthly * 12, tracker.currency)}
             </p>
@@ -76,7 +79,7 @@ export function SubscriptionsPage() {
         <div className="mt-5 flex justify-end">
           <button type="button" className="btn-filled btn-sm" onClick={() => setFormOpen(true)}>
             <Icon name="add" size={20} />
-            Ricorrenza
+            {gettext('Ricorrenza')}
           </button>
         </div>
 
@@ -92,8 +95,8 @@ export function SubscriptionsPage() {
           ) : rules.length === 0 ? (
             <EmptyState
               icon="autorenew"
-              title="Nessuna ricorrenza"
-              description="Affitto, mutuo, Netflix: tutto quello che torna da solo."
+              title={gettext('Nessuna ricorrenza')}
+              description={gettext('Affitto, mutuo, Netflix: tutto quello che torna da solo.')}
             />
           ) : (
             rules.map((rule) => (
@@ -114,20 +117,25 @@ export function SubscriptionsPage() {
                     <span className="min-w-0 truncate">{rule.title}</span>
                     {rule.is_subscription && (
                       <span className="rounded-pill bg-tertiary-container px-2 py-0.5 text-body-small text-on-tertiary-container">
-                        abbonamento
+                        {gettext('abbonamento')}
                       </span>
                     )}
                     {!rule.active && (
                       <span className="rounded-pill bg-surface-container-high px-2 py-0.5 text-body-small text-on-surface-variant">
-                        sospesa
+                        {gettext('sospesa')}
                       </span>
                     )}
                   </p>
                   <p className="text-body-small text-on-surface-variant">
                     {FREQUENCY_LABEL[rule.frequency]} · {formatDate(rule.next_run)} ·{' '}
-                    {rule.auto_commit ? 'conferma automatica' : 'da approvare'}
+                    {rule.auto_commit ? gettext('conferma automatica') : gettext('da approvare')}
                     {rule.frequency === 'yearly' &&
-                      ` · ${formatMoney(rule.monthly_cost, tracker.currency)}/mese`}
+                      ' · ' +
+                        interpolate(
+                          gettext('%(amount)s/mese'),
+                          { amount: formatMoney(rule.monthly_cost, tracker.currency) },
+                          true,
+                        )}
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-4">
@@ -137,11 +145,17 @@ export function SubscriptionsPage() {
                   <Switch
                     checked={rule.active}
                     onChange={(checked) => save.mutate({ id: rule.id, active: checked })}
-                    label={`Attiva ${rule.title}`}
+                    label={interpolate(gettext('Attiva %(title)s'), { title: rule.title }, true)}
                   />
-                  <IconButton icon="close" label="Elimina" onClick={() => remove.mutate(rule.id)} />
+                  <IconButton
+                    icon="close"
+                    label={gettext('Elimina')}
+                    onClick={() => remove.mutate(rule.id)}
+                  />
                 </div>
-                {proposalIds.has(rule.id) && <span className="sr-only">proposta in sospeso</span>}
+                {proposalIds.has(rule.id) && (
+                  <span className="sr-only">{gettext('proposta in sospeso')}</span>
+                )}
               </div>
             ))
           )}
@@ -169,7 +183,13 @@ function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule 
           <p className="truncate text-body-large font-medium">
             {rule.title} · {formatMoney(rule.amount, tracker.currency)}
           </p>
-          <p className="text-body-small">Proposta per il {formatDate(rule.next_run)}</p>
+          <p className="text-body-small">
+            {interpolate(
+              gettext('Proposta per il %(date)s'),
+              { date: formatDate(rule.next_run) },
+              true,
+            )}
+          </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -178,11 +198,11 @@ function ProposalRow({ tracker, rule }: { tracker: Tracker; rule: RecurringRule 
             disabled={busy}
             className="state rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container disabled:opacity-50"
           >
-            {approve.isPending ? 'Approvo…' : 'Approva'}
+            {approve.isPending ? gettext('Approvo…') : gettext('Approva')}
           </button>
           <IconButton
             icon="close"
-            label="Salta questa occorrenza"
+            label={gettext('Salta questa occorrenza')}
             onClick={() => skip.mutate(rule)}
             disabled={busy}
             inheritColor
@@ -215,7 +235,7 @@ function RuleForm({
     splitResidualBasisPoints(split, members) === 0
 
   return (
-    <Modal open={open} onClose={onClose} title="Nuova ricorrenza">
+    <Modal open={open} onClose={onClose} title={gettext('Nuova ricorrenza')}>
       <form
         className="grid gap-3"
         onSubmit={async (event) => {
@@ -242,11 +262,11 @@ function RuleForm({
         }}
       >
         <ErrorBanner error={save.error} />
-        <Field label="Descrizione">
+        <Field label={gettext('Descrizione')}>
           <input className="field-input" name="title" required autoFocus />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Importo">
+          <Field label={gettext('Importo')}>
             <input
               className="field-input amount text-right"
               name="amount"
@@ -256,7 +276,7 @@ function RuleForm({
               required
             />
           </Field>
-          <Field label="Tipo">
+          <Field label={gettext('Tipo')}>
             <select className="field-input" name="type" defaultValue="expense">
               {TYPE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -265,7 +285,7 @@ function RuleForm({
               ))}
             </select>
           </Field>
-          <Field label="Frequenza">
+          <Field label={gettext('Frequenza')}>
             <select className="field-input" name="frequency" defaultValue="monthly">
               {FREQUENCY_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -274,10 +294,10 @@ function RuleForm({
               ))}
             </select>
           </Field>
-          <Field label="Prossima occorrenza">
+          <Field label={gettext('Prossima occorrenza')}>
             <input className="field-input" type="date" name="next_run" defaultValue={todayIso()} />
           </Field>
-          <Field label="A carico di">
+          <Field label={gettext('A carico di')}>
             <MemberSelect
               members={members}
               name="paid_by"
@@ -291,11 +311,11 @@ function RuleForm({
               required
             />
           </Field>
-          <Field label="Categoria">
+          <Field label={gettext('Categoria')}>
             <CategorySelect trackerId={tracker.id} name="category" defaultValue="" />
           </Field>
         </div>
-        <Field label="Conto">
+        <Field label={gettext('Conto')}>
           <AccountSelect trackerId={tracker.id} name="account" defaultValue="" />
         </Field>
         {members.length > 1 && (
@@ -309,13 +329,14 @@ function RuleForm({
           />
         )}
         <label className="flex items-center gap-2 px-1 text-body-medium">
-          <input type="checkbox" name="is_subscription" /> È un abbonamento
+          <input type="checkbox" name="is_subscription" /> {gettext('È un abbonamento')}
         </label>
         <label className="flex items-center gap-2 px-1 text-body-medium">
-          <input type="checkbox" name="auto_commit" /> Conferma automatica (scrive senza chiedere)
+          <input type="checkbox" name="auto_commit" />{' '}
+          {gettext('Conferma automatica (scrive senza chiedere)')}
         </label>
         <button className="btn-filled w-full" disabled={save.isPending || !splitOk}>
-          Crea
+          {gettext('Crea')}
         </button>
       </form>
     </Modal>

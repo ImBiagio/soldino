@@ -15,6 +15,7 @@ import {
 import { AccountSelect, CategorySelect } from '../../components/selects'
 import { ErrorBanner, Field, Icon, MemberChips, Modal, Segmented } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
+import { gettext, interpolate } from '../../lib/i18n'
 import { TYPE_LABEL, TYPE_OPTIONS } from '../../lib/labels'
 import { formatCents, normalizeDecimal } from '../../lib/money'
 import { isGroup, showsIncome, showsSection } from '../../lib/trackerKind'
@@ -80,7 +81,13 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
       open={open}
       onClose={onClose}
       wide
-      title={editing ? 'Modifica movimento' : type === 'expense' ? 'Nuova spesa' : 'Nuova entrata'}
+      title={
+        editing
+          ? gettext('Modifica movimento')
+          : type === 'expense'
+            ? gettext('Nuova spesa')
+            : gettext('Nuova entrata')
+      }
       headerRight={
         typeSwitch && (
           <Segmented
@@ -119,10 +126,10 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
             placeholder="0,00"
             value={amount}
             onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
-            aria-label="Importo"
+            aria-label={gettext('Importo')}
           />
           <p className="text-body-medium">
-            {[title || 'senza descrizione', formatDate(date), accountName]
+            {[title || gettext('senza descrizione'), formatDate(date), accountName]
               .filter(Boolean)
               .join(' · ')}
           </p>
@@ -132,17 +139,17 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
         <Keypad value={amount} onChange={setAmount} onConfirm={submit} canConfirm={canSave} />
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Descrizione">
+          <Field label={gettext('Descrizione')}>
             <input
               className="field-input"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Esselunga, affitto, stipendio…"
+              placeholder={gettext('Esselunga, affitto, stipendio…')}
               required
               autoFocus
             />
           </Field>
-          <Field label="Data">
+          <Field label={gettext('Data')}>
             <input
               className="field-input"
               type="date"
@@ -151,7 +158,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
               required
             />
           </Field>
-          <Field label="Categoria">
+          <Field label={gettext('Categoria')}>
             <CategorySelect
               trackerId={tracker.id}
               type={type}
@@ -161,7 +168,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
             />
           </Field>
           {accountField && (
-            <Field label="Conto">
+            <Field label={gettext('Conto')}>
               <AccountSelect
                 trackerId={tracker.id}
                 value={account ?? ''}
@@ -173,7 +180,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
 
         <div>
           <p className="mb-2 text-body-medium font-medium">
-            {type === 'expense' ? 'Ha pagato' : 'Ha incassato'}
+            {type === 'expense' ? gettext('Ha pagato') : gettext('Ha incassato')}
           </p>
           <MemberChips
             members={members}
@@ -194,7 +201,7 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
         />
 
         {noteOpen && (
-          <Field label="Nota">
+          <Field label={gettext('Nota')}>
             <textarea
               className="field-input resize-none"
               rows={2}
@@ -208,27 +215,33 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
           {!noteOpen && (
             <button type="button" className="chip-outlined" onClick={() => setNoteOpen(true)}>
               <Icon name="note_add" size={18} />
-              Nota
+              {gettext('Nota')}
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button type="button" className="btn-text" onClick={onClose}>
-              Annulla
+              {gettext('Annulla')}
             </button>
             <button className="btn-filled" disabled={!canSave || save.isPending}>
               <Icon name="check" size={20} />
-              {save.isPending ? 'Salvataggio…' : 'Salva'}
+              {save.isPending ? gettext('Salvataggio…') : gettext('Salva')}
             </button>
           </div>
         </div>
 
         {residual !== 0 && (
           <p className="text-body-small text-warning">
-            Le quote non quadrano: manca {formatCents(residual, tracker.currency)}.
+            {interpolate(
+              gettext('Le quote non quadrano: manca %(amount)s.'),
+              { amount: formatCents(residual, tracker.currency) },
+              true,
+            )}
           </p>
         )}
         {residualBp !== 0 && (
-          <p className="text-body-small text-warning">Le percentuali devono fare 100%.</p>
+          <p className="text-body-small text-warning">
+            {gettext('Le percentuali devono fare 100%.')}
+          </p>
         )}
       </form>
     </Modal>
@@ -288,7 +301,7 @@ function Keypad({
       <button
         type="button"
         onClick={() => press('back')}
-        aria-label="Cancella"
+        aria-label={gettext('Cancella')}
         className="state flex items-center justify-center rounded-nested bg-secondary-container text-on-secondary-container"
       >
         <Icon name="backspace" size={22} />
@@ -300,7 +313,7 @@ function Keypad({
         type="button"
         onClick={onConfirm}
         disabled={!canConfirm}
-        aria-label="Salva"
+        aria-label={gettext('Salva')}
         className="state row-span-3 flex items-center justify-center rounded-nested bg-primary text-on-primary disabled:opacity-40"
       >
         <Icon name="check" size={26} />

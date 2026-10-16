@@ -1,5 +1,6 @@
 import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import type { ReconciliationFigures } from '../../lib/types'
+import { gettext, interpolate } from '../../lib/i18n'
 
 type Kind = 'base' | 'up' | 'down' | 'settle' | 'expected' | 'gap' | 'real'
 
@@ -57,25 +58,38 @@ export function ReconciliationWaterfall({
     steps.push({ label, start: level, end: level + amount, kind, value, detail })
     level += amount
   }
-  push('Saldo iniziale', opening, 'base', money(opening))
-  push('Entrate', income, 'up', `+${money(income)}`)
-  push('Uscite', -expense, 'down', `−${money(expense)}`)
-  if (settled !== 0) push('Pareggi', settled, 'settle', signed(settled))
-  steps.push({ label: 'Atteso', start: 0, end: expected, kind: 'expected', value: money(expected) })
+  push(gettext('Saldo iniziale'), opening, 'base', money(opening))
+  push(gettext('Entrate'), income, 'up', `+${money(income)}`)
+  push(gettext('Uscite'), -expense, 'down', `−${money(expense)}`)
+  if (settled !== 0) push(gettext('Pareggi'), settled, 'settle', signed(settled))
   steps.push({
-    label: 'Scarto',
+    label: gettext('Atteso'),
+    start: 0,
+    end: expected,
+    kind: 'expected',
+    value: money(expected),
+  })
+  steps.push({
+    label: gettext('Scarto'),
     start: expected,
     end: real,
     kind: 'gap',
-    value: delta === 0 ? 'quadra' : signed(delta),
+    value: delta === 0 ? gettext('quadra') : signed(delta),
   })
   steps.push({
-    label: 'Reale',
+    label: gettext('Reale'),
     start: 0,
     end: real,
     kind: 'real',
     value: money(real),
-    detail: `Conti ${formatMoney(figures.accounts_balance, currency)} + in attesa ${formatSigned(figures.pending_total, currency)}`,
+    detail: interpolate(
+      gettext('Conti %(accounts)s + in attesa %(pending)s'),
+      {
+        accounts: formatMoney(figures.accounts_balance, currency),
+        pending: formatSigned(figures.pending_total, currency),
+      },
+      true,
+    ),
   })
 
   const levels = steps.flatMap((step) => [step.start, step.end])
@@ -90,7 +104,11 @@ export function ReconciliationWaterfall({
         className="relative grid gap-1 sm:gap-2"
         style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
         role="img"
-        aria-label={`Atteso ${money(expected)}, reale ${money(real)}, scarto ${signed(delta)}`}
+        aria-label={interpolate(
+          gettext('Atteso %(expected)s, reale %(real)s, scarto %(delta)s'),
+          { expected: money(expected), real: money(real), delta: signed(delta) },
+          true,
+        )}
       >
         {/* linea dello zero, solo se ci sono valori negativi */}
         {lo < 0 && (

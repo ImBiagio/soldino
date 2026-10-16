@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "format": "prettier --write src",
-    "api:generate": "openapi-typescript http://localhost:8000/api/schema/ -o src/api/schema.d.ts"
+    "api:generate": "openapi-typescript http://localhost:8000/api/schema/ -o src/api/schema.d.ts",
+    "i18n:js": "esbuild \"src/**/*.ts\" \"src/**/*.tsx\" --outdir=.i18n --outbase=src --jsx=transform --log-level=warning"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.51.0",

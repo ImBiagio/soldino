@@ -7,6 +7,7 @@ import { EmptyState, ErrorBanner, Icon, RowsSkeleton } from '../../components/ui
 import { formatDate } from '../../lib/format'
 import type { Tracker } from '../../lib/types'
 import { StatusBadge } from '../scan/status'
+import { gettext, interpolate, intlLocale, ngettext } from '../../lib/i18n'
 
 /* Web Speech API: in Chrome e Safari c'e' (anche col prefisso webkit), nei tipi DOM no. */
 interface Recognition {
@@ -32,9 +33,9 @@ function recognitionClass(): RecognitionClass | null {
 }
 
 const EXAMPLES = [
-  'Ho dato 10 euro a Maurizio per le spese di casa',
-  'Ieri ho pagato 42 euro di spesa al supermercato, da dividere',
-  'Benzina 60 euro',
+  gettext('Ho dato 10 euro a Maurizio per le spese di casa'),
+  gettext('Ieri ho pagato 42 euro di spesa al supermercato, da dividere'),
+  gettext('Benzina 60 euro'),
 ]
 
 /**
@@ -63,7 +64,7 @@ export function VoicePage() {
     }
     if (!Speech) return
     const rec = new Speech()
-    rec.lang = 'it-IT'
+    rec.lang = intlLocale()
     rec.interimResults = true
     rec.continuous = false
     base.current = text ? `${text.trim()} ` : ''
@@ -75,8 +76,8 @@ export function VoicePage() {
     rec.onerror = (event) =>
       setMicError(
         event.error === 'not-allowed'
-          ? 'Il browser non ha il permesso di usare il microfono.'
-          : 'Non ti ho sentito: riprova o scrivi.',
+          ? gettext('Il browser non ha il permesso di usare il microfono.')
+          : gettext('Non ti ho sentito: riprova o scrivi.'),
       )
     rec.onend = () => setListening(false)
     recognition.current = rec
@@ -98,14 +99,15 @@ export function VoicePage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">A voce</h1>
+        <h1 className="text-title-large">{gettext('A voce')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Di&apos; cosa hai speso, incassato o dato a chi: lo legge Gemini in background e lo
-          ritrovi in{' '}
+          {gettext(
+            "Di' cosa hai speso, incassato o dato a chi: lo legge Gemini in background e lo ritrovi in",
+          )}{' '}
           <Link to="../da-rivedere" relative="path" className="text-primary underline">
-            Da rivedere
+            {gettext('Da rivedere')}
           </Link>
-          , pronto da confermare.
+          {gettext(', pronto da confermare.')}
         </p>
       </div>
 
@@ -116,7 +118,7 @@ export function VoicePage() {
             onClick={toggle}
             disabled={!Speech}
             aria-pressed={listening}
-            aria-label={listening ? 'Ferma la dettatura' : 'Detta'}
+            aria-label={listening ? gettext('Ferma la dettatura') : gettext('Detta')}
             className={clsx(
               'state flex h-24 w-24 items-center justify-center rounded-pill shadow-fab transition disabled:opacity-40',
               listening ? 'animate-pulse bg-error text-on-error' : 'bg-primary text-on-primary',
@@ -126,10 +128,10 @@ export function VoicePage() {
           </button>
           <p className="text-body-small text-on-surface-variant">
             {!Speech
-              ? 'Questo browser non detta: usa il microfono della tastiera o scrivi.'
+              ? gettext('Questo browser non detta: usa il microfono della tastiera o scrivi.')
               : listening
-                ? 'Ti ascolto… tocca per fermare'
-                : 'Tocca e parla'}
+                ? gettext('Ti ascolto… tocca per fermare')
+                : gettext('Tocca e parla')}
           </p>
         </div>
 
@@ -140,16 +142,18 @@ export function VoicePage() {
             setText(event.target.value)
             setSent(false)
           }}
-          placeholder={`Es. "${EXAMPLES[0]}"`}
+          placeholder={interpolate(gettext('Es. "%(example)s"'), { example: EXAMPLES[0] }, true)}
           maxLength={2000}
-          aria-label="Cosa vuoi registrare"
+          aria-label={gettext('Cosa vuoi registrare')}
         />
         {micError && <p className="text-body-small text-error">{micError}</p>}
         <ErrorBanner error={send.error} />
         {sent && !send.isPending && (
           <p className="flex items-center gap-2 rounded-card bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
             <Icon name="check_circle" size={20} />
-            Inviato: lo leggo in background, lo trovi in Da rivedere. Puoi dettarne un altro.
+            {gettext(
+              'Inviato: lo leggo in background, lo trovi in Da rivedere. Puoi dettarne un altro.',
+            )}
           </p>
         )}
         <div className="flex flex-wrap items-center gap-2">
@@ -160,10 +164,10 @@ export function VoicePage() {
             onClick={submit}
           >
             <Icon name="send" size={20} />
-            {send.isPending ? 'Invio…' : 'Invia'}
+            {send.isPending ? gettext('Invio…') : gettext('Invia')}
           </button>
           <span className="text-body-small text-on-surface-variant">
-            Funziona con più movimenti nella stessa frase.
+            {gettext('Funziona con più movimenti nella stessa frase.')}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -182,20 +186,20 @@ export function VoicePage() {
           ))}
         </div>
         <p className="text-body-small text-on-surface-variant">
-          Il testo viene inviato a Google Gemini per la lettura.
+          {gettext('Il testo viene inviato a Google Gemini per la lettura.')}
         </p>
       </section>
 
       <section className="grid gap-2">
-        <h2 className="text-title-medium">Vocali recenti</h2>
+        <h2 className="text-title-medium">{gettext('Vocali recenti')}</h2>
         <ErrorBanner error={statements.error} />
         {statements.isLoading ? (
           <RowsSkeleton rows={3} />
         ) : recent.length === 0 ? (
           <EmptyState
             icon="mic"
-            title="Ancora nessuno"
-            description="Il primo messaggio vocale comparirà qui."
+            title={gettext('Ancora nessuno')}
+            description={gettext('Il primo messaggio vocale comparirà qui.')}
           />
         ) : (
           recent.map((statement) => (
@@ -210,7 +214,12 @@ export function VoicePage() {
                 <span className="text-body-small text-on-surface-variant">
                   {formatDate(statement.created_at.slice(0, 10))}
                   {statement.status !== 'processing' &&
-                    ` · ${statement.line_count} ${statement.line_count === 1 ? 'riga' : 'righe'}`}
+                    ' · ' +
+                      interpolate(
+                        ngettext('%(count)s riga', '%(count)s righe', statement.line_count),
+                        { count: statement.line_count },
+                        true,
+                      )}
                 </span>
               </span>
               <StatusBadge status={statement.status} />

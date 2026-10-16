@@ -5,10 +5,12 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-rout
 import { useOpenStatements, useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/colors'
+import { gettext } from '../lib/i18n'
 import { MOBILE_SLOTS, orderDestinations } from '../lib/navigation'
 import { showsSection } from '../lib/trackerKind'
 import type { Membership, Tracker } from '../lib/types'
 import { FabMenu } from './FabMenu'
+import { LanguageSwitcher } from './LanguageSwitcher'
 import { NavOrderModal } from './NavOrderModal'
 import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 
@@ -57,13 +59,13 @@ export function TrackerLayout() {
     <div className="flex min-h-screen bg-surface">
       {/* --- navigation rail (desktop) --- */}
       <nav
-        aria-label="Sezioni"
+        aria-label={gettext('Sezioni')}
         className="sticky top-0 z-40 hidden h-screen w-24 shrink-0 flex-col items-center bg-surface-container-low py-3 md:flex"
       >
         <button
           type="button"
           onClick={() => setMenuOpen(true)}
-          aria-label="Menu"
+          aria-label={gettext('Menu')}
           className="state flex h-14 w-14 items-center justify-center rounded-pill text-on-surface-variant"
         >
           <Icon name="menu" />
@@ -92,9 +94,11 @@ export function TrackerLayout() {
         {tracker.archived_at && (
           <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-surface-container-high px-4 py-3 text-body-medium md:mx-7">
             <Icon name="archive" size={20} className="text-on-surface-variant" />
-            <span className="flex-1">Tracker archiviato: niente ricorrenze automatiche.</span>
+            <span className="flex-1">
+              {gettext('Tracker archiviato: niente ricorrenze automatiche.')}
+            </span>
             <NavLink to="impostazioni" className="font-medium text-primary">
-              Gestisci
+              {gettext('Gestisci')}
             </NavLink>
           </div>
         )}
@@ -106,7 +110,7 @@ export function TrackerLayout() {
       {!SCAN_SECTIONS.has(section) && <FabMenu tracker={tracker} placement="mobile" />}
 
       <nav
-        aria-label="Sezioni"
+        aria-label={gettext('Sezioni')}
         className="safe-bottom fixed inset-x-0 bottom-0 z-30 flex justify-around bg-surface-container-low px-2 pt-3 md:hidden"
       >
         {destinations.bar.map((destination) => (
@@ -142,7 +146,7 @@ export function TrackerLayout() {
               inMenuSection ? 'text-on-surface' : 'text-on-surface-variant',
             )}
           >
-            Altro
+            {gettext('Altro')}
           </span>
         </button>
       </nav>
@@ -282,7 +286,7 @@ function MenuSheet({
     <Modal open={open} onClose={onClose} title="Soldino">
       <div className="grid gap-2">
         <p className="px-1 text-label-small uppercase tracking-wide text-on-surface-variant">
-          I tuoi tracker
+          {gettext('I tuoi tracker')}
         </p>
         {(data?.results ?? []).map((item) => (
           <button
@@ -326,7 +330,7 @@ function MenuSheet({
             className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
           >
             <Icon name="swap_vert" size={22} />
-            <span className="flex-1 text-body-large">Riordina il menu</span>
+            <span className="flex-1 text-body-large">{gettext('Riordina il menu')}</span>
           </button>
           <button
             type="button"
@@ -337,7 +341,7 @@ function MenuSheet({
             className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
           >
             <Icon name="list" size={22} />
-            <span className="flex-1 text-body-large">Tutti i tracker</span>
+            <span className="flex-1 text-body-large">{gettext('Tutti i tracker')}</span>
           </button>
           <button
             type="button"
@@ -349,16 +353,21 @@ function MenuSheet({
           >
             <Avatar name={user?.display_name ?? ''} size={22} />
             <span className="min-w-0 flex-1 truncate text-body-large">
-              Account <span className="text-on-surface-variant">· {user?.email}</span>
+              {gettext('Account')} <span className="text-on-surface-variant">· {user?.email}</span>
             </span>
           </button>
+          <div className="flex items-center gap-3 rounded-card bg-surface-container-low py-2 pl-4 pr-2">
+            <Icon name="translate" size={22} />
+            <span className="flex-1 text-body-large">{gettext('Lingua')}</span>
+            <LanguageSwitcher />
+          </div>
           <button
             type="button"
             onClick={() => logout()}
             className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
           >
             <Icon name="logout" size={22} />
-            <span className="flex-1 text-body-large">Esci</span>
+            <span className="flex-1 text-body-large">{gettext('Esci')}</span>
           </button>
         </div>
       </div>
@@ -400,7 +409,7 @@ export function AppBar({
             <button
               type="button"
               onClick={onSearch}
-              aria-label="Cerca"
+              aria-label={gettext('Cerca')}
               className="state hidden h-10 w-10 items-center justify-center rounded-pill bg-surface-container-low text-on-surface-variant md:flex"
             >
               <Icon name="search" size={20} />

@@ -3,6 +3,7 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { useOpenStatements } from '../../api/hooks'
 import { EmptyState, ErrorBanner, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { formatMoney } from '../../lib/money'
 import { showsSection } from '../../lib/trackerKind'
 import type { StatementImport, Tracker } from '../../lib/types'
@@ -15,7 +16,7 @@ function describe(statement: StatementImport, currency: string) {
   if (statement.source === 'voice') return { title: `“${statement.transcript}”`, amount: null }
   if (statement.source === 'receipt') {
     return {
-      title: first?.title || 'Scontrino',
+      title: first?.title || gettext('Scontrino'),
       amount: first ? formatMoney(first.amount, currency) : null,
     }
   }
@@ -38,10 +39,11 @@ export function InboxPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Da rivedere</h1>
+        <h1 className="text-title-large">{gettext('Da rivedere')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Movimenti letti da scontrini, vocali, estratti conto e banche che aspettano il tuo OK.
-          Niente entra nei conti finché non li registri.
+          {gettext(
+            'Movimenti letti da scontrini, vocali, estratti conto e banche che aspettano il tuo OK. Niente entra nei conti finché non li registri.',
+          )}
         </p>
       </div>
 
@@ -51,8 +53,10 @@ export function InboxPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon="task_alt"
-          title="Tutto rivisto"
-          description="Quando fotografi uno scontrino, detti un movimento o arriva un estratto, lo trovi qui."
+          title={gettext('Tutto rivisto')}
+          description={gettext(
+            'Quando fotografi uno scontrino, detti un movimento o arriva un estratto, lo trovi qui.',
+          )}
         />
       ) : null}
 
@@ -68,21 +72,26 @@ export function InboxPage() {
                   {meta.label}
                   {group.length > 0 && (
                     <span className="ml-2 inline-block whitespace-nowrap text-body-medium text-on-surface-variant">
-                      {group.length} da rivedere
+                      {interpolate(gettext('%(count)s da rivedere'), { count: group.length }, true)}
                       {source !== 'receipt' &&
                         lines > 0 &&
-                        ` · ${lines} ${lines === 1 ? 'riga' : 'righe'}`}
+                        ' · ' +
+                          interpolate(
+                            ngettext('%(count)s riga', '%(count)s righe', lines),
+                            { count: lines },
+                            true,
+                          )}
                     </span>
                   )}
                 </h2>
                 <Link to={`../${meta.page}`} relative="path" className="btn-text btn-sm">
-                  {source === 'bank' ? 'Banca' : 'Nuovo'}
+                  {source === 'bank' ? gettext('Banca') : gettext('Nuovo')}
                   <Icon name="chevron_right" size={18} />
                 </Link>
               </div>
               {group.length === 0 ? (
                 <p className="rounded-card bg-surface-container-low px-4 py-3 text-body-medium text-on-surface-variant">
-                  Niente in attesa.
+                  {gettext('Niente in attesa.')}
                 </p>
               ) : (
                 group.map((statement) => {
@@ -102,7 +111,12 @@ export function InboxPage() {
                             ` · ${statement.uploaded_by_detail.display_name}`}
                           {statement.status === 'ready' &&
                             source !== 'receipt' &&
-                            ` · ${statement.line_count} ${statement.line_count === 1 ? 'riga' : 'righe'}`}
+                            ' · ' +
+                              interpolate(
+                                ngettext('%(count)s riga', '%(count)s righe', statement.line_count),
+                                { count: statement.line_count },
+                                true,
+                              )}
                           {statement.status === 'failed' &&
                             statement.error &&
                             ` · ${statement.error}`}

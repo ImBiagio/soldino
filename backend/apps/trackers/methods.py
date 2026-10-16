@@ -7,6 +7,7 @@ attive con un utente (non gli inviti ancora pendenti).
 from __future__ import annotations
 
 from django.db.models import QuerySet
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from .models import Membership
@@ -27,10 +28,8 @@ def is_active_member(tracker, user) -> bool:
     return user_id is not None and active_memberships(tracker).filter(user_id=user_id).exists()
 
 
-def require_active_member(
-    tracker, user, message: str = "Deve essere un membro attivo del tracker."
-):
+def require_active_member(tracker, user, message: str | None = None):
     """Validatore DRF: restituisce ``user`` o solleva un errore di validazione."""
     if not is_active_member(tracker, user):
-        raise serializers.ValidationError(message)
+        raise serializers.ValidationError(message or _("Deve essere un membro attivo del tracker."))
     return user

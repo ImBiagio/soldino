@@ -20,6 +20,7 @@ import { formatCents, formatMoney, formatSignedCents, toCents } from '../../lib/
 import { showsReconciliation } from '../../lib/trackerKind'
 import type { DateRange } from '../../lib/period'
 import type { Tracker, UUID } from '../../lib/types'
+import { gettext, interpolate, intlLocale } from '../../lib/i18n'
 
 interface Point {
   date: string
@@ -86,7 +87,7 @@ export function BalanceCurve({
   const ticks = useMemo(() => pickTicks(points.map((p) => p.date)), [points])
   const minBalance = Math.min(...points.map((p) => p.balance), realToday ?? Infinity)
 
-  const compact = new Intl.NumberFormat('it-IT', {
+  const compact = new Intl.NumberFormat(intlLocale(), {
     style: 'currency',
     currency: tracker.currency,
     notation: 'compact',
@@ -98,12 +99,15 @@ export function BalanceCurve({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-title-medium">
-            Andamento dei soldi{personName ? ` di ${personName}` : ', tutti insieme'}
+            {personName
+              ? interpolate(gettext('Andamento dei soldi di %(name)s'), { name: personName }, true)
+              : gettext('Andamento dei soldi, tutti insieme')}
           </h2>
           <p className="mt-1 text-body-small text-on-surface-variant">
-            Saldo iniziale + entrate − uscite, giorno per giorno. Contano i soldi che passano dai
-            conti, come nella riconciliazione.
-            {categoryActive && ' Il filtro categoria qui non si applica.'}
+            {gettext(
+              'Saldo iniziale + entrate − uscite, giorno per giorno. Contano i soldi che passano dai conti, come nella riconciliazione.',
+            )}
+            {categoryActive && ' ' + gettext('Il filtro categoria qui non si applica.')}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -115,7 +119,14 @@ export function BalanceCurve({
                   ? 'bg-secondary-container text-on-secondary-container'
                   : 'bg-error-container text-on-error-container',
               )}
-              title={`Da ${formatCents(start, tracker.currency)} a ${formatCents(end, tracker.currency)}`}
+              title={interpolate(
+                gettext('Da %(start)s a %(end)s'),
+                {
+                  start: formatCents(start, tracker.currency),
+                  end: formatCents(end, tracker.currency),
+                },
+                true,
+              )}
             >
               <Icon name={change >= 0 ? 'trending_up' : 'trending_down'} size={18} />
               {formatSignedCents(change, tracker.currency)}
@@ -123,7 +134,7 @@ export function BalanceCurve({
           )}
           <button type="button" className="chip-outlined" onClick={() => setAsTable(!asTable)}>
             <Icon name={asTable ? 'show_chart' : 'table_rows'} size={18} />
-            {asTable ? 'Grafico' : 'Tabella'}
+            {asTable ? gettext('Grafico') : gettext('Tabella')}
           </button>
         </div>
       </div>
@@ -134,7 +145,11 @@ export function BalanceCurve({
         <MovementDays points={points} currency={tracker.currency} />
       ) : (
         <>
-          <div className="h-[280px]" role="img" aria-label="Andamento del saldo nel periodo">
+          <div
+            className="h-[280px]"
+            role="img"
+            aria-label={gettext('Andamento del saldo nel periodo')}
+          >
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
                 <defs>
@@ -190,12 +205,16 @@ export function BalanceCurve({
           <div className="mt-2 flex flex-wrap gap-4 text-body-small text-on-surface-variant">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-4 rounded bg-primary" />
-              Saldo dai movimenti
+              {gettext('Saldo dai movimenti')}
             </span>
             {realToday !== null && (
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-tertiary" />
-                Oggi sui conti: {formatMoney(realToday, tracker.currency)}
+                {interpolate(
+                  gettext('Oggi sui conti: %(amount)s'),
+                  { amount: formatMoney(realToday, tracker.currency) },
+                  true,
+                )}
               </span>
             )}
           </div>
@@ -231,18 +250,18 @@ function CurveTooltip({
     <div className="rounded-row bg-surface px-3 py-2 text-body-small shadow-fab">
       <p className="mb-1 font-medium">{formatDate(point.date)}</p>
       <p className="flex justify-between gap-4">
-        <span className="text-on-surface-variant">Saldo</span>
+        <span className="text-on-surface-variant">{gettext('Saldo')}</span>
         <span className="amount font-medium">{formatMoney(point.balance, currency)}</span>
       </p>
       {point.income > 0 && (
         <p className="flex justify-between gap-4">
-          <span className="text-on-surface-variant">Entrate del giorno</span>
+          <span className="text-on-surface-variant">{gettext('Entrate del giorno')}</span>
           <span className="amount text-primary">+{formatMoney(point.income, currency)}</span>
         </p>
       )}
       {point.expense > 0 && (
         <p className="flex justify-between gap-4">
-          <span className="text-on-surface-variant">Uscite del giorno</span>
+          <span className="text-on-surface-variant">{gettext('Uscite del giorno')}</span>
           <span className="amount text-error">−{formatMoney(point.expense, currency)}</span>
         </p>
       )}
@@ -256,7 +275,7 @@ function MovementDays({ points, currency }: { points: Point[]; currency: string 
   if (rows.length === 0) {
     return (
       <p className="py-10 text-center text-body-medium text-on-surface-variant">
-        Nessun movimento nel periodo.
+        {gettext('Nessun movimento nel periodo.')}
       </p>
     )
   }
@@ -265,10 +284,10 @@ function MovementDays({ points, currency }: { points: Point[]; currency: string 
       <table className="w-full text-body-medium">
         <thead className="sticky top-0 bg-surface-container-low text-left text-body-small text-on-surface-variant">
           <tr>
-            <th className="py-2 font-medium">Giorno</th>
-            <th className="py-2 text-right font-medium">Entrate</th>
-            <th className="py-2 text-right font-medium">Uscite</th>
-            <th className="py-2 text-right font-medium">Saldo</th>
+            <th className="py-2 font-medium">{gettext('Giorno')}</th>
+            <th className="py-2 text-right font-medium">{gettext('Entrate')}</th>
+            <th className="py-2 text-right font-medium">{gettext('Uscite')}</th>
+            <th className="py-2 text-right font-medium">{gettext('Saldo')}</th>
           </tr>
         </thead>
         <tbody>

@@ -8,6 +8,7 @@ from dateutil.rrule import rrulestr
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext as _
 
 from apps.core.models import BaseModel
 from apps.trackers.models import Tracker
@@ -63,7 +64,9 @@ class RecurringRule(BaseModel):
     def clean(self):
         super().clean()
         if self.frequency == self.Frequency.CUSTOM and not self.rrule:
-            raise ValidationError({"rrule": ["Serve una rrule per la frequenza personalizzata."]})
+            raise ValidationError(
+                {"rrule": [_("Serve una rrule per la frequenza personalizzata.")]}
+            )
 
     def advance(self, from_date: date) -> date:
         if self.frequency == self.Frequency.WEEKLY:
@@ -76,7 +79,7 @@ class RecurringRule(BaseModel):
         start = datetime.combine(from_date, datetime.min.time())
         following = rrulestr(self.rrule, dtstart=start).after(start)
         if following is None:
-            raise ValidationError({"rrule": ["La rrule non produce occorrenze successive."]})
+            raise ValidationError({"rrule": [_("La rrule non produce occorrenze successive.")]})
         return following.date()
 
     @property

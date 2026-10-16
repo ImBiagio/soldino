@@ -1,3 +1,4 @@
+import { gettext } from './i18n'
 import type { Tracker, TrackerKind } from './types'
 
 /**
@@ -10,13 +11,15 @@ import type { Tracker, TrackerKind } from './types'
 export const KIND_OPTIONS: { value: TrackerKind; label: string; description: string }[] = [
   {
     value: 'household',
-    label: 'Tracking continuo',
-    description: 'Spese di casa o di coppia: entrate, conti, ricorrenze e riconciliazione.',
+    label: gettext('Tracking continuo'),
+    description: gettext(
+      'Spese di casa o di coppia: entrate, conti, ricorrenze e riconciliazione.',
+    ),
   },
   {
     value: 'group',
-    label: 'Dividere le spese',
-    description: 'Viaggi, cene fra amici: solo spese e chi deve cosa, alla Splitwise.',
+    label: gettext('Dividere le spese'),
+    description: gettext('Viaggi, cene fra amici: solo spese e chi deve cosa, alla Splitwise.'),
   },
 ]
 

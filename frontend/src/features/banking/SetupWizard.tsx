@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 
 import { useSaveBankingApp } from '../../api/hooks'
 import { ErrorBanner, Field, Icon } from '../../components/ui'
+import { gettext, interpolate } from '../../lib/i18n'
 import type { BankingStatus } from '../../lib/types'
 
 const CONTROL_PANEL = 'https://enablebanking.com/cp/applications'
@@ -25,91 +26,104 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
   const [current, setCurrent] = useState(0)
   const steps: Step[] = [
     {
-      title: 'Crea il tuo account Enable Banking',
+      title: gettext('Crea il tuo account Enable Banking'),
       image: '/banca/01-accesso.png',
-      imageAlt: 'La pagina di accesso di Enable Banking',
+      imageAlt: gettext('La pagina di accesso di Enable Banking'),
       body: (
         <>
           <p>
-            Enable Banking è il servizio autorizzato (AISP, vigilato in Finlandia) che legge saldo e
-            movimenti dalla tua banca. Per uso personale è gratuito: la tua applicazione legge solo
-            i conti che colleghi tu.
+            {gettext(
+              'Enable Banking è il servizio autorizzato (AISP, vigilato in Finlandia) che legge saldo e movimenti dalla tua banca. Per uso personale è gratuito: la tua applicazione legge solo i conti che colleghi tu.',
+            )}
           </p>
           <p>
-            Apri la pagina di accesso, scrivi la tua email e segui il link che ti arriva:
-            l&apos;account si crea da solo al primo accesso.
+            {gettext(
+              "Apri la pagina di accesso, scrivi la tua email e segui il link che ti arriva: l'account si crea da solo al primo accesso.",
+            )}
           </p>
-          <ExternalLink href={SIGN_IN}>Apri Enable Banking</ExternalLink>
+          <ExternalLink href={SIGN_IN}>{gettext('Apri Enable Banking')}</ExternalLink>
         </>
       ),
     },
     {
-      title: "Registra l'applicazione",
+      title: gettext("Registra l'applicazione"),
       image: '/banca/02-registra.png',
-      imageAlt: 'Il modulo per aggiungere una nuova applicazione nel pannello di Enable Banking',
+      imageAlt: gettext(
+        'Il modulo per aggiungere una nuova applicazione nel pannello di Enable Banking',
+      ),
       body: (
         <>
           <p>
-            Dal menu in alto apri <strong>API applications</strong> e compila &quot;Add a new
-            application&quot;:
+            {gettext('Dal menu in alto apri')} <strong>API applications</strong>{' '}
+            {gettext('e compila "Add a new application":')}
           </p>
           <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             <li>
-              <strong>1.</strong> scegli <code>Production</code> (non Sandbox, che ha solo banche
-              finte)
+              <strong>1.</strong> {gettext('scegli')} <code>Production</code>{' '}
+              {gettext('(non Sandbox, che ha solo banche finte)')}
             </li>
             <li>
-              <strong>2.</strong> lascia &quot;Generate in the browser&quot;: la chiave la crea il
-              browser
+              <strong>2.</strong>{' '}
+              {gettext('lascia "Generate in the browser": la chiave la crea il browser')}
             </li>
             <li>
-              <strong>Application name</strong>: <code>Soldino</code> (lo vedrai quando autorizzi la
-              banca)
+              <strong>Application name</strong>: <code>Soldino</code>{' '}
+              {gettext('(lo vedrai quando autorizzi la banca)')}
             </li>
             <li>
-              <strong>Allowed redirect URLs</strong>: esattamente questo indirizzo
+              <strong>Allowed redirect URLs</strong>: {gettext('esattamente questo indirizzo')}
               <CopyBox value={status.callback_url} />
             </li>
             <li>
-              Gli altri campi sono facoltativi: per Privacy e Terms URL va bene l&apos;indirizzo di
-              Soldino. Poi premi <strong>Register</strong>.
+              {gettext(
+                "Gli altri campi sono facoltativi: per Privacy e Terms URL va bene l'indirizzo di Soldino. Poi premi",
+              )}{' '}
+              <strong>Register</strong>.
             </li>
           </ul>
           <p>
-            Il browser scarica un file <code>.pem</code> che si chiama come l&apos;application ID
-            (es. <code>aaaaaaaa-bbbb-….pem</code>). È la chiave della tua applicazione: tienila per
-            te, ti serve tra due passi.
+            {gettext('Il browser scarica un file')} <code>.pem</code>{' '}
+            {gettext("che si chiama come l'application ID")} ({gettext('es.')}{' '}
+            <code>aaaaaaaa-bbbb-….pem</code>).{' '}
+            {gettext('È la chiave della tua applicazione: tienila per te, ti serve tra due passi.')}
           </p>
-          <ExternalLink href={CONTROL_PANEL}>Apri API applications</ExternalLink>
+          <ExternalLink href={CONTROL_PANEL}>{gettext('Apri API applications')}</ExternalLink>
         </>
       ),
     },
     {
-      title: "Attiva l'applicazione collegando i conti",
+      title: gettext("Attiva l'applicazione collegando i conti"),
       image: '/banca/03-attiva.png',
-      imageAlt:
+      imageAlt: gettext(
         "La card dell'applicazione Soldino: attiva, con un conto collegato e i menu per collegarne un altro",
+      ),
       body: (
         <>
           <p>
-            L&apos;applicazione appena creata è <strong>Inactive</strong>: si attiva collegando un
-            conto. In fondo alla sua card scegli <strong>Country</strong> (Italy), la banca in{' '}
-            <strong>ASPSP</strong> e l&apos;uso in <strong>Usage type</strong> (personale), poi
-            premi <strong>Link</strong> (o <strong>Activate by linking accounts</strong>). Accetta i
-            termini di Enable Banking e autorizza con l&apos;app della banca.
+            {gettext("L'applicazione appena creata è")} <strong>Inactive</strong>:{' '}
+            {gettext('si attiva collegando un conto. In fondo alla sua card scegli')}{' '}
+            <strong>Country</strong> {gettext('(Italy), la banca in')} <strong>ASPSP</strong>{' '}
+            {gettext("e l'uso in")} <strong>Usage type</strong> {gettext('(personale), poi premi')}{' '}
+            <strong>Link</strong> ({gettext('o')} <strong>Activate by linking accounts</strong>).{' '}
+            {gettext("Accetta i termini di Enable Banking e autorizza con l'app della banca.")}
           </p>
           <p>
-            Ripeti per <strong>ogni conto</strong> che vuoi in Soldino: in modalità gratuita
-            l&apos;applicazione legge solo i conti sotto <strong>Linked accounts</strong>. Quando è
-            pronta vedi <strong>Active</strong> e &quot;Account Information · Restricted&quot;. Non
-            si scarica nessun file, la chiave resta una.
+            {gettext('Ripeti per')} <strong>{gettext('ogni conto')}</strong>{' '}
+            {gettext(
+              "che vuoi in Soldino: in modalità gratuita l'applicazione legge solo i conti sotto",
+            )}{' '}
+            <strong>Linked accounts</strong>. {gettext('Quando è pronta vedi')}{' '}
+            <strong>Active</strong>{' '}
+            {gettext(
+              'e "Account Information · Restricted". Non si scarica nessun file, la chiave resta una.',
+            )}
           </p>
-          <ExternalLink href={CONTROL_PANEL}>Apri API applications</ExternalLink>
+          <ExternalLink href={CONTROL_PANEL}>{gettext('Apri API applications')}</ExternalLink>
         </>
       ),
     },
     {
-      title: 'Carica la chiave in Soldino',
+      title: gettext('Carica la chiave in Soldino'),
       body: <KeyUpload status={status} onDone={onDone} />,
     },
   ]
@@ -117,7 +131,7 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
 
   return (
     <section className="grid gap-5 rounded-panel bg-surface-container-low p-5 md:p-6">
-      <ol className="flex flex-wrap gap-2" aria-label="Passaggi">
+      <ol className="flex flex-wrap gap-2" aria-label={gettext('Passaggi')}>
         {steps.map((item, index) => (
           <li key={item.title}>
             <button
@@ -168,7 +182,7 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
           onClick={() => setCurrent((value) => value - 1)}
         >
           <Icon name="arrow_back" size={20} />
-          Indietro
+          {gettext('Indietro')}
         </button>
         {current < steps.length - 1 && (
           <button
@@ -176,7 +190,7 @@ export function SetupWizard({ status, onDone }: { status: BankingStatus; onDone?
             className="btn-filled ml-auto"
             onClick={() => setCurrent((value) => value + 1)}
           >
-            Fatto, avanti
+            {gettext('Fatto, avanti')}
             <Icon name="arrow_forward" size={20} />
           </button>
         )}
@@ -210,9 +224,10 @@ function KeyUpload({ status, onDone }: { status: BankingStatus; onDone?: () => v
       }}
     >
       <p>
-        Scegli il file <code>.pem</code> scaricato al passo 2. Soldino controlla con Enable Banking
-        che chiave e application ID funzionino e che l&apos;indirizzo di ritorno sia giusto, poi
-        salva la chiave cifrata.
+        {gettext('Scegli il file')} <code>.pem</code>{' '}
+        {gettext(
+          "scaricato al passo 2. Soldino controlla con Enable Banking che chiave e application ID funzionino e che l'indirizzo di ritorno sia giusto, poi salva la chiave cifrata.",
+        )}
       </p>
       <button
         type="button"
@@ -221,7 +236,7 @@ function KeyUpload({ status, onDone }: { status: BankingStatus; onDone?: () => v
       >
         <Icon name={file ? 'key' : 'upload_file'} size={28} className="text-primary" />
         <span className="text-body-large font-medium">
-          {file ? file.name : 'Scegli il file .pem'}
+          {file ? file.name : gettext('Scegli il file .pem')}
         </span>
       </button>
       <input
@@ -232,8 +247,10 @@ function KeyUpload({ status, onDone }: { status: BankingStatus; onDone?: () => v
         onChange={(event) => pick(event.target.files?.[0])}
       />
       <Field
-        label="Application ID"
-        hint="Si compila dal nome del file; lo trovi anche nel pannello, sotto il nome dell'app."
+        label={gettext('Application ID')}
+        hint={gettext(
+          "Si compila dal nome del file; lo trovi anche nel pannello, sotto il nome dell'app.",
+        )}
       >
         <input
           className="field-input font-mono"
@@ -247,7 +264,11 @@ function KeyUpload({ status, onDone }: { status: BankingStatus; onDone?: () => v
       {status.configured && status.app && !save.isPending && !save.error && (
         <p className="flex items-center gap-2 text-body-medium text-primary">
           <Icon name="check_circle" size={20} />
-          Applicazione &quot;{status.app.name}&quot; verificata.
+          {interpolate(
+            gettext('Applicazione "%(name)s" verificata.'),
+            { name: status.app.name },
+            true,
+          )}
         </p>
       )}
       <button
@@ -255,7 +276,7 @@ function KeyUpload({ status, onDone }: { status: BankingStatus; onDone?: () => v
         disabled={!file || !UUID_RE.test(appId) || save.isPending}
       >
         <Icon name="verified_user" size={20} />
-        {save.isPending ? 'Verifico…' : 'Verifica e salva'}
+        {save.isPending ? gettext('Verifico…') : gettext('Verifica e salva')}
       </button>
     </form>
   )
@@ -295,7 +316,7 @@ function CopyBox({ value }: { value: string }) {
         }}
       >
         <Icon name={copied ? 'check' : 'content_copy'} size={16} />
-        {copied ? 'Copiato' : 'Copia'}
+        {copied ? gettext('Copiato') : gettext('Copia')}
       </button>
     </span>
   )

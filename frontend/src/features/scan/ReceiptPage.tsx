@@ -4,6 +4,7 @@ import { Link, useOutletContext } from 'react-router-dom'
 import { useStatements, useUploadStatement } from '../../api/hooks'
 import { EmptyState, ErrorBanner, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { formatMoney } from '../../lib/money'
 import type { Tracker } from '../../lib/types'
 import { StatusBadge } from './status'
@@ -44,14 +45,15 @@ export function ReceiptPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Scan scontrino</h1>
+        <h1 className="text-title-large">{gettext('Scan scontrino')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Fotografa lo scontrino e vai: Gemini legge esercente, data e totale in background e
-          propone la categoria. La spesa ti aspetta in{' '}
+          {gettext(
+            'Fotografa lo scontrino e vai: Gemini legge esercente, data e totale in background e propone la categoria. La spesa ti aspetta in',
+          )}{' '}
           <Link to="../da-rivedere" relative="path" className="text-primary underline">
-            Da rivedere
+            {gettext('Da rivedere')}
           </Link>
-          , con la foto accanto.
+          {gettext(', con la foto accanto.')}
         </p>
       </div>
 
@@ -60,12 +62,12 @@ export function ReceiptPage() {
           <div className="flex flex-col items-center gap-3 py-2 text-center">
             <img
               src={preview}
-              alt="Scontrino che sto caricando"
+              alt={gettext('Scontrino che sto caricando')}
               className="max-h-72 rounded-card object-contain shadow-fab"
             />
             <p className="flex items-center gap-2 text-body-medium">
               <Icon name="cloud_upload" size={20} className="animate-pulse text-primary" />
-              Carico la foto…
+              {gettext('Carico la foto…')}
             </p>
           </div>
         ) : (
@@ -76,9 +78,9 @@ export function ReceiptPage() {
               onClick={() => cameraRef.current?.click()}
             >
               <Icon name="photo_camera" size={36} />
-              <span className="text-title-medium">Scatta una foto</span>
+              <span className="text-title-medium">{gettext('Scatta una foto')}</span>
               <span className="text-body-small text-primary-container">
-                Apre la fotocamera del telefono
+                {gettext('Apre la fotocamera del telefono')}
               </span>
             </button>
             <button
@@ -87,9 +89,9 @@ export function ReceiptPage() {
               onClick={() => galleryRef.current?.click()}
             >
               <Icon name="add_photo_alternate" size={36} className="text-primary" />
-              <span className="text-title-medium">Scegli una foto</span>
+              <span className="text-title-medium">{gettext('Scegli una foto')}</span>
               <span className="text-body-small text-on-surface-variant">
-                Dalla galleria o dal computer · JPEG, PNG, HEIC fino a 15 MB
+                {gettext('Dalla galleria o dal computer · JPEG, PNG, HEIC fino a 15 MB')}
               </span>
             </button>
           </div>
@@ -114,28 +116,35 @@ export function ReceiptPage() {
         {sent > 0 && !upload.isPending && !upload.error && (
           <p className="flex items-center gap-2 rounded-card bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
             <Icon name="check_circle" size={20} />
-            {sent === 1
-              ? 'Scontrino caricato: lo leggo in background, lo trovi in Da rivedere.'
-              : `${sent} scontrini caricati: li leggo in background, li trovi in Da rivedere.`}{' '}
-            Puoi scattarne un altro.
+            {interpolate(
+              ngettext(
+                'Scontrino caricato: lo leggo in background, lo trovi in Da rivedere.',
+                '%(count)s scontrini caricati: li leggo in background, li trovi in Da rivedere.',
+                sent,
+              ),
+              { count: sent },
+              true,
+            )}{' '}
+            {gettext('Puoi scattarne un altro.')}
           </p>
         )}
         <p className="text-body-small text-on-surface-variant">
-          La foto viene inviata a Google Gemini per la lettura e cancellata da Soldino quando
-          registri o scarti la spesa.
+          {gettext(
+            'La foto viene inviata a Google Gemini per la lettura e cancellata da Soldino quando registri o scarti la spesa.',
+          )}
         </p>
       </section>
 
       <section className="grid gap-2">
-        <h2 className="text-title-medium">Scontrini recenti</h2>
+        <h2 className="text-title-medium">{gettext('Scontrini recenti')}</h2>
         <ErrorBanner error={statements.error} />
         {statements.isLoading ? (
           <RowsSkeleton rows={3} />
         ) : receipts.length === 0 ? (
           <EmptyState
             icon="receipt_long"
-            title="Ancora nessuno"
-            description="Il primo scontrino letto comparirà qui."
+            title={gettext('Ancora nessuno')}
+            description={gettext('Il primo scontrino letto comparirà qui.')}
           />
         ) : (
           receipts.map((receipt) => (

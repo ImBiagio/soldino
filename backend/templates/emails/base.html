@@ -1,10 +1,10 @@
-<!doctype html>
+{% load i18n %}<!doctype html>
 {% comment %}
   Layout delle mail: tabelle + stili inline perche' Gmail e Outlook ignorano
   buona parte del CSS moderno. Colori dei token M3 di frontend/src/index.css
   (primary #1b6c2f, superficie chiara). Stesso schema delle mail di cinemino.
 {% endcomment %}
-<html lang="it">
+{% get_current_language as LANGUAGE_CODE %}<html lang="{{ LANGUAGE_CODE }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,7 +22,7 @@
           </tr>
           <tr>
             <td bgcolor="#ffffff" style="background-color:#ffffff; border:1px solid #dfe4d8; border-top:0; border-radius:0 0 24px 24px; padding:28px; font-family:Roboto, Helvetica, Arial, sans-serif;">
-              <p style="margin:0 0 16px; font-size:20px; line-height:28px; font-weight:bold; color:#181d17;">Ciao {{ name }},</p>
+              <p style="margin:0 0 16px; font-size:20px; line-height:28px; font-weight:bold; color:#181d17;">{% blocktranslate %}Ciao {{ name }},{% endblocktranslate %}</p>
               <p style="margin:0 0 20px; font-size:16px; line-height:24px; color:#42493f;">{{ intro }}</p>
               {% if body %}
               <p style="margin:0 0 20px; font-size:16px; line-height:24px; color:#42493f;">{{ body }}</p>
@@ -34,7 +34,7 @@
                   </td>
                 </tr>
               </table>
-              <p style="margin:0; font-size:13px; line-height:20px; color:#72796f;">Se il bottone non funziona, copia questo link nel browser:<br>
+              <p style="margin:0; font-size:13px; line-height:20px; color:#72796f;">{% translate "Se il bottone non funziona, copia questo link nel browser:" %}<br>
                 <a href="{{ cta_url }}" target="_blank" style="color:#1b6c2f; word-break:break-all;">{{ cta_url }}</a>
               </p>
             </td>

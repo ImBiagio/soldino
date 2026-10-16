@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction as db_transaction
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -47,7 +48,7 @@ class PendingItemViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         item = self.get_object()
         if item.status != PendingItem.Status.OPEN:
             return Response(
-                {"detail": "Questo elemento e' gia' stato chiuso."},
+                {"detail": _("Questo elemento e' gia' stato chiuso.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

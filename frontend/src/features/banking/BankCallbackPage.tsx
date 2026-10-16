@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { useCompleteBankConnection } from '../../api/hooks'
 import { ErrorBanner, Icon } from '../../components/ui'
+import { gettext, interpolate } from '../../lib/i18n'
 
 /**
  * Ritorno dalla banca: Enable Banking rimanda qui con ``code`` e ``state``.
@@ -39,22 +40,26 @@ export function BankCallbackPage() {
       {failed ? (
         <>
           <Icon name="link_off" size={40} className="mx-auto text-error" />
-          <h1 className="text-title-large">Collegamento non riuscito</h1>
-          {bankError && <p className="text-body-medium">La banca ha risposto: {bankError}</p>}
+          <h1 className="text-title-large">{gettext('Collegamento non riuscito')}</h1>
+          {bankError && (
+            <p className="text-body-medium">
+              {interpolate(gettext('La banca ha risposto: %(error)s'), { error: bankError }, true)}
+            </p>
+          )}
           {!bankError && !code && (
-            <p className="text-body-medium">Mancano i dati di ritorno dalla banca.</p>
+            <p className="text-body-medium">{gettext('Mancano i dati di ritorno dalla banca.')}</p>
           )}
           <ErrorBanner error={complete.error} />
           <Link to="/" className="btn-filled mx-auto w-fit">
-            Torna a Soldino
+            {gettext('Torna a Soldino')}
           </Link>
         </>
       ) : (
         <>
           <Icon name="sync" size={40} className="mx-auto animate-spin text-primary" />
-          <h1 className="text-title-large">Collego la banca…</h1>
+          <h1 className="text-title-large">{gettext('Collego la banca…')}</h1>
           <p className="text-body-medium text-on-surface-variant">
-            Leggo i conti autorizzati, ci vuole qualche secondo.
+            {gettext('Leggo i conti autorizzati, ci vuole qualche secondo.')}
           </p>
         </>
       )}

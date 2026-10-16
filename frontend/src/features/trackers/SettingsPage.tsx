@@ -28,6 +28,7 @@ import {
   Switch,
 } from '../../components/ui'
 import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/colors'
+import { gettext, interpolate } from '../../lib/i18n'
 import { categoryIcon } from '../../lib/icons'
 import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
@@ -42,7 +43,7 @@ export function SettingsPage() {
   return (
     <div className="p-5 md:p-7">
       <div className="panel grid gap-5 sm:p-6 md:p-7">
-        <h1 className="text-title-large">Setup del tracker</h1>
+        <h1 className="text-title-large">{gettext('Setup del tracker')}</h1>
         <KindSection tracker={tracker} isOwner={isOwner} />
         <MembersSection tracker={tracker} isOwner={isOwner} />
         <DebtsSection tracker={tracker} isOwner={isOwner} />
@@ -62,10 +63,12 @@ function KindSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean 
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Tipo di tracker</h2>
+      <h2 className="text-body-large font-medium">{gettext('Tipo di tracker')}</h2>
       <p className="mb-3 mt-1 text-body-small text-on-surface-variant">
-        Cambia solo cosa si vede: movimenti, conti e ricorrenze restano tutti, e tornando indietro
-        ricompaiono. {!isOwner && 'Lo decide il proprietario del tracker.'}
+        {gettext(
+          'Cambia solo cosa si vede: movimenti, conti e ricorrenze restano tutti, e tornando indietro ricompaiono.',
+        )}{' '}
+        {!isOwner && gettext('Lo decide il proprietario del tracker.')}
       </p>
       <KindPicker
         value={value}
@@ -89,21 +92,26 @@ function DebtsSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean
     <section className="rounded-card bg-surface-container-low p-5">
       <div className="flex items-start gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="text-body-large font-medium">Semplifica i debiti</h2>
+          <h2 className="text-body-large font-medium">{gettext('Semplifica i debiti')}</h2>
           <p className="mt-1 text-body-small text-on-surface-variant">
             {checked
-              ? 'Acceso: i debiti si chiudono col minor numero di bonifici, anche fra persone che non hanno spese in comune. Se Anna ha pagato per Bruno e Bruno per Carla, basta che Carla dia i soldi ad Anna.'
-              : 'Spento: ognuno restituisce a chi ha pagato per lui, al netto di quello che quella persona deve a lui. Più bonifici, ma ogni debito resta fra chi ha condiviso la spesa.'}
+              ? gettext(
+                  'Acceso: i debiti si chiudono col minor numero di bonifici, anche fra persone che non hanno spese in comune. Se Anna ha pagato per Bruno e Bruno per Carla, basta che Carla dia i soldi ad Anna.',
+                )
+              : gettext(
+                  'Spento: ognuno restituisce a chi ha pagato per lui, al netto di quello che quella persona deve a lui. Più bonifici, ma ogni debito resta fra chi ha condiviso la spesa.',
+                )}
           </p>
           <p className="mt-1 text-body-small text-on-surface-variant">
-            In due non cambia nulla. {!isOwner && 'Lo decide il proprietario del tracker.'}
+            {gettext('In due non cambia nulla.')}{' '}
+            {!isOwner && gettext('Lo decide il proprietario del tracker.')}
           </p>
         </div>
         <Switch
           checked={checked}
           disabled={!isOwner || update.isPending}
           onChange={(next) => update.mutate({ simplify_debts: next })}
-          label="Semplifica i debiti"
+          label={gettext('Semplifica i debiti')}
         />
       </div>
       <ErrorBanner error={update.error} />
@@ -114,15 +122,17 @@ function DebtsSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boolean
 /* ------------------------------------------------------------- banca -- */
 
 const BANK_SYNC_OPTIONS: { value: Tracker['bank_sync_frequency']; label: string }[] = [
-  { value: 'daily', label: 'Ogni giorno' },
-  { value: 'weekly', label: 'Ogni settimana' },
-  { value: 'monthly', label: 'Ogni mese' },
+  { value: 'daily', label: gettext('Ogni giorno') },
+  { value: 'weekly', label: gettext('Ogni settimana') },
+  { value: 'monthly', label: gettext('Ogni mese') },
 ]
 
 const BANK_SYNC_HINT: Record<Tracker['bank_sync_frequency'], string> = {
-  daily: 'Ogni mattina saldo e movimenti del giorno prima.',
-  weekly: 'Il lunedì mattina saldo e movimenti della settimana passata.',
-  monthly: 'Il primo del mese saldo e movimenti del mese appena chiuso, come un estratto conto.',
+  daily: gettext('Ogni mattina saldo e movimenti del giorno prima.'),
+  weekly: gettext('Il lunedì mattina saldo e movimenti della settimana passata.'),
+  monthly: gettext(
+    'Il primo del mese saldo e movimenti del mese appena chiuso, come un estratto conto.',
+  ),
 }
 
 /** Ogni quanto si leggono i conti collegati in Banca (ADR 0013): default mensile. */
@@ -134,11 +144,13 @@ function BankSyncSection({ tracker, isOwner }: { tracker: Tracker; isOwner: bool
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Lettura dei conti in banca</h2>
+      <h2 className="text-body-large font-medium">{gettext('Lettura dei conti in banca')}</h2>
       <p className="mt-1 text-body-small text-on-surface-variant">
-        {BANK_SYNC_HINT[value]} I movimenti arrivano in Da rivedere, o si registrano da soli sui
-        conti con &quot;Registra in automatico&quot;. Dalla Banca puoi sempre fare &quot;Sincronizza
-        ora&quot;. {!isOwner && 'Lo decide il proprietario del tracker.'}
+        {BANK_SYNC_HINT[value]}{' '}
+        {gettext(
+          'I movimenti arrivano in Da rivedere, o si registrano da soli sui conti con "Registra in automatico". Dalla Banca puoi sempre fare "Sincronizza ora".',
+        )}{' '}
+        {!isOwner && gettext('Lo decide il proprietario del tracker.')}
       </p>
       <div className="mt-3">
         {isOwner ? (
@@ -170,16 +182,20 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Archivio ed eliminazione</h2>
+      <h2 className="text-body-large font-medium">{gettext('Archivio ed eliminazione')}</h2>
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div>
           <p className="text-body-medium font-medium">
-            {archived ? 'Tracker archiviato' : 'Archivia'}
+            {archived ? gettext('Tracker archiviato') : gettext('Archivia')}
           </p>
           <p className="mb-3 text-body-small text-on-surface-variant">
             {archived
-              ? 'È nel gruppo degli archiviati e non riceve ricorrenze automatiche. Ripristinalo per riportarlo fra gli attivi.'
-              : 'Per un anno chiuso o un tracker che non usi più: resta consultabile, finisce fra gli archiviati e non riceve più ricorrenze automatiche.'}
+              ? gettext(
+                  'È nel gruppo degli archiviati e non riceve ricorrenze automatiche. Ripristinalo per riportarlo fra gli attivi.',
+                )
+              : gettext(
+                  'Per un anno chiuso o un tracker che non usi più: resta consultabile, finisce fra gli archiviati e non riceve più ricorrenze automatiche.',
+                )}
           </p>
           <button
             type="button"
@@ -191,14 +207,15 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
             }}
           >
             <Icon name={archived ? 'unarchive' : 'archive'} size={18} />
-            {archived ? 'Ripristina' : 'Archivia'}
+            {archived ? gettext('Ripristina') : gettext('Archivia')}
           </button>
         </div>
         <div>
-          <p className="text-body-medium font-medium text-error">Elimina</p>
+          <p className="text-body-medium font-medium text-error">{gettext('Elimina')}</p>
           <p className="mb-3 text-body-small text-on-surface-variant">
-            Sparisce per tutti i membri, con movimenti, conti e ricorrenze. Se vuoi solo toglierlo
-            di mezzo, archivialo.
+            {gettext(
+              'Sparisce per tutti i membri, con movimenti, conti e ricorrenze. Se vuoi solo toglierlo di mezzo, archivialo.',
+            )}
           </p>
           <button
             type="button"
@@ -206,7 +223,7 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
             onClick={() => setConfirming(true)}
           >
             <Icon name="delete" size={18} />
-            Elimina tracker
+            {gettext('Elimina tracker')}
           </button>
         </div>
       </div>
@@ -218,7 +235,7 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
           setConfirming(false)
           setTyped('')
         }}
-        title="Eliminare il tracker?"
+        title={gettext('Eliminare il tracker?')}
       >
         <form
           className="grid gap-3"
@@ -230,10 +247,22 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
         >
           <ErrorBanner error={remove.error} />
           <p className="text-body-medium">
-            Spariranno per tutti i {activeMembers(tracker).length} membri i movimenti, i conti, le
-            voci in attesa e le ricorrenze di <strong>{tracker.name}</strong>.
+            {interpolate(
+              gettext(
+                'Spariranno per tutti i %(count)s membri i movimenti, i conti, le voci in attesa e le ricorrenze di',
+              ),
+              { count: activeMembers(tracker).length },
+              true,
+            )}{' '}
+            <strong>{tracker.name}</strong>.
           </p>
-          <Field label={`Scrivi «${tracker.name}» per confermare`}>
+          <Field
+            label={interpolate(
+              gettext('Scrivi «%(name)s» per confermare'),
+              { name: tracker.name },
+              true,
+            )}
+          >
             <input
               className="field-input"
               value={typed}
@@ -245,7 +274,7 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
             className="state w-full rounded-pill bg-error px-5 py-3 text-body-medium font-medium text-on-primary disabled:opacity-40"
             disabled={typed.trim() !== tracker.name.trim() || remove.isPending}
           >
-            {remove.isPending ? 'Elimino…' : 'Elimina definitivamente'}
+            {remove.isPending ? gettext('Elimino…') : gettext('Elimina definitivamente')}
           </button>
         </form>
       </Modal>
@@ -270,10 +299,10 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
   return (
     <section className="rounded-card bg-surface-container-low p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-body-large font-medium">Chi c'è, e con quale peso</h2>
+        <h2 className="text-body-large font-medium">{gettext("Chi c'è, e con quale peso")}</h2>
         {isOwner && (
           <button type="button" className="btn-tonal btn-sm" onClick={() => setOpen(true)}>
-            Invita
+            {gettext('Invita')}
           </button>
         )}
       </div>
@@ -291,7 +320,7 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                   {ROLE_LABEL[member.role]}
                   {member.status === 'pending' && (
                     <span className="rounded-pill bg-warning-container px-2 py-0.5 text-on-warning-container">
-                      invito in sospeso
+                      {gettext('invito in sospeso')}
                     </span>
                   )}
                 </p>
@@ -323,12 +352,16 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                       update.mutate({ id: member.id, default_share_pct: value })
                     }
                   }}
-                  aria-label={`Peso di ${member.display_name}`}
+                  aria-label={interpolate(
+                    gettext('Peso di %(name)s'),
+                    { name: member.display_name },
+                    true,
+                  )}
                 />
                 <span className="w-24 text-body-small text-on-surface-variant">
                   {member.user && effective[member.user.id] !== undefined
                     ? `= ${formatPct(effective[member.user.id])}%`
-                    : 'conta da attivo'}
+                    : gettext('conta da attivo')}
                 </span>
 
                 {isOwner && member.role !== 'owner' && (
@@ -339,13 +372,17 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
                       onChange={(event) =>
                         update.mutate({ id: member.id, role: event.target.value as never })
                       }
-                      aria-label={`Ruolo di ${member.display_name}`}
+                      aria-label={interpolate(
+                        gettext('Ruolo di %(name)s'),
+                        { name: member.display_name },
+                        true,
+                      )}
                     >
                       <RoleOptions />
                     </select>
                     <IconButton
                       icon="close"
-                      label="Rimuovi"
+                      label={gettext('Rimuovi')}
                       onClick={() => remove.mutate(member.id)}
                     />
                   </>
@@ -357,8 +394,9 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
       </div>
 
       <p className="mt-4 text-body-small text-on-surface-variant">
-        Pesi fra 0 e 100, non devono fare 100: a destra la percentuale che ne risulta nella
-        divisione di default.
+        {gettext(
+          'Pesi fra 0 e 100, non devono fare 100: a destra la percentuale che ne risulta nella divisione di default.',
+        )}
       </p>
       <ErrorBanner error={update.error ?? remove.error} />
 
@@ -368,11 +406,13 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
           setOpen(false)
           setInviteLink(null)
         }}
-        title="Invita una persona"
+        title={gettext('Invita una persona')}
       >
         {inviteLink ? (
           <div className="grid gap-2">
-            <p className="text-body-medium">Invito creato. In sviluppo la mail va in console:</p>
+            <p className="text-body-medium">
+              {gettext('Invito creato. In sviluppo la mail va in console:')}
+            </p>
             <code className="block break-all rounded-row bg-surface-container p-3 text-body-small">
               {inviteLink}
             </code>
@@ -391,24 +431,24 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
               setInviteLink(
                 result.invite_token
                   ? `${window.location.origin}/inviti/${result.invite_token}`
-                  : 'Email inviata.',
+                  : gettext('Email inviata.'),
               )
             }}
           >
             <ErrorBanner error={invite.error} />
-            <Field label="Email">
+            <Field label={gettext('Email')}>
               <input className="field-input" type="email" name="email" required autoFocus />
             </Field>
-            <Field label="Ruolo">
+            <Field label={gettext('Ruolo')}>
               <select className="field-input" name="role" defaultValue="editor">
                 <RoleOptions />
               </select>
             </Field>
-            <Field label="Peso di default">
+            <Field label={gettext('Peso di default')}>
               <input className="field-input amount text-right" name="pct" defaultValue="50.00" />
             </Field>
             <button className="btn-filled w-full" disabled={invite.isPending}>
-              Invia invito
+              {gettext('Invia invito')}
             </button>
           </form>
         )}
@@ -451,7 +491,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="mb-4 text-body-large font-medium">Categorie</h2>
+      <h2 className="mb-4 text-body-large font-medium">{gettext('Categorie')}</h2>
 
       {isLoading ? (
         <Skeleton className="h-10" />
@@ -473,7 +513,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                   )}
                 >
                   <Icon name={type === 'expense' ? 'trending_down' : 'trending_up'} size={20} />
-                  {type === 'expense' ? 'Uscite' : 'Entrate'}
+                  {type === 'expense' ? gettext('Uscite') : gettext('Entrate')}
                 </p>
                 <button
                   type="button"
@@ -481,7 +521,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                   onClick={() => openForm(null, type)}
                 >
                   <Icon name="add" size={18} />
-                  Categoria
+                  {gettext('Categoria')}
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -509,8 +549,9 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
       )}
 
       <p className="mt-4 text-body-small text-on-surface-variant">
-        La descrizione di ogni categoria alimenterà la categorizzazione automatica: si modifica
-        toccando la chip.
+        {gettext(
+          'La descrizione di ogni categoria alimenterà la categorizzazione automatica: si modifica toccando la chip.',
+        )}
       </p>
       <ErrorBanner error={save.error ?? remove.error} />
 
@@ -523,10 +564,10 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
           }}
           title={
             editing
-              ? `Categoria “${editing.name}”`
+              ? interpolate(gettext('Categoria “%(name)s”'), { name: editing.name }, true)
               : creating === 'income'
-                ? 'Nuova categoria di entrata'
-                : 'Nuova categoria di uscita'
+                ? gettext('Nuova categoria di entrata')
+                : gettext('Nuova categoria di uscita')
           }
         >
           <form
@@ -546,7 +587,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
               setCreating(null)
             }}
           >
-            <Field label="Nome">
+            <Field label={gettext('Nome')}>
               <input
                 className="field-input"
                 name="name"
@@ -556,7 +597,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Tipo">
+              <Field label={gettext('Tipo')}>
                 <select
                   className="field-input"
                   name="type"
@@ -577,7 +618,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                   ))}
                 </select>
               </Field>
-              <Field label="Colore">
+              <Field label={gettext('Colore')}>
                 <input
                   className="field-input h-8 p-0"
                   type="color"
@@ -587,7 +628,10 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                 />
               </Field>
             </div>
-            <Field label="Icona" hint="Nome di un glifo Material Symbols, es. shopping_basket.">
+            <Field
+              label={gettext('Icona')}
+              hint={gettext('Nome di un glifo Material Symbols, es. shopping_basket.')}
+            >
               <input
                 className="field-input"
                 name="icon"
@@ -596,8 +640,10 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
               />
             </Field>
             <Field
-              label="Descrizione"
-              hint="È il testo che in fase 3 verrà passato alla categorizzazione automatica."
+              label={gettext('Descrizione')}
+              hint={gettext(
+                'È il testo che in fase 3 verrà passato alla categorizzazione automatica.',
+              )}
             >
               <textarea
                 className="field-input resize-none"
@@ -616,10 +662,10 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                     setEditing(null)
                   }}
                 >
-                  Elimina
+                  {gettext('Elimina')}
                 </button>
               )}
-              <button className="btn-filled flex-1">Salva</button>
+              <button className="btn-filled flex-1">{gettext('Salva')}</button>
             </div>
           </form>
         </Modal>

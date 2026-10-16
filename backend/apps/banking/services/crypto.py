@@ -9,6 +9,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 
 class PrivateKeyError(Exception):
@@ -29,11 +30,15 @@ def load_private_key(pem: bytes) -> bytes:
         key = serialization.load_pem_private_key(pem, password=None)
     except (ValueError, TypeError) as exc:
         raise PrivateKeyError(
-            "Il file non e' una chiave privata PEM valida (serve il .pem scaricato "
-            "da Enable Banking, senza password)."
+            _(
+                "Il file non e' una chiave privata PEM valida (serve il .pem scaricato "
+                "da Enable Banking, senza password)."
+            )
         ) from exc
     if not isinstance(key, rsa.RSAPrivateKey):
-        raise PrivateKeyError("La chiave deve essere RSA, come quella generata da Enable Banking.")
+        raise PrivateKeyError(
+            _("La chiave deve essere RSA, come quella generata da Enable Banking.")
+        )
     return key.private_bytes(
         serialization.Encoding.PEM,
         serialization.PrivateFormat.PKCS8,
@@ -50,6 +55,8 @@ def decrypt(token: bytes) -> bytes:
         return _fernet().decrypt(bytes(token))
     except InvalidToken as exc:
         raise PrivateKeyError(
-            "La chiave salvata non si decifra piu' (e' cambiata BANKING_ENCRYPTION_KEY): "
-            "ricarica il file .pem."
+            _(
+                "La chiave salvata non si decifra piu' (e' cambiata BANKING_ENCRYPTION_KEY): "
+                "ricarica il file .pem."
+            )
         ) from exc

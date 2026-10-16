@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.trackers.methods import require_active_member
@@ -93,5 +94,7 @@ class PendingItemConvertSerializer(serializers.Serializer):
         if user_id is None:
             return None
         return require_active_member(
-            self.context["tracker"], user_id, "Chi paga deve essere un membro attivo del tracker."
+            self.context["tracker"],
+            user_id,
+            _("Chi paga deve essere un membro attivo del tracker."),
         )

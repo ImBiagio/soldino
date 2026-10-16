@@ -16,6 +16,7 @@ import {
   RowsSkeleton,
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { memberColor } from '../../lib/colors'
 import { formatCents, toCents } from '../../lib/money'
 import { KIND_OPTIONS, isGroup, showsReconciliation } from '../../lib/trackerKind'
@@ -41,17 +42,19 @@ export function TrackerListPage() {
             <img src="/logo.png" alt="" width={48} height={48} />
             <div>
               <h1 className="text-title-large">Soldino</h1>
-              <p className="text-body-medium text-on-surface-variant">Ciao {user?.display_name}</p>
+              <p className="text-body-medium text-on-surface-variant">
+                {interpolate(gettext('Ciao %(name)s'), { name: user?.display_name }, true)}
+              </p>
             </div>
           </div>
           <div className="flex gap-2">
             <button type="button" className="btn-filled" onClick={() => setOpen(true)}>
               <Icon name="add" size={20} />
-              Nuovo tracker
+              {gettext('Nuovo tracker')}
             </button>
-            <Link to="/account" className="btn-text" aria-label="Account">
+            <Link to="/account" className="btn-text" aria-label={gettext('Account')}>
               <Avatar name={user?.display_name ?? ''} size={24} />
-              Account
+              {gettext('Account')}
             </Link>
           </div>
         </header>
@@ -63,11 +66,13 @@ export function TrackerListPage() {
         ) : trackers.length === 0 ? (
           <EmptyState
             icon="savings"
-            title="Nessun tracker"
-            description="Crea il primo tracker per iniziare a registrare spese ed entrate."
+            title={gettext('Nessun tracker')}
+            description={gettext(
+              'Crea il primo tracker per iniziare a registrare spese ed entrate.',
+            )}
             action={
               <button type="button" className="btn-tonal" onClick={() => setOpen(true)}>
-                Crea tracker
+                {gettext('Crea tracker')}
               </button>
             }
           />
@@ -78,7 +83,7 @@ export function TrackerListPage() {
             ))}
             {active.length === 0 && (
               <p className="px-1 py-4 text-body-medium text-on-surface-variant">
-                Nessun tracker attivo.
+                {gettext('Nessun tracker attivo.')}
               </p>
             )}
           </div>
@@ -93,7 +98,7 @@ export function TrackerListPage() {
               className="state mb-2 flex w-full items-center gap-2 rounded-row px-1 py-2 text-left text-body-medium font-medium text-on-surface-variant"
             >
               <Icon name="archive" size={20} />
-              Archiviati · {archived.length}
+              {interpolate(gettext('Archiviati · %(count)s'), { count: archived.length }, true)}
               <Icon
                 name={showArchived ? 'expand_less' : 'expand_more'}
                 size={20}
@@ -111,7 +116,7 @@ export function TrackerListPage() {
         )}
       </div>
 
-      <Modal open={open} onClose={() => setOpen(false)} title="Nuovo tracker">
+      <Modal open={open} onClose={() => setOpen(false)} title={gettext('Nuovo tracker')}>
         <form
           className="grid gap-3"
           onSubmit={async (event) => {
@@ -123,12 +128,12 @@ export function TrackerListPage() {
           }}
         >
           <ErrorBanner error={create.error} />
-          <Field label="Nome" hint="Es. “Spese casa 2026”">
+          <Field label={gettext('Nome')} hint={gettext('Es. “Spese casa 2026”')}>
             <input className="field-input" name="name" required autoFocus />
           </Field>
           <KindPicker value={kind} onChange={setKind} />
           <button className="btn-filled w-full" disabled={create.isPending}>
-            Crea
+            {gettext('Crea')}
           </button>
         </form>
       </Modal>
@@ -152,9 +157,14 @@ function TrackerRow({ tracker }: { tracker: Tracker }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-body-large font-semibold">{tracker.name}</p>
         <p className="text-body-small text-on-surface-variant">
-          {members.length} {members.length === 1 ? 'membro' : 'membri'} · {tracker.currency}
-          {archived && ' · archiviato'}
-          {isGroup(tracker) && ' · dividere le spese'}
+          {interpolate(
+            ngettext('%(count)s membro', '%(count)s membri', members.length),
+            { count: members.length },
+            true,
+          )}{' '}
+          · {tracker.currency}
+          {archived && <> · {gettext('archiviato')}</>}
+          {isGroup(tracker) && <> · {gettext('dividere le spese')}</>}
           {showsReconciliation(tracker) && <ReconciliationHint tracker={tracker} />}
         </p>
       </div>
@@ -180,8 +190,17 @@ function ReconciliationHint({ tracker }: { tracker: Tracker }) {
   const { data } = useReconciliation(tracker.id)
   if (!data) return null
   const delta = toCents(data.delta)
-  if (delta === 0) return <> · quadra</>
-  return <> · non quadra per {formatCents(Math.abs(delta), tracker.currency)}</>
+  if (delta === 0) return <> · {gettext('quadra')}</>
+  return (
+    <>
+      {' · '}
+      {interpolate(
+        gettext('non quadra per %(amount)s'),
+        { amount: formatCents(Math.abs(delta), tracker.currency) },
+        true,
+      )}
+    </>
+  )
 }
 
 /** Il tipo di tracker: due card radio, si cambia poi dal Setup (ADR 0010). */
@@ -195,7 +214,11 @@ export function KindPicker({
   disabled?: boolean
 }) {
   return (
-    <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Tipo di tracker">
+    <div
+      className="grid gap-2 sm:grid-cols-2"
+      role="radiogroup"
+      aria-label={gettext('Tipo di tracker')}
+    >
       {KIND_OPTIONS.map((option) => (
         <button
           key={option.value}

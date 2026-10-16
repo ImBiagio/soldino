@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.accounts.models import Account
@@ -25,7 +26,7 @@ class BankingAppUploadSerializer(serializers.Serializer):
 
     def validate_key(self, upload):
         if upload.size > MAX_KEY_BYTES:
-            raise serializers.ValidationError("Il file e' troppo grande per essere una chiave.")
+            raise serializers.ValidationError(_("Il file e' troppo grande per essere una chiave."))
         return upload
 
 
@@ -95,10 +96,10 @@ class BankAccountSerializer(serializers.ModelSerializer):
             return None
         connection = self.instance.connection
         if account.tracker_id != connection.tracker_id:
-            raise serializers.ValidationError("Il conto appartiene a un altro tracker.")
+            raise serializers.ValidationError(_("Il conto appartiene a un altro tracker."))
         if account.owner_id != connection.user_id:
             # Chi intesta il conto paga le sue righe: un conto altrui sbaglierebbe i debiti.
-            raise serializers.ValidationError("Puoi abbinare solo un conto intestato a te.")
+            raise serializers.ValidationError(_("Puoi abbinare solo un conto intestato a te."))
         taken = (
             BankAccount.objects.filter(
                 account=account, connection__status=BankConnection.Status.ACTIVE
@@ -108,7 +109,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
         )
         if taken:
             raise serializers.ValidationError(
-                "Questo conto e' gia' abbinato a un altro conto in banca."
+                _("Questo conto e' gia' abbinato a un altro conto in banca.")
             )
         return account
 

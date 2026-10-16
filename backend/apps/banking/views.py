@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.core.cache import cache
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -218,7 +219,7 @@ class BankAccountViewSet(
         bank_account = self.get_object()
         if bank_account.account_id is None:
             return Response(
-                {"detail": "Abbina prima il conto a un conto di Soldino."},
+                {"detail": _("Abbina prima il conto a un conto di Soldino.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:

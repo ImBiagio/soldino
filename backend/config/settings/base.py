@@ -61,6 +61,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -111,7 +112,14 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "it-it"
+# Lingue (ADR 0016): l'italiano e' la lingua sorgente dei msgid, l'inglese sta
+# in locale/en. LocaleMiddleware sceglie dal cookie `django_language` (scritto
+# da /api/i18n/language) e poi da Accept-Language.
+LANGUAGE_CODE = "it"
+LANGUAGES = [("it", "Italiano"), ("en", "English")]
+LOCALE_PATHS = [BASE_DIR / "locale"]
+LANGUAGE_COOKIE_AGE = 60 * 60 * 24 * 365
+LANGUAGE_COOKIE_SAMESITE = "Lax"
 TIME_ZONE = "Europe/Rome"
 USE_I18N = True
 USE_TZ = True

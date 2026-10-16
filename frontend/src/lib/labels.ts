@@ -1,13 +1,14 @@
 // Etichette italiane dei valori enumerati dell'API: un solo posto per liste,
 // select e chip.
 
+import { gettext, interpolate } from './i18n'
 import { formatSigned, toCents } from './money'
 import type { Account, MemberRole, RecurringRule, TransactionType } from './types'
 
 export const ROLE_LABEL: Record<MemberRole, string> = {
-  owner: 'Proprietario',
-  editor: 'Editor',
-  viewer: 'Sola lettura',
+  owner: gettext('Proprietario'),
+  editor: gettext('Editor'),
+  viewer: gettext('Sola lettura'),
 }
 
 /** I ruoli assegnabili: il proprietario non si sceglie da un invito o da una select. */
@@ -17,8 +18,8 @@ export const ROLE_OPTIONS = (['editor', 'viewer'] as const).map((value) => ({
 }))
 
 export const TYPE_LABEL: Record<TransactionType, string> = {
-  expense: 'Spesa',
-  income: 'Entrata',
+  expense: gettext('Spesa'),
+  income: gettext('Entrata'),
 }
 
 export const TYPE_OPTIONS = (['expense', 'income'] as const).map((value) => ({
@@ -27,18 +28,18 @@ export const TYPE_OPTIONS = (['expense', 'income'] as const).map((value) => ({
 }))
 
 export const ACCOUNT_KIND_LABEL: Record<Account['kind'], string> = {
-  bank: 'Conto corrente',
-  card: 'Carta',
-  cash: 'Contanti',
-  wallet: 'Wallet',
+  bank: gettext('Conto corrente'),
+  card: gettext('Carta'),
+  cash: gettext('Contanti'),
+  wallet: gettext('Wallet'),
 }
 
 /** Minuscole: si leggono dentro una frase ("mensile · 01/11/2026"). */
 export const FREQUENCY_LABEL: Record<RecurringRule['frequency'], string> = {
-  weekly: 'settimanale',
-  monthly: 'mensile',
-  yearly: 'annuale',
-  custom: 'personalizzata',
+  weekly: gettext('settimanale'),
+  monthly: gettext('mensile'),
+  yearly: gettext('annuale'),
+  custom: gettext('personalizzata'),
 }
 
 /** Le frequenze che si creano dalla UI; "personalizzata" arriva solo dall'API. */
@@ -48,12 +49,14 @@ export const FREQUENCY_OPTIONS = (['weekly', 'monthly', 'yearly'] as const).map(
 }))
 
 export const PERIOD_LABEL = {
-  month: 'Mese',
-  quarter: 'Trimestre',
-  year: 'Anno',
+  month: gettext('Mese'),
+  quarter: gettext('Trimestre'),
+  year: gettext('Anno'),
 } as const
 
 /** Lo scarto della riconciliazione in una parola: "Quadra" o "Scarto +12,00 €". */
 export function deltaText(delta: string, currency: string): string {
-  return toCents(delta) === 0 ? 'Quadra' : `Scarto ${formatSigned(delta, currency)}`
+  return toCents(delta) === 0
+    ? gettext('Quadra')
+    : interpolate(gettext('Scarto %s'), [formatSigned(delta, currency)])
 }

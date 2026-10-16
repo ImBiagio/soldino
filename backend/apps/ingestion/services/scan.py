@@ -14,6 +14,7 @@ from functools import partial
 
 from django.db import transaction as db_transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from apps.core.money import quantize
 from apps.core.normalize import normalize_merchant
@@ -267,8 +268,9 @@ def run_scan(statement: StatementImport, extractor=None) -> None:
         if not isinstance(exc, ExtractionError):
             logger.exception("Scan non riuscito: %s", statement.pk)
         statement.status = StatementImport.Status.FAILED
+        # Salvato dal worker: resta nella lingua di default, non in quella dell'utente.
         statement.error = (
-            str(exc) if isinstance(exc, ExtractionError) else "Errore imprevisto nella lettura."
+            str(exc) if isinstance(exc, ExtractionError) else _("Errore imprevisto nella lettura.")
         )
         statement.save(update_fields=["status", "error", "model_name", "updated_at"])
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from django.db import transaction as db_transaction
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.core.methods import validate_positive_amount
@@ -108,7 +109,7 @@ class TransactionSerializer(serializers.ModelSerializer):
 
     def validate_paid_by(self, user):
         return require_active_member(
-            self.context["tracker"], user, "Chi paga deve essere un membro attivo del tracker."
+            self.context["tracker"], user, _("Chi paga deve essere un membro attivo del tracker.")
         )
 
     def _resolve_split_items(self, validated_data, instance=None) -> list[dict] | None:
@@ -202,10 +203,10 @@ class SettlementSerializer(serializers.ModelSerializer):
         from_user = attrs.get("from_user") or getattr(self.instance, "from_user", None)
         to_user = attrs.get("to_user") or getattr(self.instance, "to_user", None)
         if from_user == to_user:
-            raise serializers.ValidationError("Il pareggio richiede due utenti diversi.")
+            raise serializers.ValidationError(_("Il pareggio richiede due utenti diversi."))
         member_ids = active_member_ids(tracker)
         if str(from_user.pk) not in member_ids or str(to_user.pk) not in member_ids:
-            raise serializers.ValidationError("Entrambi gli utenti devono essere membri attivi.")
+            raise serializers.ValidationError(_("Entrambi gli utenti devono essere membri attivi."))
         if attrs.get("amount") is not None:
             validate_positive_amount(attrs["amount"])
         return attrs

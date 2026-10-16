@@ -6,6 +6,7 @@ from django.db import transaction as db_transaction
 from django.db.models import BooleanField, ExpressionWrapper, Q
 from django.http import Http404, HttpResponse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -112,7 +113,7 @@ class StatementViewSet(
     def _editable(self, statement):
         if statement.status != StatementImport.Status.READY:
             return Response(
-                {"detail": "Questo estratto conto non e' in revisione."},
+                {"detail": _("Questo estratto conto non e' in revisione.")},
                 status=status.HTTP_409_CONFLICT,
             )
         return None
@@ -159,7 +160,7 @@ class StatementViewSet(
         if error := self._editable(statement):
             return error
         if not statement.lines.exists():
-            return Response({"detail": "Non ci sono righe da registrare."}, status=400)
+            return Response({"detail": _("Non ci sono righe da registrare.")}, status=400)
         commit_statement(statement, request)
         return Response(
             self.get_serializer(self._fresh(statement)).data, status=status.HTTP_201_CREATED
@@ -171,7 +172,7 @@ class StatementViewSet(
         """La foto dello scontrino, per la revisione. Il PDF non si riscarica."""
         statement = self.get_object()
         if not statement.is_receipt or statement.pdf is None:
-            raise Http404("Nessuna foto per questo import.")
+            raise Http404(_("Nessuna foto per questo import."))
         response = HttpResponse(bytes(statement.pdf), content_type=statement.mime_type)
         # Dato personale: niente cache condivise, niente copie su disco del browser.
         response["Cache-Control"] = "private, no-store"
@@ -194,7 +195,7 @@ class StatementViewSet(
         retryable = statement.status == StatementImport.Status.FAILED or stuck
         # La voce non ha file: si rilegge il testo.
         if not retryable or not (statement.pdf or statement.transcript):
-            return Response({"detail": "Niente da rileggere."}, status=status.HTTP_409_CONFLICT)
+            return Response({"detail": _("Niente da rileggere.")}, status=status.HTTP_409_CONFLICT)
         statement.status = StatementImport.Status.PROCESSING
         statement.error = ""
         statement.save(update_fields=["status", "error", "updated_at"])

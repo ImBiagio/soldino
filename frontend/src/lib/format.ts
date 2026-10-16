@@ -1,20 +1,11 @@
-const MONTHS = [
-  'gennaio',
-  'febbraio',
-  'marzo',
-  'aprile',
-  'maggio',
-  'giugno',
-  'luglio',
-  'agosto',
-  'settembre',
-  'ottobre',
-  'novembre',
-  'dicembre',
-]
+import { intlLocale } from './i18n'
 
+/** Nome del mese (1-12) nella lingua dell'interfaccia: "ottobre", "October". */
 export function monthLabel(month: number): string {
-  return MONTHS[month - 1] ?? ''
+  if (month < 1 || month > 12) return ''
+  return new Intl.DateTimeFormat(intlLocale(), { month: 'long' }).format(
+    new Date(2000, month - 1, 1),
+  )
 }
 
 /** Chiave di raggruppamento: la data e' una stringa YYYY-MM-DD, niente Date. */

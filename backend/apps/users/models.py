@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
@@ -47,6 +48,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Ordine delle voci di navigazione scelto dall'utente (chiavi delle sezioni
     # del frontend). Vuoto = ordine predefinito; le voci che mancano vanno in coda.
     nav_order = models.JSONField(default=list, blank=True)
+    # Lingua dell'interfaccia e delle mail (settings.LANGUAGES).
+    language = models.CharField(max_length=8, choices=settings.LANGUAGES, default="it")
 
     objects = UserManager()
 

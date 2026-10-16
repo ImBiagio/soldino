@@ -24,6 +24,7 @@ import {
 } from '../../components/ui'
 import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
 import { useClickOutside } from '../../lib/hooks'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { categoryColor, memberColor } from '../../lib/colors'
 import { categoryIcon } from '../../lib/icons'
 import { formatCents, formatMoney, normalizeDecimal, toCents } from '../../lib/money'
@@ -112,7 +113,15 @@ export function TransactionsPage() {
           <Icon name="search" size={22} className="text-on-surface-variant" />
           <input
             className="w-full border-none bg-transparent text-body-large outline-none placeholder:text-on-surface-variant"
-            placeholder={`Cerca fra ${data?.count ?? 0} movimenti`}
+            placeholder={interpolate(
+              ngettext(
+                'Cerca fra %(count)s movimento',
+                'Cerca fra %(count)s movimenti',
+                data?.count ?? 0,
+              ),
+              { count: data?.count ?? 0 },
+              true,
+            )}
             defaultValue={params.get('q') ?? ''}
             onChange={(event) => setFilter('q', event.target.value)}
           />
@@ -127,7 +136,11 @@ export function TransactionsPage() {
             selected
             icon="check"
             trailingIcon="close"
-            label={`Dal ${formatDate(params.get('date_from')!)}`}
+            label={interpolate(
+              gettext('Dal %(date)s'),
+              { date: formatDate(params.get('date_from')!) },
+              true,
+            )}
             onClick={() => setFilter('date_from', '')}
           />
         )}
@@ -136,45 +149,53 @@ export function TransactionsPage() {
             selected
             icon="check"
             trailingIcon="close"
-            label={`Al ${formatDate(params.get('date_to')!)}`}
+            label={interpolate(
+              gettext('Al %(date)s'),
+              { date: formatDate(params.get('date_to')!) },
+              true,
+            )}
             onClick={() => setFilter('date_to', '')}
           />
         )}
         <Chip
           selected={params.get('type') === 'expense'}
           icon={params.get('type') === 'expense' ? 'check' : undefined}
-          label="Solo spese"
+          label={gettext('Solo spese')}
           onClick={() => setFilter('type', params.get('type') === 'expense' ? '' : 'expense')}
         />
         <Chip
           selected={params.get('type') === 'income'}
           icon={params.get('type') === 'income' ? 'check' : undefined}
-          label="Solo entrate"
+          label={gettext('Solo entrate')}
           onClick={() => setFilter('type', params.get('type') === 'income' ? '' : 'income')}
         />
         <SelectChip
-          label="Categoria"
+          label={gettext('Categoria')}
           value={params.get('category')}
           options={categoryList.map((c) => ({ value: c.id, label: c.name }))}
           onChange={(value) => setFilter('category', value)}
         />
         <SelectChip
-          label="Conto"
+          label={gettext('Conto')}
           value={params.get('account')}
           options={accountList.map((a) => ({ value: a.id, label: a.name }))}
           onChange={(value) => setFilter('account', value)}
         />
         <SelectChip
-          label="Chi ha pagato"
+          label={gettext('Chi ha pagato')}
           value={params.get('paid_by')}
           options={members.map((m) => ({ value: m.user!.id, label: m.display_name }))}
           onChange={(value) => setFilter('paid_by', value)}
         />
-        <Chip icon="filter_list" label="Altri filtri" onClick={() => setSheetOpen(true)} />
+        <Chip
+          icon="filter_list"
+          label={gettext('Altri filtri')}
+          onClick={() => setSheetOpen(true)}
+        />
         {FILTER_KEYS.some((key) => params.get(key)) && (
           <Chip
             icon="close"
-            label="Azzera"
+            label={gettext('Azzera')}
             onClick={() => setParams(new URLSearchParams(), { replace: true })}
           />
         )}
@@ -187,8 +208,8 @@ export function TransactionsPage() {
       ) : groups.length === 0 ? (
         <EmptyState
           icon="receipt_long"
-          title="Nessun movimento"
-          description="Cambia i filtri, oppure registra il primo movimento."
+          title={gettext('Nessun movimento')}
+          description={gettext('Cambia i filtri, oppure registra il primo movimento.')}
           action={
             <button
               type="button"
@@ -196,7 +217,7 @@ export function TransactionsPage() {
               className="btn-tonal"
             >
               <Icon name="add" size={20} />
-              Nuovo movimento
+              {gettext('Nuovo movimento')}
             </button>
           }
         />
@@ -305,7 +326,7 @@ function SelectChip({
               setOpen(false)
             }}
           >
-            Tutti
+            {gettext('Tutti')}
           </button>
           {options.map((option) => (
             <button
@@ -341,10 +362,10 @@ function MoreFiltersSheet({
   onChange: (key: string, value: string) => void
 }) {
   return (
-    <Modal open={open} onClose={onClose} title="Altri filtri">
+    <Modal open={open} onClose={onClose} title={gettext('Altri filtri')}>
       <div className="grid gap-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Dal">
+          <Field label={gettext('Dal')}>
             <input
               className="field-input"
               type="date"
@@ -352,7 +373,7 @@ function MoreFiltersSheet({
               onChange={(event) => onChange('date_from', event.target.value)}
             />
           </Field>
-          <Field label="Al">
+          <Field label={gettext('Al')}>
             <input
               className="field-input"
               type="date"
@@ -360,7 +381,7 @@ function MoreFiltersSheet({
               onChange={(event) => onChange('date_to', event.target.value)}
             />
           </Field>
-          <Field label="Importo minimo">
+          <Field label={gettext('Importo minimo')}>
             <input
               className="field-input amount"
               inputMode="decimal"
@@ -368,7 +389,7 @@ function MoreFiltersSheet({
               onChange={(event) => onChange('min_amount', event.target.value)}
             />
           </Field>
-          <Field label="Importo massimo">
+          <Field label={gettext('Importo massimo')}>
             <input
               className="field-input amount"
               inputMode="decimal"
@@ -378,7 +399,7 @@ function MoreFiltersSheet({
           </Field>
         </div>
         <button type="button" className="btn-filled w-full" onClick={onClose}>
-          Applica
+          {gettext('Applica')}
         </button>
       </div>
     </Modal>
@@ -424,7 +445,7 @@ function TransactionRow({
 
   const splitLabel = isGroup
     ? tx.splits.map((split) => Math.round(Number(split.share_pct))).join('/')
-    : 'personale'
+    : gettext('personale')
 
   return (
     <div
@@ -458,7 +479,7 @@ function TransactionRow({
               onClick={() => setCategoryOpen((open) => !open)}
               className="underline decoration-dotted underline-offset-2"
             >
-              {category?.name ?? 'Senza categoria'}
+              {category?.name ?? gettext('Senza categoria')}
             </button>
             {categoryOpen && (
               <span className="absolute left-0 top-full z-20 mt-1 block max-h-64 w-52 overflow-y-auto rounded-card bg-surface-container p-2 shadow-sheet">
@@ -470,7 +491,7 @@ function TransactionRow({
                     setCategoryOpen(false)
                   }}
                 >
-                  Senza categoria
+                  {gettext('Senza categoria')}
                 </button>
                 {categories
                   .filter((option) => option.type === tx.type)
@@ -499,7 +520,7 @@ function TransactionRow({
           {tx.possible_duplicates.length > 0 && (
             <span className="inline-flex items-center gap-1 rounded-pill bg-warning-container px-2 py-0.5 text-on-warning-container">
               <Icon name="content_copy" size={14} />
-              possibile doppione
+              {gettext('possibile doppione')}
             </span>
           )}
         </p>
@@ -555,7 +576,7 @@ function TransactionRow({
         <button
           type="button"
           onClick={() => setEditingAmount(true)}
-          title="Tocca per correggere"
+          title={gettext('Tocca per correggere')}
           className={clsx(
             // Larghezza fissa solo da sm in su: su mobile toglieva spazio alla descrizione.
             'amount min-w-[6.5rem] shrink-0 whitespace-nowrap text-right text-[16px] font-semibold sm:w-[152px] sm:text-amount-row',
@@ -568,7 +589,11 @@ function TransactionRow({
       )}
 
       <div className="relative" ref={menuOpen ? menuRef : undefined}>
-        <IconButton icon="more_vert" label="Azioni" onClick={() => setMenuOpen((open) => !open)} />
+        <IconButton
+          icon="more_vert"
+          label={gettext('Azioni')}
+          onClick={() => setMenuOpen((open) => !open)}
+        />
         {menuOpen && (
           <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-card bg-surface-container p-2 shadow-sheet">
             <button
@@ -579,7 +604,7 @@ function TransactionRow({
                 onEdit()
               }}
             >
-              Modifica
+              {gettext('Modifica')}
             </button>
             <button
               type="button"
@@ -589,7 +614,7 @@ function TransactionRow({
                 onDelete()
               }}
             >
-              Elimina
+              {gettext('Elimina')}
             </button>
           </div>
         )}

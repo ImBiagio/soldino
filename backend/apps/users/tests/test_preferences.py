@@ -9,7 +9,9 @@ pytestmark = pytest.mark.django_db
 
 def test_ordine_del_menu_si_salva(user, api):
     client = api(user)
-    response = client.patch("/api/me", {"nav_order": ["conti", "oggi", "da-rivedere"]}, format="json")
+    response = client.patch(
+        "/api/me", {"nav_order": ["conti", "oggi", "da-rivedere"]}, format="json"
+    )
     assert response.status_code == 200
     assert response.data["nav_order"] == ["conti", "oggi", "da-rivedere"]
     user.refresh_from_db()

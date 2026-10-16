@@ -1,4 +1,4 @@
-{% autoescape off %}Ciao {{ name }},
+{% load i18n %}{% autoescape off %}{% blocktranslate %}Ciao {{ name }},{% endblocktranslate %}
 
 {{ intro }}
 {% if body %}

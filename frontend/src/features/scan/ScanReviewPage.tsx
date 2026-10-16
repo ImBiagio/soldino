@@ -5,6 +5,7 @@ import { useCategories, useStatement, useStatementAction, useStatementFile } fro
 import { activeMembers } from '../../components/Layout'
 import { ErrorBanner, Icon, Skeleton } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { formatCents, normalizeDecimal, toCents } from '../../lib/money'
 import type { StatementImport, StatementLine, Tracker, TransactionType } from '../../lib/types'
 import { ReviewRow, SelectChip, type Row } from './ReviewRow'
@@ -36,12 +37,12 @@ export function ScanReviewPage() {
           className="state flex h-10 w-10 items-center justify-center rounded-pill"
           aria-label={
             statement?.source === 'bank'
-              ? 'Torna alla banca'
+              ? gettext('Torna alla banca')
               : receipt
-                ? 'Torna agli scontrini'
+                ? gettext('Torna agli scontrini')
                 : voice
-                  ? 'Torna ai vocali'
-                  : 'Torna agli estratti conto'
+                  ? gettext('Torna ai vocali')
+                  : gettext('Torna agli estratti conto')
           }
         >
           <Icon name="arrow_back" size={22} />
@@ -49,10 +50,10 @@ export function ScanReviewPage() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-title-large">
             {receipt
-              ? 'Scontrino'
+              ? gettext('Scontrino')
               : voice
-                ? 'Messaggio vocale'
-                : (statement?.filename ?? 'Estratto conto')}
+                ? gettext('Messaggio vocale')
+                : (statement?.filename ?? gettext('Estratto conto'))}
           </h1>
           {statement && voice && (
             <p className="text-body-small italic text-on-surface-variant">
@@ -61,11 +62,23 @@ export function ScanReviewPage() {
           )}
           {statement && !receipt && !voice && (
             <p className="text-body-small text-on-surface-variant">
-              {statement.account_name ?? 'Nessun conto'}
+              {statement.account_name ?? gettext('Nessun conto')}
               {statement.period_start &&
-                ` · dal ${formatDate(statement.period_start)}${
-                  statement.period_end ? ` al ${formatDate(statement.period_end)}` : ''
-                }`}
+                ' · ' +
+                  (statement.period_end
+                    ? interpolate(
+                        gettext('dal %(start)s al %(end)s'),
+                        {
+                          start: formatDate(statement.period_start),
+                          end: formatDate(statement.period_end),
+                        },
+                        true,
+                      )
+                    : interpolate(
+                        gettext('dal %(start)s'),
+                        { start: formatDate(statement.period_start) },
+                        true,
+                      ))}
             </p>
           )}
         </div>
@@ -103,17 +116,21 @@ function Processing({ tracker, statement }: { tracker: Tracker; statement: State
         className="animate-pulse text-primary"
       />
       <p className="text-title-medium">
-        {receipt ? 'Sto leggendo lo scontrino…' : "Sto leggendo l'estratto conto…"}
+        {receipt
+          ? gettext('Sto leggendo lo scontrino…')
+          : gettext("Sto leggendo l'estratto conto…")}
       </p>
       <p className="max-w-md text-body-medium text-on-surface-variant">
         {receipt
-          ? 'Di solito bastano pochi secondi.'
-          : 'Di solito ci vogliono 10–30 secondi. Puoi lasciare la pagina: quando torni le righe sono pronte da rivedere.'}
+          ? gettext('Di solito bastano pochi secondi.')
+          : gettext(
+              'Di solito ci vogliono 10–30 secondi. Puoi lasciare la pagina: quando torni le righe sono pronte da rivedere.',
+            )}
       </p>
       {stuck && (
         <div className="grid justify-items-center gap-2">
           <p className="text-body-medium text-warning">
-            Sembra bloccato da più di 10 minuti: rilanciamo la lettura.
+            {gettext('Sembra bloccato da più di 10 minuti: rilanciamo la lettura.')}
           </p>
           <button
             type="button"
@@ -122,7 +139,7 @@ function Processing({ tracker, statement }: { tracker: Tracker; statement: State
             onClick={() => retry.mutate()}
           >
             <Icon name="refresh" size={20} />
-            Riprova
+            {gettext('Riprova')}
           </button>
           <ErrorBanner error={retry.error} />
         </div>
@@ -136,8 +153,8 @@ function Failed({ tracker, statement }: { tracker: Tracker; statement: Statement
   const { retry, discard } = useStatementAction(tracker.id, statement.id)
   return (
     <section className="grid gap-3 rounded-panel bg-error-container p-6 text-on-error-container">
-      <p className="text-title-medium">Lettura non riuscita</p>
-      <p className="text-body-medium">{statement.error || 'Errore sconosciuto.'}</p>
+      <p className="text-title-medium">{gettext('Lettura non riuscita')}</p>
+      <p className="text-body-medium">{statement.error || gettext('Errore sconosciuto.')}</p>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -146,7 +163,7 @@ function Failed({ tracker, statement }: { tracker: Tracker; statement: Statement
           onClick={() => retry.mutate()}
         >
           <Icon name="refresh" size={20} />
-          Riprova
+          {gettext('Riprova')}
         </button>
         <button
           type="button"
@@ -156,7 +173,7 @@ function Failed({ tracker, statement }: { tracker: Tracker; statement: Statement
             navigate('..', { relative: 'path' })
           }}
         >
-          Scarta
+          {gettext('Scarta')}
         </button>
       </div>
       <ErrorBanner error={retry.error ?? discard.error} />
@@ -169,23 +186,37 @@ function Committed({ tracker, statement }: { tracker: Tracker; statement: Statem
     <section className="grid gap-3 rounded-panel bg-secondary-container p-6 text-on-secondary-container">
       <p className="text-title-medium">
         {statement.source === 'receipt'
-          ? 'Spesa registrata'
-          : `${statement.line_count} ${
-              statement.line_count === 1 ? 'movimento registrato' : 'movimenti registrati'
-            }`}
-        {statement.committed_at && ` il ${formatDate(statement.committed_at.slice(0, 10))}`}
+          ? gettext('Spesa registrata')
+          : interpolate(
+              ngettext(
+                '%(count)s movimento registrato',
+                '%(count)s movimenti registrati',
+                statement.line_count,
+              ),
+              { count: statement.line_count },
+              true,
+            )}
+        {statement.committed_at &&
+          ' ' +
+            interpolate(
+              gettext('il %(date)s'),
+              { date: formatDate(statement.committed_at.slice(0, 10)) },
+              true,
+            )}
       </p>
       <p className="text-body-medium">
         {statement.source === 'receipt'
-          ? 'La trovi nei movimenti. La foto dello scontrino è stata cancellata.'
+          ? gettext('La trovi nei movimenti. La foto dello scontrino è stata cancellata.')
           : statement.source === 'bank'
-            ? 'Li trovi nei movimenti, con origine "open banking".'
+            ? gettext('Li trovi nei movimenti, con origine "open banking".')
             : statement.source === 'voice'
-              ? 'Spese ed entrate sono nei movimenti (origine "voce"), i pareggi nei debiti.'
-              : 'Li trovi nei movimenti, con origine "scan".'}
+              ? gettext(
+                  'Spese ed entrate sono nei movimenti (origine "voce"), i pareggi nei debiti.',
+                )
+              : gettext('Li trovi nei movimenti, con origine "scan".')}
       </p>
       <Link to={`/t/${tracker.id}/movimenti`} className="btn-filled w-fit">
-        Vai ai movimenti
+        {gettext('Vai ai movimenti')}
       </Link>
     </section>
   )
@@ -285,46 +316,61 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
 
       {!receipt && (
         <section className="flex flex-wrap items-center gap-2 rounded-panel bg-surface-container-low px-4 py-3">
-          <span className="mr-1 text-body-medium text-on-surface-variant">Applica a tutte</span>
+          <span className="mr-1 text-body-medium text-on-surface-variant">
+            {gettext('Applica a tutte')}
+          </span>
           <SelectChip
-            ariaLabel="Chi paga, per tutte le righe"
+            ariaLabel={gettext('Chi paga, per tutte le righe')}
             value=""
             onChange={(value) => value && setAll({ paid_by: value })}
             options={[
-              { value: '', label: 'Chi paga…' },
-              ...members.map((m) => ({ value: m.user!.id, label: `Paga ${m.display_name}` })),
+              { value: '', label: gettext('Chi paga…') },
+              ...members.map((m) => ({
+                value: m.user!.id,
+                label: interpolate(gettext('Paga %(name)s'), { name: m.display_name }, true),
+              })),
             ]}
             leading={<Icon name="person" size={16} />}
-            label="Chi paga"
+            label={gettext('Chi paga')}
           />
           <SelectChip
-            ariaLabel="Divisione, per tutte le righe"
+            ariaLabel={gettext('Divisione, per tutte le righe')}
             value=""
             onChange={(value) => value && setAll({ split_mode: value as Row['split_mode'] })}
             options={[
-              { value: '', label: 'Divisione…' },
-              { value: 'personal', label: 'Solo di chi paga' },
-              { value: 'default', label: 'Divisa di default' },
+              { value: '', label: gettext('Divisione…') },
+              { value: 'personal', label: gettext('Solo di chi paga') },
+              { value: 'default', label: gettext('Divisa di default') },
             ]}
             leading={<Icon name="group" size={16} />}
-            label="Divisione"
+            label={gettext('Divisione')}
           />
           {duplicates > 0 && (
             <span className="ml-auto inline-flex flex-wrap items-center gap-1">
               <span className="inline-flex h-8 items-center gap-1.5 rounded-pill bg-warning-container px-3 text-[13px] font-medium text-on-warning-container">
                 <Icon name="content_copy" size={15} />
-                {duplicates} {duplicates === 1 ? 'possibile doppione' : 'possibili doppioni'}
+                {interpolate(
+                  ngettext(
+                    '%(count)s possibile doppione',
+                    '%(count)s possibili doppioni',
+                    duplicates,
+                  ),
+                  { count: duplicates },
+                  true,
+                )}
               </span>
               <button
                 type="button"
                 className="btn-text btn-sm"
-                title="Elimina le righe con la stessa data, importo e tipo di un movimento già registrato"
+                title={gettext(
+                  'Elimina le righe con la stessa data, importo e tipo di un movimento già registrato',
+                )}
                 onClick={() => {
                   setRows((current) => current.filter((row) => !row.duplicate_of))
                   setDirty(true)
                 }}
               >
-                Togli i doppioni
+                {gettext('Togli i doppioni')}
               </button>
             </span>
           )}
@@ -346,8 +392,8 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
           {rows.length === 0 && (
             <p className="px-2 py-8 text-center text-body-medium text-on-surface-variant">
               {receipt
-                ? 'Riga eliminata: aggiungila di nuovo o scarta lo scontrino.'
-                : "Nessuna riga. Aggiungine una o scarta l'estratto conto."}
+                ? gettext('Riga eliminata: aggiungila di nuovo o scarta lo scontrino.')
+                : gettext("Nessuna riga. Aggiungine una o scarta l'estratto conto.")}
             </p>
           )}
         </div>
@@ -355,7 +401,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         {(!receipt || rows.length === 0) && (
           <button type="button" className="btn-text btn-sm mt-2" onClick={add}>
             <Icon name="add" size={18} />
-            Aggiungi riga
+            {gettext('Aggiungi riga')}
           </button>
         )}
       </section>
@@ -364,14 +410,14 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
         <span className="text-body-medium">
           {receipt ? (
             <>
-              Totale{' '}
+              {gettext('Totale')}{' '}
               <span className="amount text-error">
                 −{formatCents(totals.expense + totals.income, tracker.currency)}
               </span>
             </>
           ) : (
             <>
-              <strong>{rows.length}</strong> {rows.length === 1 ? 'riga' : 'righe'} ·{' '}
+              <strong>{rows.length}</strong> {ngettext('riga', 'righe', rows.length)} ·{' '}
               <span className="amount text-error">
                 −{formatCents(totals.expense, tracker.currency)}
               </span>{' '}
@@ -379,13 +425,23 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
               <span className="amount text-primary">
                 +{formatCents(totals.income, tracker.currency)}
               </span>
-              {transfers > 0 && ` · ${transfers} ${transfers === 1 ? 'pareggio' : 'pareggi'}`}
+              {transfers > 0 &&
+                ' · ' +
+                  interpolate(
+                    ngettext('%(count)s pareggio', '%(count)s pareggi', transfers),
+                    { count: transfers },
+                    true,
+                  )}
             </>
           )}
         </span>
         {invalid.length > 0 && (
           <span className="text-body-small text-warning">
-            {invalid.length} {invalid.length === 1 ? 'riga incompleta' : 'righe incomplete'}
+            {interpolate(
+              ngettext('%(count)s riga incompleta', '%(count)s righe incomplete', invalid.length),
+              { count: invalid.length },
+              true,
+            )}
           </span>
         )}
         <div className="flex w-full items-center gap-1 sm:ml-auto sm:w-auto sm:gap-2">
@@ -394,18 +450,20 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             className="btn-text px-3 sm:px-4"
             onClick={async () => {
               const question = receipt
-                ? 'Scartare lo scontrino? Anche la foto viene cancellata.'
+                ? gettext('Scartare lo scontrino? Anche la foto viene cancellata.')
                 : statement.source === 'bank'
-                  ? 'Scartare la bozza? I movimenti torneranno alla prossima sincronizzazione. Per ignorarne uno per sempre, eliminalo dalla lista.'
+                  ? gettext(
+                      'Scartare la bozza? I movimenti torneranno alla prossima sincronizzazione. Per ignorarne uno per sempre, eliminalo dalla lista.',
+                    )
                   : statement.source === 'voice'
-                    ? 'Scartare il messaggio vocale e tutte le righe?'
-                    : "Scartare l'estratto conto e tutte le righe?"
+                    ? gettext('Scartare il messaggio vocale e tutte le righe?')
+                    : gettext("Scartare l'estratto conto e tutte le righe?")
               if (!window.confirm(question)) return
               await discard.mutateAsync()
               navigate(statement.source === 'bank' ? '../../banca' : '..', { relative: 'path' })
             }}
           >
-            Scarta
+            {gettext('Scarta')}
           </button>
           <button
             type="button"
@@ -414,10 +472,11 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             onClick={saveDraft}
           >
             {save.isPending ? (
-              'Salvo…'
+              gettext('Salvo…')
             ) : (
               <>
-                Salva<span className="hidden sm:inline">bozza</span>
+                {gettext('Salva')}
+                <span className="hidden sm:inline">{gettext('bozza')}</span>
               </>
             )}
           </button>
@@ -432,13 +491,13 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
           >
             <Icon name="check" size={20} />
             {commit.isPending ? (
-              'Registro…'
+              gettext('Registro…')
             ) : (
               <>
-                Registra {receipt ? 'spesa' : rows.length}
+                {gettext('Registra')} {receipt ? gettext('spesa') : rows.length}
                 {!receipt && (
                   <span className="hidden sm:inline">
-                    {rows.length === 1 ? 'movimento' : 'movimenti'}
+                    {ngettext('movimento', 'movimenti', rows.length)}
                   </span>
                 )}
               </>
@@ -468,11 +527,11 @@ function ReceiptPhoto({ tracker, statement }: { tracker: Tracker; statement: Sta
           type="button"
           onClick={() => setZoom((open) => !open)}
           className="cursor-zoom-in"
-          aria-label={zoom ? 'Rimpicciolisci la foto' : 'Ingrandisci la foto'}
+          aria-label={zoom ? gettext('Rimpicciolisci la foto') : gettext('Ingrandisci la foto')}
         >
           <img
             src={url}
-            alt="Foto dello scontrino"
+            alt={gettext('Foto dello scontrino')}
             className={
               zoom
                 ? 'max-h-none w-full max-w-2xl cursor-zoom-out rounded-card'
@@ -481,7 +540,9 @@ function ReceiptPhoto({ tracker, statement }: { tracker: Tracker; statement: Sta
           />
         </button>
       ) : (
-        <p className="py-6 text-body-medium text-on-surface-variant">La foto non c&apos;è più.</p>
+        <p className="py-6 text-body-medium text-on-surface-variant">
+          {gettext("La foto non c'è più.")}
+        </p>
       )}
     </section>
   )

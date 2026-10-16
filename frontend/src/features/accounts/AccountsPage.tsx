@@ -24,6 +24,7 @@ import {
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { memberColor } from '../../lib/colors'
 import { accountIcon } from '../../lib/icons'
 import { ACCOUNT_KIND_LABEL, deltaText } from '../../lib/labels'
@@ -46,10 +47,11 @@ export function AccountsPage() {
   return (
     <div className="grid gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Conti</h1>
+        <h1 className="text-title-large">{gettext('Conti')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          I saldi veri, aggiornati a mano. Per ognuno: saldo iniziale + entrate − uscite deve
-          tornare con conti + in attesa. Se non torna, manca qualcosa nei movimenti.
+          {gettext(
+            'I saldi veri, aggiornati a mano. Per ognuno: saldo iniziale + entrate − uscite deve tornare con conti + in attesa. Se non torna, manca qualcosa nei movimenti.',
+          )}
         </p>
       </div>
 
@@ -114,10 +116,15 @@ function PersonSection({
         <div className="min-w-[9rem] flex-1">
           <h2 className="truncate text-title-medium">
             {member.display_name}
-            {isMe && <span className="text-on-surface-variant"> · tu</span>}
+            {isMe && <span className="text-on-surface-variant"> · {gettext('tu')}</span>}
           </h2>
           <p className="text-body-small text-on-surface-variant">
-            {accounts.length} {accounts.length === 1 ? 'conto' : 'conti'} · nei totali{' '}
+            {interpolate(
+              ngettext('%(count)s conto', '%(count)s conti', accounts.length),
+              { count: accounts.length },
+              true,
+            )}{' '}
+            · {gettext('nei totali')}{' '}
             <span className="amount">{formatCents(included, tracker.currency)}</span>
           </p>
         </div>
@@ -137,7 +144,7 @@ function PersonSection({
         <div className="grid content-start gap-2">
           {accounts.length === 0 && (
             <p className="rounded-nested bg-surface px-4 py-6 text-center text-body-medium text-on-surface-variant">
-              Nessun conto. Aggiungine uno per confrontare i soldi veri coi movimenti.
+              {gettext('Nessun conto. Aggiungine uno per confrontare i soldi veri coi movimenti.')}
             </p>
           )}
           {accounts.map((account) => (
@@ -152,7 +159,12 @@ function PersonSection({
                 <p className="text-body-small text-on-surface-variant">
                   {ACCOUNT_KIND_LABEL[account.kind]}
                   {account.balance_updated_at &&
-                    ` · aggiornato il ${formatDate(account.balance_updated_at.slice(0, 10))}`}
+                    ' · ' +
+                      interpolate(
+                        gettext('aggiornato il %(date)s'),
+                        { date: formatDate(account.balance_updated_at.slice(0, 10)) },
+                        true,
+                      )}
                 </p>
               </div>
               <div className="ml-auto flex items-center gap-3">
@@ -168,21 +180,33 @@ function PersonSection({
                       save.mutate({ id: account.id, current_balance: value })
                     }
                   }}
-                  aria-label={`Saldo di ${account.name}`}
+                  aria-label={interpolate(
+                    gettext('Saldo di %(name)s'),
+                    { name: account.name },
+                    true,
+                  )}
                 />
                 <Switch
                   checked={account.include_in_totals}
                   onChange={(checked) =>
                     save.mutate({ id: account.id, include_in_totals: checked })
                   }
-                  label={`${account.name} nei totali`}
+                  label={interpolate(gettext('%(name)s nei totali'), { name: account.name }, true)}
                 />
                 {canWrite && (
                   <IconButton
                     icon="close"
-                    label={`Elimina ${account.name}`}
+                    label={interpolate(gettext('Elimina %(name)s'), { name: account.name }, true)}
                     onClick={() => {
-                      if (window.confirm(`Eliminare il conto ${account.name}?`)) {
+                      if (
+                        window.confirm(
+                          interpolate(
+                            gettext('Eliminare il conto %(name)s?'),
+                            { name: account.name },
+                            true,
+                          ),
+                        )
+                      ) {
                         remove.mutate(account.id)
                       }
                     }}
@@ -194,7 +218,7 @@ function PersonSection({
           {canWrite && (
             <button type="button" className="btn-tonal btn-sm w-fit" onClick={onAdd}>
               <Icon name="add" size={18} />
-              Conto di {member.display_name}
+              {interpolate(gettext('Conto di %(name)s'), { name: member.display_name }, true)}
             </button>
           )}
           <ErrorBanner error={save.error ?? remove.error} />
@@ -223,12 +247,14 @@ function OpeningBalance({
         unset ? 'bg-warning-container text-on-warning-container' : 'bg-surface',
       )}
     >
-      <p className="text-body-medium font-medium">Saldo iniziale</p>
+      <p className="text-body-medium font-medium">{gettext('Saldo iniziale')}</p>
       <p className="mb-3 text-body-small opacity-80">
-        Quanto c&apos;era su tutti i conti alla data di partenza. Da lì in poi contano i movimenti.
+        {gettext(
+          "Quanto c'era su tutti i conti alla data di partenza. Da lì in poi contano i movimenti.",
+        )}
       </p>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Importo">
+        <Field label={gettext('Importo')}>
           <input
             key={member.opening_balance}
             className="field-input amount text-right"
@@ -241,10 +267,14 @@ function OpeningBalance({
                 update.mutate({ id: member.id, opening_balance: value })
               }
             }}
-            aria-label={`Saldo iniziale di ${member.display_name}`}
+            aria-label={interpolate(
+              gettext('Saldo iniziale di %(name)s'),
+              { name: member.display_name },
+              true,
+            )}
           />
         </Field>
-        <Field label="Dal">
+        <Field label={gettext('Dal')}>
           <input
             key={member.opening_date ?? ''}
             className="field-input"
@@ -257,12 +287,18 @@ function OpeningBalance({
                 update.mutate({ id: member.id, opening_date: value })
               }
             }}
-            aria-label={`Data di partenza di ${member.display_name}`}
+            aria-label={interpolate(
+              gettext('Data di partenza di %(name)s'),
+              { name: member.display_name },
+              true,
+            )}
           />
         </Field>
       </div>
       {!member.opening_date && (
-        <p className="mt-2 text-body-small opacity-80">Senza data contano tutti i movimenti.</p>
+        <p className="mt-2 text-body-small opacity-80">
+          {gettext('Senza data contano tutti i movimenti.')}
+        </p>
       )}
       <ErrorBanner error={update.error} />
     </div>
@@ -284,23 +320,23 @@ export function PersonFormula({
     <div className="grid gap-3 rounded-nested bg-surface p-4 text-body-medium">
       <div>
         <p className="mb-1 text-label-small uppercase tracking-wide text-on-surface-variant">
-          Atteso dai movimenti
+          {gettext('Atteso dai movimenti')}
         </p>
-        <Line label="Saldo iniziale" value={money(figures.opening_balance)} />
-        <Line label="+ Entrate incassate" value={money(figures.income)} />
-        <Line label="− Spese pagate" value={money(figures.expense)} />
+        <Line label={gettext('Saldo iniziale')} value={money(figures.opening_balance)} />
+        <Line label={gettext('+ Entrate incassate')} value={money(figures.income)} />
+        <Line label={gettext('− Spese pagate')} value={money(figures.expense)} />
         {toCents(figures.settlements_net) !== 0 && (
-          <Line label="± Pareggi" value={signed(figures.settlements_net)} />
+          <Line label={gettext('± Pareggi')} value={signed(figures.settlements_net)} />
         )}
-        <Line label="= Atteso" value={money(figures.expected_balance)} strong />
+        <Line label={gettext('= Atteso')} value={money(figures.expected_balance)} strong />
       </div>
       <div>
         <p className="mb-1 text-label-small uppercase tracking-wide text-on-surface-variant">
-          Reale
+          {gettext('Reale')}
         </p>
-        <Line label="Conti" value={money(figures.accounts_balance)} />
-        <Line label="+ In attesa" value={signed(figures.pending_total)} />
-        <Line label="= Reale" value={money(figures.available_balance)} strong />
+        <Line label={gettext('Conti')} value={money(figures.accounts_balance)} />
+        <Line label={gettext('+ In attesa')} value={signed(figures.pending_total)} />
+        <Line label={gettext('= Reale')} value={money(figures.available_balance)} strong />
       </div>
     </div>
   )

@@ -17,6 +17,9 @@ COPY . .
 
 # --- dev: dipendenze di sviluppo e test ---
 FROM base AS dev
+# gettext: makemessages / compilemessages (i .mo sono nel repo, in prod non serve).
+RUN apt-get update && apt-get install -y --no-install-recommends gettext \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install -e ".[dev]"
 
 # --- prod ---

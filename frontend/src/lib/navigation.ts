@@ -4,6 +4,8 @@
  * per la rail desktop, la barra in basso e il menu "Altro".
  */
 
+import { gettext } from './i18n'
+
 export interface Destination {
   /** Chiave stabile salvata in `nav_order`. */
   key: string
@@ -16,15 +18,15 @@ export interface Destination {
 
 /** Ordine predefinito: e' anche quello che si ripristina. */
 export const DESTINATIONS: Destination[] = [
-  { key: 'oggi', to: '', label: 'Oggi', icon: 'dashboard', end: true },
-  { key: 'movimenti', to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
-  { key: 'da-rivedere', to: 'da-rivedere', label: 'Da rivedere', icon: 'inbox' },
-  { key: 'conti', to: 'conti', label: 'Conti', icon: 'account_balance' },
-  { key: 'attese', to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
-  { key: 'grafici', to: 'grafici', label: 'Grafici', icon: 'bar_chart' },
-  { key: 'abbonamenti', to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
-  { key: 'banca', to: 'banca', label: 'Banca', icon: 'sync_alt' },
-  { key: 'impostazioni', to: 'impostazioni', label: 'Setup', icon: 'tune' },
+  { key: 'oggi', to: '', label: gettext('Oggi'), icon: 'dashboard', end: true },
+  { key: 'movimenti', to: 'movimenti', label: gettext('Movimenti'), icon: 'receipt_long' },
+  { key: 'da-rivedere', to: 'da-rivedere', label: gettext('Da rivedere'), icon: 'inbox' },
+  { key: 'conti', to: 'conti', label: gettext('Conti'), icon: 'account_balance' },
+  { key: 'attese', to: 'attese', label: gettext('In attesa'), icon: 'hourglass_top' },
+  { key: 'grafici', to: 'grafici', label: gettext('Grafici'), icon: 'bar_chart' },
+  { key: 'abbonamenti', to: 'abbonamenti', label: gettext('Ricorrenze'), icon: 'autorenew' },
+  { key: 'banca', to: 'banca', label: gettext('Banca'), icon: 'sync_alt' },
+  { key: 'impostazioni', to: 'impostazioni', label: gettext('Setup'), icon: 'tune' },
 ]
 
 /**

@@ -3,6 +3,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import transaction as db_transaction
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -41,14 +42,16 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         "memberships__user"
     )
 
-    def _require_owner(self, tracker, verb: str) -> None:
+    def _require_owner(self, tracker, message: str) -> None:
         membership = get_membership(self.request.user, tracker.pk)
         if not membership or membership.role != Membership.Role.OWNER:
-            self.permission_denied(self.request, message=f"Solo il proprietario puo' {verb}.")
+            self.permission_denied(self.request, message=message)
 
     def perform_update(self, serializer):
         # Nome, valuta e impostazioni valgono per tutti i membri: li decide il proprietario.
-        self._require_owner(serializer.instance, "modificare il tracker")
+        self._require_owner(
+            serializer.instance, _("Solo il proprietario puo' modificare il tracker.")
+        )
         serializer.save()
 
     @db_transaction.atomic
@@ -59,7 +62,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         controllano l'appartenenza, e con le membership vive i movimenti di un
         tracker eliminato resterebbero leggibili.
         """
-        self._require_owner(instance, "eliminare il tracker")
+        self._require_owner(instance, _("Solo il proprietario puo' eliminare il tracker."))
         instance.memberships.all().delete()
         instance.delete()
 
@@ -68,7 +71,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     def archive(self, request, pk=None):
         """Archiviato: resta consultabile, finisce in fondo alla lista."""
         tracker = self.get_object()
-        self._require_owner(tracker, "archiviare il tracker")
+        self._require_owner(tracker, _("Solo il proprietario puo' archiviare il tracker."))
         tracker.archived_at = timezone.now()
         tracker.save(update_fields=["archived_at", "updated_at"])
         return Response(self.get_serializer(tracker).data)
@@ -77,7 +80,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def unarchive(self, request, pk=None):
         tracker = self.get_object()
-        self._require_owner(tracker, "ripristinare il tracker")
+        self._require_owner(tracker, _("Solo il proprietario puo' ripristinare il tracker."))
         tracker.archived_at = None
         tracker.save(update_fields=["archived_at", "updated_at"])
         return Response(self.get_serializer(tracker).data)
@@ -99,7 +102,7 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         ).first()
         if existing and existing.status != Membership.Status.REVOKED:
             return Response(
-                {"detail": "Questa persona e' gia' invitata o gia' membro."},
+                {"detail": _("Questa persona e' gia' invitata o gia' membro.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -230,23 +233,29 @@ class MembershipViewSet(
         if actor is None or (
             actor.role != Membership.Role.OWNER and not (is_self and only_own_fields)
         ):
-            self.permission_denied(self.request, message="Solo il proprietario modifica i membri.")
+            self.permission_denied(
+                self.request, message=_("Solo il proprietario modifica i membri.")
+            )
         if (
             membership.role == Membership.Role.OWNER
             and serializer.validated_data.get("role", Membership.Role.OWNER)
             != Membership.Role.OWNER
         ):
             self.permission_denied(
-                self.request, message="Il proprietario non puo' declassare se stesso."
+                self.request, message=_("Il proprietario non puo' declassare se stesso.")
             )
         serializer.save()
 
     def perform_destroy(self, instance):
         actor = self.get_membership()
         if actor is None or actor.role != Membership.Role.OWNER:
-            self.permission_denied(self.request, message="Solo il proprietario rimuove i membri.")
+            self.permission_denied(
+                self.request, message=_("Solo il proprietario rimuove i membri.")
+            )
         if instance.role == Membership.Role.OWNER:
-            self.permission_denied(self.request, message="Il proprietario non si puo' rimuovere.")
+            self.permission_denied(
+                self.request, message=_("Il proprietario non si puo' rimuovere.")
+            )
         instance.status = Membership.Status.REVOKED
         instance.save(update_fields=["status", "updated_at"])
 
@@ -270,25 +279,25 @@ class InviteAcceptView(APIView):
         membership_id = read_invite_token(token)
         if membership_id is None:
             return Response(
-                {"detail": "Invito non valido o scaduto."}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": _("Invito non valido o scaduto.")}, status=status.HTTP_400_BAD_REQUEST
             )
         membership = Membership.objects.filter(pk=membership_id).select_related("tracker").first()
         if membership is None or membership.status == Membership.Status.REVOKED:
             return Response(
-                {"detail": "Invito non piu' disponibile."}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": _("Invito non piu' disponibile.")}, status=status.HTTP_400_BAD_REQUEST
             )
         if membership.status == Membership.Status.ACTIVE:
             return Response(MembershipSerializer(membership).data)
 
         if membership.user_id and membership.user_id != request.user.pk:
             return Response(
-                {"detail": "L'invito e' intestato a un altro utente."},
+                {"detail": _("L'invito e' intestato a un altro utente.")},
                 status=status.HTTP_403_FORBIDDEN,
             )
         invited = normalize_email(membership.invited_email)
         if not membership.user_id and invited != request.user.email:
             return Response(
-                {"detail": "L'invito e' stato inviato a un altro indirizzo email."},
+                {"detail": _("L'invito e' stato inviato a un altro indirizzo email.")},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
@@ -312,7 +321,7 @@ class InvitePreviewView(APIView):
         )
         if membership is None:
             return Response(
-                {"detail": "Invito non valido o scaduto."}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": _("Invito non valido o scaduto.")}, status=status.HTTP_400_BAD_REQUEST
             )
         return Response(
             {

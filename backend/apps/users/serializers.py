@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 
+from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
+from django.utils import translation
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.core.methods import normalize_email
@@ -17,18 +20,26 @@ NAV_MAX_ITEMS = 30
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "display_name", "avatar", "email_verified_at", "nav_order"]
+        fields = [
+            "id",
+            "email",
+            "display_name",
+            "avatar",
+            "email_verified_at",
+            "nav_order",
+            "language",
+        ]
         read_only_fields = ["id", "email", "email_verified_at"]
 
     def validate_nav_order(self, value):
         # Le sezioni le conosce il frontend: qui basta che sia una lista corta di
         # chiavi pulite e senza doppioni.
         if not isinstance(value, list) or len(value) > NAV_MAX_ITEMS:
-            raise serializers.ValidationError("Deve essere una lista di sezioni.")
+            raise serializers.ValidationError(_("Deve essere una lista di sezioni."))
         if not all(isinstance(key, str) and NAV_KEY.match(key) for key in value):
-            raise serializers.ValidationError("Sezione non valida.")
+            raise serializers.ValidationError(_("Sezione non valida."))
         if len(set(value)) != len(value):
-            raise serializers.ValidationError("Sezione ripetuta.")
+            raise serializers.ValidationError(_("Sezione ripetuta."))
         return value
 
 
@@ -49,7 +60,7 @@ class RegisterSerializer(serializers.Serializer):
     def validate_email(self, value: str) -> str:
         value = normalize_email(value)
         if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("Esiste gia' un account con questa email.")
+            raise serializers.ValidationError(_("Esiste gia' un account con questa email."))
         return value
 
     def validate_password(self, value: str) -> str:
@@ -61,6 +72,8 @@ class RegisterSerializer(serializers.Serializer):
             email=validated_data["email"],
             password=validated_data["password"],
             display_name=validated_data.get("display_name", ""),
+            # La lingua in cui si sta registrando: anche la mail di conferma.
+            language=translation.get_language() or settings.LANGUAGE_CODE,
         )
 
 

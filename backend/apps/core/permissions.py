@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from django.utils.translation import gettext_lazy as _
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from .scoping import get_membership
@@ -14,7 +15,7 @@ class IsTrackerMember(BasePermission):
     annidate la view espone ``get_tracker_id_for_permission(obj)``.
     """
 
-    message = "Non hai i permessi su questo tracker."
+    message = _("Non hai i permessi su questo tracker.")
 
     def has_permission(self, request, view) -> bool:
         tracker_id = view.kwargs.get("tracker_pk")
@@ -38,7 +39,7 @@ class IsTrackerMember(BasePermission):
 
 
 class IsTrackerOwner(BasePermission):
-    message = "Solo il proprietario del tracker puo' eseguire questa azione."
+    message = _("Solo il proprietario del tracker puo' eseguire questa azione.")
 
     def has_permission(self, request, view) -> bool:
         tracker_id = view.kwargs.get("tracker_pk") or view.kwargs.get("pk")

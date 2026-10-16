@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { NavOrderModal } from '../../components/NavOrderModal'
 import { Avatar, ErrorBanner, Field, Icon, PasswordInput } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import { gettext, interpolate } from '../../lib/i18n'
 import { orderDestinations } from '../../lib/navigation'
 import type { User } from '../../lib/types'
 import { NewPasswordFields, requestEmail } from '../auth/AuthPages'
@@ -18,20 +20,21 @@ export function AccountPage() {
     <div className="mx-auto max-w-2xl p-5 md:p-7">
       <div className="panel grid gap-5 sm:p-6 md:p-7">
         <header className="flex flex-wrap items-center gap-3">
-          <Link to="/" className="btn-text btn-sm -ml-2" aria-label="Torna ai tracker">
+          <Link to="/" className="btn-text btn-sm -ml-2" aria-label={gettext('Torna ai tracker')}>
             <Icon name="arrow_back" size={20} />
-            Tracker
+            {gettext('Tracker')}
           </Link>
-          <h1 className="flex-1 text-title-large">Account</h1>
+          <h1 className="flex-1 text-title-large">{gettext('Account')}</h1>
           <button type="button" className="btn-outlined btn-sm" onClick={() => logout()}>
             <Icon name="logout" size={18} />
-            Esci
+            {gettext('Esci')}
           </button>
         </header>
 
         <ProfileSection user={user} />
         <EmailSection user={user} />
         <PasswordSection user={user} />
+        <LanguageSection />
         <MenuSection user={user} />
       </div>
     </div>
@@ -49,9 +52,9 @@ function ProfileSection({ user }: { user: User }) {
       <div className="mb-4 flex items-center gap-3">
         <Avatar name={user.display_name} size={44} />
         <div className="min-w-0">
-          <h2 className="text-body-large font-medium">Profilo</h2>
+          <h2 className="text-body-large font-medium">{gettext('Profilo')}</h2>
           <p className="text-body-small text-on-surface-variant">
-            Il nome con cui ti vedono gli altri membri dei tracker.
+            {gettext('Il nome con cui ti vedono gli altri membri dei tracker.')}
           </p>
         </div>
       </div>
@@ -69,7 +72,7 @@ function ProfileSection({ user }: { user: User }) {
           }
         }}
       >
-        <Field label="Nome" className="min-w-[220px] flex-1">
+        <Field label={gettext('Nome')} className="min-w-[220px] flex-1">
           <input
             className="field-input"
             value={name}
@@ -81,7 +84,7 @@ function ProfileSection({ user }: { user: User }) {
           />
         </Field>
         <button className="btn-tonal" disabled={!name.trim() || name.trim() === user.display_name}>
-          {saved ? 'Salvato' : 'Salva'}
+          {saved ? gettext('Salvato') : gettext('Salva')}
         </button>
       </form>
       <ErrorBanner error={error} />
@@ -95,7 +98,7 @@ function EmailSection({ user }: { user: User }) {
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Email</h2>
+      <h2 className="text-body-large font-medium">{gettext('Email')}</h2>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <span className="min-w-0 flex-1 truncate text-body-large">{user.email}</span>
         <span
@@ -106,7 +109,7 @@ function EmailSection({ user }: { user: User }) {
           }
         >
           <Icon name={verified ? 'verified' : 'mark_email_unread'} size={16} />
-          {verified ? 'Confermata' : 'Da confermare'}
+          {verified ? gettext('Confermata') : gettext('Da confermare')}
         </span>
       </div>
       {!verified && (
@@ -120,7 +123,7 @@ function EmailSection({ user }: { user: User }) {
           }}
         >
           <Icon name="forward_to_inbox" size={18} />
-          {sent ? 'Mail mandata' : 'Rimanda la mail di conferma'}
+          {sent ? gettext('Mail mandata') : gettext('Rimanda la mail di conferma')}
         </button>
       )}
     </section>
@@ -139,15 +142,17 @@ function PasswordSection({ user }: { user: User }) {
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Password</h2>
+      <h2 className="text-body-large font-medium">{gettext('Password')}</h2>
       <p className="mt-1 text-body-small text-on-surface-variant">
-        Cambiandola si chiudono le sessioni aperte sugli altri dispositivi; questa resta aperta.
+        {gettext(
+          'Cambiandola si chiudono le sessioni aperte sugli altri dispositivi; questa resta aperta.',
+        )}
       </p>
 
       {changed && (
         <p className="mt-3 flex items-center gap-2 rounded-row bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
           <Icon name="check_circle" size={20} />
-          Password cambiata.
+          {gettext('Password cambiata.')}
         </p>
       )}
 
@@ -176,7 +181,7 @@ function PasswordSection({ user }: { user: User }) {
         }}
       >
         {!fields.current_password && !fields.new_password && <ErrorBanner error={error} />}
-        <Field label="Password attuale" error={fields.current_password}>
+        <Field label={gettext('Password attuale')} error={fields.current_password}>
           <PasswordInput
             autoComplete="current-password"
             value={current}
@@ -192,14 +197,18 @@ function PasswordSection({ user }: { user: User }) {
           error={fields.new_password}
         />
         <button className="btn-filled" disabled={busy || !current || password !== confirm}>
-          {busy ? 'Salvo…' : 'Cambia password'}
+          {busy ? gettext('Salvo…') : gettext('Cambia password')}
         </button>
       </form>
 
       <div className="mt-5 border-t border-outline-variant pt-4">
-        <p className="text-body-medium">Non ricordi quella attuale?</p>
+        <p className="text-body-medium">{gettext('Non ricordi quella attuale?')}</p>
         <p className="text-body-small text-on-surface-variant">
-          Ti mandiamo a {user.email} un link per reimpostarla, valido 2 ore.
+          {interpolate(
+            gettext('Ti mandiamo a %(email)s un link per reimpostarla, valido 2 ore.'),
+            { email: user.email },
+            true,
+          )}
         </p>
         <button
           type="button"
@@ -211,7 +220,9 @@ function PasswordSection({ user }: { user: User }) {
           }}
         >
           <Icon name="lock_reset" size={18} />
-          {linkSent ? 'Link mandato, controlla la mail' : 'Mandami il link di reset'}
+          {linkSent
+            ? gettext('Link mandato, controlla la mail')
+            : gettext('Mandami il link di reset')}
         </button>
       </div>
     </section>
@@ -225,13 +236,26 @@ function MenuSection({ user }: { user: User }) {
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">Menu</h2>
+      <h2 className="text-body-large font-medium">{gettext('Menu')}</h2>
       <p className="mt-1 text-body-small text-on-surface-variant">{labels.join(' · ')}</p>
       <button type="button" className="btn-tonal btn-sm mt-3" onClick={() => setOpen(true)}>
         <Icon name="swap_vert" size={18} />
-        Riordina il menu
+        {gettext('Riordina il menu')}
       </button>
       {open && <NavOrderModal open onClose={() => setOpen(false)} />}
+    </section>
+  )
+}
+
+/** Lingua dell'interfaccia e delle mail, salvata sul profilo. */
+function LanguageSection() {
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <h2 className="text-body-large font-medium">{gettext('Lingua')}</h2>
+      <p className="mt-1 text-body-small text-on-surface-variant">
+        {gettext("Vale per l'app e per le mail che ti mandiamo.")}
+      </p>
+      <LanguageSwitcher className="mt-3" />
     </section>
   )
 }

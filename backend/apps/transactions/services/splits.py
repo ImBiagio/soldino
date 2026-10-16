@@ -11,6 +11,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction as db_transaction
+from django.utils.translation import gettext as _
 
 from apps.core.money import ZERO, allocate, percentages_from_amounts, quantize
 from apps.trackers.methods import active_member_ids, active_memberships
@@ -45,11 +46,11 @@ def resolve_split_amounts(total: Decimal, items: list[dict]) -> list[dict]:
     quale delle due sia la verita' contabile.
     """
     if not items:
-        raise ValidationError({"splits": ["Serve almeno una quota."]})
+        raise ValidationError({"splits": [_("Serve almeno una quota.")]})
 
     users = [i["user"] for i in items]
     if len({str(u) for u in users}) != len(users):
-        raise ValidationError({"splits": ["Un utente non puo' comparire due volte."]})
+        raise ValidationError({"splits": [_("Un utente non puo' comparire due volte.")]})
 
     has_amount = [i.get("share_amount") is not None for i in items]
     has_pct = [i.get("share_pct") is not None for i in items]
@@ -57,14 +58,17 @@ def resolve_split_amounts(total: Decimal, items: list[dict]) -> list[dict]:
     if all(has_amount):
         amounts = [quantize(i["share_amount"]) for i in items]
         if any(a < 0 for a in amounts):
-            raise ValidationError({"splits": ["Le quote non possono essere negative."]})
+            raise ValidationError({"splits": [_("Le quote non possono essere negative.")]})
         total_q = quantize(total)
         if sum(amounts, ZERO) != total_q:
             raise ValidationError(
                 {
                     "splits": [
-                        f"La somma delle quote ({sum(amounts, ZERO)}) non coincide con "
-                        f"l'importo ({total_q})."
+                        _(
+                            "La somma delle quote (%(total)s) non coincide con "
+                            "l'importo (%(amount)s)."
+                        )
+                        % {"total": sum(amounts, ZERO), "amount": total_q}
                     ]
                 }
             )
@@ -72,9 +76,9 @@ def resolve_split_amounts(total: Decimal, items: list[dict]) -> list[dict]:
     elif all(has_pct):
         weights = [Decimal(str(i["share_pct"])) for i in items]
         if any(w < 0 for w in weights):
-            raise ValidationError({"splits": ["Le percentuali non possono essere negative."]})
+            raise ValidationError({"splits": [_("Le percentuali non possono essere negative.")]})
         if sum(weights, ZERO) <= 0:
-            raise ValidationError({"splits": ["Almeno una percentuale deve essere positiva."]})
+            raise ValidationError({"splits": [_("Almeno una percentuale deve essere positiva.")]})
         amounts = allocate(total, weights)
         # I pesi in ingresso possono essere 70/70 o 100/50: si salva la
         # percentuale effettiva, cosi' ovunque si legga "50/50" e non "70/70".
@@ -82,7 +86,7 @@ def resolve_split_amounts(total: Decimal, items: list[dict]) -> list[dict]:
         pcts = [quantize(w * 100 / weight_sum) for w in weights]
     else:
         raise ValidationError(
-            {"splits": ["Usa o solo percentuali o solo importi esatti, non entrambi."]}
+            {"splits": [_("Usa o solo percentuali o solo importi esatti, non entrambi.")]}
         )
 
     return [
@@ -120,5 +124,5 @@ def validate_split_users(tracker, items: list[dict]) -> None:
         uid = str(user.pk if hasattr(user, "pk") else user)
         if uid not in member_ids:
             raise ValidationError(
-                {"splits": ["Una delle quote e' assegnata a un non membro del tracker."]}
+                {"splits": [_("Una delle quote e' assegnata a un non membro del tracker.")]}
             )

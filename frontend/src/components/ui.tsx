@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { memberColor } from '../lib/colors'
 import { initials } from '../lib/format'
 import { useCloseOnEscape } from '../lib/hooks'
+import { gettext } from '../lib/i18n'
 import type { Membership, UUID } from '../lib/types'
 
 /* ---------------------------------------------------------------- icone -- */
@@ -301,7 +302,7 @@ export function PasswordInput({
       />
       <IconButton
         icon={visible ? 'visibility_off' : 'visibility'}
-        label={visible ? 'Nascondi password' : 'Mostra password'}
+        label={visible ? gettext('Nascondi password') : gettext('Mostra password')}
         onClick={() => setVisible((current) => !current)}
         className="-my-2 -mr-2 shrink-0"
       />
@@ -544,7 +545,7 @@ export function Modal({
         <div className="flex items-center gap-3 px-6 pb-2 pt-6 sm:px-7 sm:pt-7">
           <IconButton
             icon="close"
-            label="Chiudi"
+            label={gettext('Chiudi')}
             onClick={onClose}
             size="md"
             iconSize={22}

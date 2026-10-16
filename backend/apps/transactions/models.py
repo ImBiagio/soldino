@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext as _
 from simple_history.models import HistoricalRecords
 
 from apps.core.models import BaseModel
@@ -104,8 +105,11 @@ class Transaction(BaseModel):
             raise ValidationError(
                 {
                     "splits": [
-                        f"La somma delle quote ({total}) non coincide con "
-                        f"l'importo ({self.amount})."
+                        _(
+                            "La somma delle quote (%(total)s) non coincide con "
+                            "l'importo (%(amount)s)."
+                        )
+                        % {"total": total, "amount": self.amount}
                     ]
                 }
             )
@@ -113,14 +117,14 @@ class Transaction(BaseModel):
     def clean(self):
         super().clean()
         if self.amount is not None and self.amount <= 0:
-            raise ValidationError({"amount": ["L'importo deve essere positivo."]})
+            raise ValidationError({"amount": [_("L'importo deve essere positivo.")]})
         if self.category_id and self.category.tracker_id != self.tracker_id:
-            raise ValidationError({"category": ["La categoria appartiene a un altro tracker."]})
+            raise ValidationError({"category": [_("La categoria appartiene a un altro tracker.")]})
         if self.account_id and self.account.tracker_id != self.tracker_id:
-            raise ValidationError({"account": ["Il conto appartiene a un altro tracker."]})
+            raise ValidationError({"account": [_("Il conto appartiene a un altro tracker.")]})
         if self.category_id and self.category.type != self.type:
             raise ValidationError(
-                {"category": ["Categoria di tipo diverso dalla transazione."]}
+                {"category": [_("Categoria di tipo diverso dalla transazione.")]}
             )
 
 

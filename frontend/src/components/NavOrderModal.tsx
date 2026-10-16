@@ -3,6 +3,7 @@ import { Fragment, useState } from 'react'
 
 import { api } from '../lib/api'
 import { useAuth } from '../lib/auth'
+import { gettext, interpolate } from '../lib/i18n'
 import type { Destination } from '../lib/navigation'
 import { DESTINATIONS, MOBILE_SLOTS, moveDestination, orderDestinations } from '../lib/navigation'
 import type { User } from '../lib/types'
@@ -34,11 +35,16 @@ export function NavOrderModal({
     setOrder(orderDestinations(moveDestination(order, visible, key, direction)))
 
   return (
-    <Modal open={open} onClose={onClose} title="Riordina il menu">
+    <Modal open={open} onClose={onClose} title={gettext('Riordina il menu')}>
       <div className="grid gap-3">
         <p className="text-body-medium text-on-surface-variant">
-          Sposta le voci con le frecce. Su mobile le prime {MOBILE_SLOTS} stanno nella barra in
-          basso, le altre in "Altro".
+          {interpolate(
+            gettext(
+              'Sposta le voci con le frecce. Su mobile le prime %(count)s stanno nella barra in basso, le altre in "Altro".',
+            ),
+            { count: MOBILE_SLOTS },
+            true,
+          )}
         </p>
         <ol className="grid gap-1.5">
           {shown.map((destination, index) => (
@@ -49,7 +55,7 @@ export function NavOrderModal({
                   className="flex items-center gap-2 px-1 pt-2 text-label-small uppercase tracking-wide text-on-surface-variant"
                 >
                   <span className="h-px flex-1 bg-outline-variant" />
-                  Su mobile in "Altro"
+                  {gettext('Su mobile in "Altro"')}
                   <span className="h-px flex-1 bg-outline-variant" />
                 </li>
               )}
@@ -63,14 +69,14 @@ export function NavOrderModal({
                 <span className="min-w-0 flex-1 truncate text-body-large">{destination.label}</span>
                 <IconButton
                   icon="arrow_upward"
-                  label={`Sposta su ${destination.label}`}
+                  label={interpolate(gettext('Sposta su %s'), [destination.label])}
                   onClick={() => move(destination.key, -1)}
                   disabled={index === 0}
                   className="disabled:opacity-30"
                 />
                 <IconButton
                   icon="arrow_downward"
-                  label={`Sposta giù ${destination.label}`}
+                  label={interpolate(gettext('Sposta giù %s'), [destination.label])}
                   onClick={() => move(destination.key, 1)}
                   disabled={index === shown.length - 1}
                   className="disabled:opacity-30"
@@ -87,7 +93,7 @@ export function NavOrderModal({
             onClick={() => setOrder(DESTINATIONS)}
             disabled={order.every((destination, index) => destination === DESTINATIONS[index])}
           >
-            Ripristina
+            {gettext('Ripristina')}
           </button>
           <button
             type="button"
@@ -107,7 +113,7 @@ export function NavOrderModal({
               }
             }}
           >
-            {busy ? 'Salvo…' : 'Salva'}
+            {busy ? gettext('Salvo…') : gettext('Salva')}
           </button>
         </div>
       </div>

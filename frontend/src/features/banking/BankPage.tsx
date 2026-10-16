@@ -21,6 +21,7 @@ import type { Account, Aspsp, BankAccountLink, BankConnection, Tracker } from '.
 import { activeMembers } from '../../components/Layout'
 import { NewAccountModal } from '../accounts/NewAccountModal'
 import { SetupWizard } from './SetupWizard'
+import { gettext, interpolate, intlLocale, ngettext } from '../../lib/i18n'
 
 /** Sotto questa soglia il consenso va rinnovato presto: lo si dice in giallo. */
 const EXPIRY_WARNING_DAYS = 14
@@ -34,11 +35,11 @@ export function BankPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Banca</h1>
+        <h1 className="text-title-large">{gettext('Banca')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Saldo e movimenti letti dalla banca con l&apos;open banking. I movimenti arrivano in una
-          bozza da rivedere come lo scan, oppure si registrano da soli se attivi l&apos;interruttore
-          sul conto.
+          {gettext(
+            "Saldo e movimenti letti dalla banca con l'open banking. I movimenti arrivano in una bozza da rivedere come lo scan, oppure si registrano da soli se attivi l'interruttore sul conto.",
+          )}
         </p>
       </div>
 
@@ -76,10 +77,10 @@ function Connections({ tracker, onAdd }: { tracker: Tracker; onAdd: () => void }
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="flex-1 text-title-medium">Banche collegate</h2>
+        <h2 className="flex-1 text-title-medium">{gettext('Banche collegate')}</h2>
         <button type="button" className="btn-filled" onClick={onAdd}>
           <Icon name="add_link" size={20} />
-          Collega una banca
+          {gettext('Collega una banca')}
         </button>
       </div>
       <ErrorBanner error={connections.error} />
@@ -88,9 +89,9 @@ function Connections({ tracker, onAdd }: { tracker: Tracker; onAdd: () => void }
       ) : live.length === 0 ? (
         <div className="rounded-panel bg-surface-container-low px-6 py-10 text-center">
           <Icon name="account_balance" size={36} className="text-primary" />
-          <p className="mt-2 text-title-medium">Nessuna banca collegata</p>
+          <p className="mt-2 text-title-medium">{gettext('Nessuna banca collegata')}</p>
           <p className="mt-1 text-body-medium text-on-surface-variant">
-            La tua applicazione è pronta: collega la prima banca e abbina i suoi conti.
+            {gettext('La tua applicazione è pronta: collega la prima banca e abbina i suoi conti.')}
           </p>
         </div>
       ) : (
@@ -150,10 +151,14 @@ function ConnectionCard({
             )}
           >
             {expired
-              ? 'Consenso scaduto: va rinnovato con la banca'
+              ? gettext('Consenso scaduto: va rinnovato con la banca')
               : connection.valid_until
-                ? `Consenso valido fino al ${formatDate(connection.valid_until.slice(0, 10))}`
-                : 'Consenso attivo'}
+                ? interpolate(
+                    gettext('Consenso valido fino al %(date)s'),
+                    { date: formatDate(connection.valid_until.slice(0, 10)) },
+                    true,
+                  )
+                : gettext('Consenso attivo')}
           </p>
         </div>
         {/* Sul telefono i pulsanti vanno a capo: il nome della banca resta leggibile. */}
@@ -161,7 +166,7 @@ function ConnectionCard({
           {(expired || (left !== null && left < EXPIRY_WARNING_DAYS)) && (
             <button type="button" className="btn-tonal btn-sm" onClick={onRenew}>
               <Icon name="autorenew" size={18} />
-              Rinnova
+              {gettext('Rinnova')}
             </button>
           )}
           <button
@@ -171,13 +176,19 @@ function ConnectionCard({
             onClick={() => {
               if (
                 window.confirm(
-                  `Scollegare ${connection.aspsp_name}? I movimenti già registrati restano, la sincronizzazione si ferma.`,
+                  interpolate(
+                    gettext(
+                      'Scollegare %(bank)s? I movimenti già registrati restano, la sincronizzazione si ferma.',
+                    ),
+                    { bank: connection.aspsp_name },
+                    true,
+                  ),
                 )
               )
                 remove.mutate(connection.id)
             }}
           >
-            Scollega
+            {gettext('Scollega')}
           </button>
         </div>
       </header>
@@ -185,8 +196,9 @@ function ConnectionCard({
 
       {highlight && connection.accounts.some((a) => !a.account) && (
         <p className="rounded-card bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
-          Banca collegata. Ora abbina ogni conto a un conto di Soldino: scegli da quando importare e
-          se registrare in automatico.
+          {gettext(
+            'Banca collegata. Ora abbina ogni conto a un conto di Soldino: scegli da quando importare e se registrare in automatico.',
+          )}
         </p>
       )}
 
@@ -196,7 +208,7 @@ function ConnectionCard({
         ))}
         {connection.accounts.length === 0 && (
           <p className="px-2 text-body-medium text-on-surface-variant">
-            La banca non ha restituito conti.
+            {gettext('La banca non ha restituito conti.')}
           </p>
         )}
       </div>
@@ -232,7 +244,7 @@ function AccountRow({
     () => (accounts.data?.results ?? []).filter((a: Account) => a.owner === user?.id),
     [accounts.data, user],
   )
-  const label = link.name || link.iban || 'Conto'
+  const label = link.name || link.iban || gettext('Conto')
 
   const me = activeMembers(tracker).find((m) => m.user?.id === user?.id)
   const assign = async (value: string) => {
@@ -267,7 +279,7 @@ function AccountRow({
             className="state inline-flex items-center gap-1.5 rounded-pill bg-warning-container px-3 py-1.5 text-body-medium font-medium text-on-warning-container"
           >
             <Icon name="edit_note" size={18} />
-            {link.draft.line_count} da rivedere
+            {interpolate(gettext('%(count)s da rivedere'), { count: link.draft.line_count }, true)}
             <Icon name="chevron_right" size={18} />
           </Link>
         )}
@@ -276,24 +288,26 @@ function AccountRow({
       {/* I due campi restano alti uguali: le note vanno sotto la riga, non dentro. */}
       <div className="grid gap-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-stretch">
         <label className="field block h-full">
-          <span className="field-label">Conto in Soldino</span>
+          <span className="field-label">{gettext('Conto in Soldino')}</span>
           <select
             className="field-input"
             value={link.account ?? ''}
             disabled={disabled || update.isPending}
             onChange={(event) => assign(event.target.value)}
           >
-            <option value="">Non abbinato (non si sincronizza)</option>
+            <option value="">{gettext('Non abbinato (non si sincronizza)')}</option>
             {mine.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
               </option>
             ))}
-            <option value={NEW_ACCOUNT}>+ Nuovo conto “{label}”</option>
+            <option value={NEW_ACCOUNT}>
+              {interpolate(gettext('+ Nuovo conto “%(name)s”'), { name: label }, true)}
+            </option>
           </select>
         </label>
         <label className="field block h-full">
-          <span className="field-label">Importa movimenti dal</span>
+          <span className="field-label">{gettext('Importa movimenti dal')}</span>
           <input
             type="date"
             className="field-input"
@@ -310,28 +324,44 @@ function AccountRow({
         <div className="flex items-center gap-3 md:self-center">
           <Switch
             checked={link.auto_commit}
-            label="Registra in automatico"
+            label={gettext('Registra in automatico')}
             disabled={disabled || update.isPending}
             onChange={(checked) => update.mutate({ id: link.id, auto_commit: checked })}
           />
-          <span className="text-body-medium">Registra in automatico</span>
+          <span className="text-body-medium">{gettext('Registra in automatico')}</span>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-body-small text-on-surface-variant">
         <span className="flex-1">
           {link.auto_commit
-            ? 'I movimenti nuovi diventano subito movimenti; i possibili doppioni restano da rivedere.'
-            : 'I movimenti nuovi arrivano in una bozza: li rivedi e li registri tu.'}
+            ? gettext(
+                'I movimenti nuovi diventano subito movimenti; i possibili doppioni restano da rivedere.',
+              )
+            : gettext('I movimenti nuovi arrivano in una bozza: li rivedi e li registri tu.')}
           {link.account &&
             !link.synced_until &&
             link.last_synced_at &&
-            ` Alla prossima sincronizzazione rilegge dal ${formatDate(syncFrom)}; i movimenti già letti non si ripetono.`}
+            ' ' +
+              interpolate(
+                gettext(
+                  'Alla prossima sincronizzazione rilegge dal %(date)s; i movimenti già letti non si ripetono.',
+                ),
+                { date: formatDate(syncFrom) },
+                true,
+              )}
           {link.last_synced_at &&
-            ` Ultima lettura ${new Date(link.last_synced_at).toLocaleString('it-IT', {
-              dateStyle: 'short',
-              timeStyle: 'short',
-            })}.`}
+            ' ' +
+              interpolate(
+                gettext('Ultima lettura %(when)s.'),
+                {
+                  when: new Date(link.last_synced_at).toLocaleString(intlLocale(), {
+                    dateStyle: 'short',
+                    timeStyle: 'short',
+                  }),
+                },
+                true,
+              )}
         </span>
         <button
           type="button"
@@ -340,7 +370,7 @@ function AccountRow({
           onClick={() => sync.mutate(link.id)}
         >
           <Icon name="sync" size={18} className={clsx(sync.isPending && 'animate-spin')} />
-          {sync.isPending ? 'Leggo…' : 'Sincronizza ora'}
+          {sync.isPending ? gettext('Leggo…') : gettext('Sincronizza ora')}
         </button>
       </div>
 
@@ -348,16 +378,33 @@ function AccountRow({
         <p className="text-body-medium text-primary">
           {result.balance != null &&
             // PayPal ha conti multivaluta ("XXX"): il saldo e' nella valuta del tracker.
-            `Saldo ${formatMoney(result.balance, link.currency === 'XXX' ? tracker.currency : link.currency)}. `}
-          {result.committed ? `${result.committed} registrati. ` : ''}
+            interpolate(
+              gettext('Saldo %(amount)s.'),
+              {
+                amount: formatMoney(
+                  result.balance,
+                  link.currency === 'XXX' ? tracker.currency : link.currency,
+                ),
+              },
+              true,
+            ) + ' '}
+          {result.committed
+            ? interpolate(gettext('%(count)s registrati.'), { count: result.committed }, true) + ' '
+            : ''}
           {result.drafted
-            ? `${result.drafted} da rivedere.`
+            ? interpolate(gettext('%(count)s da rivedere.'), { count: result.drafted }, true)
             : !result.committed
               ? result.already_seen
-                ? `Nessun movimento nuovo: ${result.already_seen} ${
-                    result.already_seen === 1 ? 'era già stato letto' : 'erano già stati letti'
-                  } (registrati o tolti in revisione).`
-                : 'Nessun movimento nuovo.'
+                ? interpolate(
+                    ngettext(
+                      'Nessun movimento nuovo: %(count)s era già stato letto (registrati o tolti in revisione).',
+                      'Nessun movimento nuovo: %(count)s erano già stati letti (registrati o tolti in revisione).',
+                      result.already_seen,
+                    ),
+                    { count: result.already_seen },
+                    true,
+                  )
+                : gettext('Nessun movimento nuovo.')
               : ''}
         </p>
       )}
@@ -427,16 +474,16 @@ function BankPicker({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Collega una banca" wide>
+    <Modal open={open} onClose={onClose} title={gettext('Collega una banca')} wide>
       <div className="grid gap-3">
         <p className="text-body-medium text-on-surface-variant">
-          Scegli la banca: si apre la sua pagina di autorizzazione, poi torni qui ad abbinare i
-          conti. Usa una banca che hai già collegato all&apos;applicazione nel pannello di Enable
-          Banking.
+          {gettext(
+            "Scegli la banca: si apre la sua pagina di autorizzazione, poi torni qui ad abbinare i conti. Usa una banca che hai già collegato all'applicazione nel pannello di Enable Banking.",
+          )}
         </p>
         <input
           className="field-input rounded-pill bg-surface-container px-4"
-          placeholder="Cerca la banca (es. Hype, BBVA, illimity)"
+          placeholder={gettext('Cerca la banca (es. Hype, BBVA, illimity)')}
           value={query}
           autoFocus
           onChange={(event) => setQuery(event.target.value)}
@@ -458,7 +505,7 @@ function BankPicker({
                 <span className="min-w-0 flex-1 truncate text-body-large">{aspsp.name}</span>
                 {aspsp.beta && (
                   <span className="rounded-pill bg-surface-container-high px-2 py-0.5 text-body-small">
-                    beta
+                    {gettext('beta')}
                   </span>
                 )}
                 {start.isPending && chosen === aspsp.name ? (
@@ -471,7 +518,7 @@ function BankPicker({
           )}
           {!aspsps.isLoading && filtered.length === 0 && (
             <p className="px-3 py-6 text-center text-body-medium text-on-surface-variant">
-              Nessuna banca con questo nome.
+              {gettext('Nessuna banca con questo nome.')}
             </p>
           )}
         </div>
@@ -491,15 +538,16 @@ function AppInfo({ onReconfigure }: { onReconfigure: () => void }) {
     <section className="flex flex-wrap items-center gap-3 rounded-panel bg-surface-container-low px-4 py-3 text-body-medium">
       <Icon name="key" size={20} className="text-on-surface-variant" />
       <span className="min-w-0 flex-1">
-        Applicazione Enable Banking <strong>{app.name || 'senza nome'}</strong>
+        {gettext('Applicazione Enable Banking')}{' '}
+        <strong>{app.name || gettext('senza nome')}</strong>
         <span className="text-on-surface-variant">
           {' '}
           · {app.environment.toLowerCase()}
-          {!app.active && ' · non ancora attiva'}
+          {!app.active && ' · ' + gettext('non ancora attiva')}
         </span>
       </span>
       <button type="button" className="btn-text btn-sm" onClick={onReconfigure}>
-        Cambia chiave
+        {gettext('Cambia chiave')}
       </button>
       <button
         type="button"
@@ -508,13 +556,15 @@ function AppInfo({ onReconfigure }: { onReconfigure: () => void }) {
         onClick={() => {
           if (
             window.confirm(
-              'Togliere la chiave? Tutte le banche collegate si scollegano. I movimenti registrati restano.',
+              gettext(
+                'Togliere la chiave? Tutte le banche collegate si scollegano. I movimenti registrati restano.',
+              ),
             )
           )
             remove.mutate()
         }}
       >
-        Rimuovi
+        {gettext('Rimuovi')}
       </button>
       <ErrorBanner error={remove.error} />
     </section>

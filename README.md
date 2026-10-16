@@ -176,7 +176,18 @@ compaiono hex. Roboto Flex per il testo, **Roboto Mono per ogni importo**,
 Material Symbols Rounded per le icone.
 
 Navigation rail su desktop, bottom bar con FAB sotto i 768px. La palette è solo
-chiara: il design non definisce una variante scura.
+chiara: il design non definisce una variante scura. L'**ordine delle voci** lo
+sceglie ogni utente ("Riordina il menu" nel menu o in Account): si salva in
+`User.nav_order` e le prime quattro finiscono nella bottom bar.
+
+**Lingue: italiano e inglese** (ADR 0016), con il gettext di Django anche nel
+frontend. L'italiano è la lingua sorgente; l'inglese sta in
+`backend/locale/en/LC_MESSAGES/` (`django.po` per il backend, `djangojs.po`
+per il frontend). Nel frontend si usano `gettext`, `ngettext`, `interpolate`
+di `src/lib/i18n.ts`, solo con stringhe letterali; il catalogo arriva da
+`/api/i18n/catalog` prima di montare l'app. Il selettore sta sotto il login,
+nel menu e in Account; la scelta va nel cookie `django_language` e su
+`User.language`, che decide anche la lingua delle mail.
 
 I colori e le icone delle categorie sono **dati** (`Category.color`,
 `Category.icon`), non scelte del client: la UI li legge dall'API.
@@ -325,6 +336,30 @@ Superuser per l'admin:
 
 ```bash
 docker compose run --rm --no-deps backend python manage.py createsuperuser
+```
+
+Traduzioni: dopo aver aggiunto o cambiato testi, estrarre le stringhe di
+backend e frontend, tradurre in `backend/locale/en/LC_MESSAGES/*.po` e
+ricompilare. I `.mo` si committano insieme ai `.po`.
+
+```bash
+docker compose run --rm --no-deps backend python manage.py makemessages -l en -i staticfiles --no-obsolete
+```
+
+Il frontend prima si traspila in JS (`npm run i18n:js` → `frontend/.i18n/`,
+ignorata da git): xgettext non regge il JSX annidato e perderebbe stringhe
+senza avvisare. Poi `makemessages` gira sul JS:
+
+```bash
+docker compose exec frontend npm run i18n:js
+```
+
+```bash
+docker compose run --rm --no-deps -v "$PWD/frontend/.i18n:/i18n:ro" -w /i18n backend python /app/manage.py makemessages -d djangojs -l en -e js --no-location --no-obsolete
+```
+
+```bash
+docker compose run --rm --no-deps backend python manage.py compilemessages -l en
 ```
 
 Rigenerare il client tipizzato dallo schema OpenAPI:

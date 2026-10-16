@@ -9,6 +9,7 @@ from __future__ import annotations
 from django.db.models import QuerySet
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils.translation import gettext as _
 
 
 def visible_tracker_ids(user) -> QuerySet:
@@ -52,7 +53,7 @@ class TrackerScopedMixin:
             if not get_membership(self.request.user, tracker.pk):
                 # 404 e non 403: l'esistenza di un tracker altrui non e' un'informazione
                 # che va restituita.
-                raise Http404("Tracker non accessibile.")
+                raise Http404(_("Tracker non accessibile."))
             self._tracker = tracker
         return self._tracker
 

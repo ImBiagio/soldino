@@ -4,6 +4,8 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 from rest_framework import serializers
 
 from apps.core.methods import validate_date_range
@@ -37,7 +39,7 @@ class MembershipSerializer(serializers.ModelSerializer):
     def validate_role(self, value: str) -> str:
         # Il proprietario e' uno solo, quello di ``Tracker.owner``.
         if value == Membership.Role.OWNER and getattr(self.instance, "role", None) != value:
-            raise serializers.ValidationError("Il proprietario non si assegna.")
+            raise serializers.ValidationError(_("Il proprietario non si assegna."))
         return value
 
 
@@ -89,28 +91,40 @@ class TrackerSerializer(serializers.ModelSerializer):
 
 # (nome, tipo, descrizione, colore, glifo Material Symbols)
 # Colore e icona sono dati, non decorazione del client: la UI li legge da qui.
+# Le descrizioni si traducono nella lingua di chi crea il tracker, poi restano
+# dati suoi; i nomi sono gia' in inglese e restano uguali per tutti.
 DEFAULT_CATEGORIES = [
-    ("Supermarket", "expense", "Spesa alimentare, discount, alimentari",
+    ("Supermarket", "expense",
+     gettext_lazy("Spesa alimentare, discount, alimentari"),
      "#ba1a1a", "shopping_basket"),
-    ("Home", "expense", "Casa: affitto, mutuo, utenze, manutenzione, arredamento",
+    ("Home", "expense",
+     gettext_lazy("Casa: affitto, mutuo, utenze, manutenzione, arredamento"),
      "#ba1a1a", "home"),
-    ("Transport", "expense", "Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto",
+    ("Transport", "expense",
+     gettext_lazy("Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto"),
      "#ba1a1a", "directions_car"),
-    ("Eating out", "expense", "Ristoranti, bar, caffe', asporto, delivery",
+    ("Eating out", "expense",
+     gettext_lazy("Ristoranti, bar, caffe', asporto, delivery"),
      "#ba1a1a", "local_bar"),
-    ("Health", "expense", "Farmacia, visite mediche, esami, dentista",
+    ("Health", "expense",
+     gettext_lazy("Farmacia, visite mediche, esami, dentista"),
      "#ba1a1a", "local_hospital"),
-    ("Shopping", "expense", "Abbigliamento, elettronica, oggetti per la persona",
+    ("Shopping", "expense",
+     gettext_lazy("Abbigliamento, elettronica, oggetti per la persona"),
      "#ba1a1a", "redeem"),
-    ("Subscriptions", "expense", "Abbonamenti ricorrenti: streaming, cloud, software",
+    ("Subscriptions", "expense",
+     gettext_lazy("Abbonamenti ricorrenti: streaming, cloud, software"),
      "#ba1a1a", "live_tv"),
-    ("Leisure", "expense", "Cinema, viaggi, eventi, sport, hobby",
+    ("Leisure", "expense",
+     gettext_lazy("Cinema, viaggi, eventi, sport, hobby"),
      "#ba1a1a", "beach_access"),
-    ("Gifts", "expense", "Regali e donazioni", "#ba1a1a", "redeem"),
-    ("Other", "expense", "Tutto cio' che non rientra altrove", "#ba1a1a", "payments"),
-    ("Salary", "income", "Stipendio e compensi da lavoro", "#1b6c2f", "payments"),
-    ("Refund", "income", "Rimborsi e storni", "#1b6c2f", "savings"),
-    ("Other income", "income", "Altre entrate", "#1b6c2f", "payments"),
+    ("Gifts", "expense", gettext_lazy("Regali e donazioni"), "#ba1a1a", "redeem"),
+    ("Other", "expense",
+     gettext_lazy("Tutto cio' che non rientra altrove"),
+     "#ba1a1a", "payments"),
+    ("Salary", "income", gettext_lazy("Stipendio e compensi da lavoro"), "#1b6c2f", "payments"),
+    ("Refund", "income", gettext_lazy("Rimborsi e storni"), "#1b6c2f", "savings"),
+    ("Other income", "income", gettext_lazy("Altre entrate"), "#1b6c2f", "payments"),
 ]
 
 
@@ -121,7 +135,7 @@ def _seed_default_categories(tracker: Tracker) -> None:
                 tracker=tracker,
                 name=name,
                 type=type_,
-                description=description,
+                description=str(description),
                 color=color,
                 icon=icon,
             )
@@ -179,7 +193,7 @@ class SummaryQuerySerializer(serializers.Serializer):
         try:
             return str(UUID(value))
         except ValueError:
-            raise serializers.ValidationError("Categoria non valida.") from None
+            raise serializers.ValidationError(_("Categoria non valida.")) from None
 
     def validate(self, attrs):
         validate_date_range(attrs.get("date_from"), attrs.get("date_to"))
@@ -194,5 +208,5 @@ class BalanceHistoryQuerySerializer(serializers.Serializer):
     def validate(self, attrs):
         validate_date_range(attrs["date_from"], attrs["date_to"])
         if (attrs["date_to"] - attrs["date_from"]).days > 366 * 3:
-            raise serializers.ValidationError("Al massimo tre anni per volta.")
+            raise serializers.ValidationError(_("Al massimo tre anni per volta."))
         return attrs

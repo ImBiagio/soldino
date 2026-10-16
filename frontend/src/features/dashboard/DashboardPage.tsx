@@ -26,6 +26,7 @@ import {
   StatusPill,
 } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { monthLabel, todayIso } from '../../lib/format'
 import { rangeFor } from '../../lib/period'
 import { categoryColor, memberColor } from '../../lib/colors'
@@ -89,7 +90,10 @@ export function DashboardPage() {
 
   return (
     <>
-      <AppBar tracker={tracker} greeting={`Ciao ${user?.display_name ?? ''}`} />
+      <AppBar
+        tracker={tracker}
+        greeting={interpolate(gettext('Ciao %(name)s'), { name: user?.display_name ?? '' }, true)}
+      />
 
       <div className="grid gap-5 px-5 pb-8 pt-3 md:px-7">
         {members.length > 1 && <ViewSwitcher tracker={tracker} value={view} onChange={setView} />}
@@ -176,8 +180,8 @@ function ViewSwitcher({
       members={activeMembers(tracker)}
       value={value}
       onChange={onChange}
-      labelOf={(member) => (member.user!.id === user?.id ? 'Io' : member.display_name)}
-      ariaLabel="Di chi è la dashboard"
+      labelOf={(member) => (member.user!.id === user?.id ? gettext('Io') : member.display_name)}
+      ariaLabel={gettext('Di chi è la dashboard')}
     >
       <button
         type="button"
@@ -186,7 +190,7 @@ function ViewSwitcher({
         className={value === ALL ? 'chip-selected' : 'chip-outlined'}
       >
         <Icon name="groups" size={18} />
-        Tutti
+        {gettext('Tutti')}
       </button>
     </MemberChips>
   )
@@ -200,10 +204,10 @@ function ReconciliationPill({ tracker, delta }: { tracker: Tracker; delta: strin
   return (
     <StatusPill ok={quadra} href="#riconciliazione">
       {quadra ? (
-        <span>Conti e movimenti quadrano</span>
+        <span>{gettext('Conti e movimenti quadrano')}</span>
       ) : (
         <span>
-          Conti e movimenti non quadrano per{' '}
+          {gettext('Conti e movimenti non quadrano per')}{' '}
           <strong className="amount font-semibold">
             {formatCents(Math.abs(toCents(delta)), tracker.currency)}
           </strong>
@@ -231,15 +235,19 @@ function HeroCard({
   const youOwe = transfer.from_user.id === user?.id
   const youReceive = transfer.to_user.id === user?.id
   const sentence = youOwe
-    ? `Devi a ${transfer.to_user.display_name}`
+    ? interpolate(gettext('Devi a %(name)s'), { name: transfer.to_user.display_name }, true)
     : youReceive
-      ? `${transfer.from_user.display_name} deve a te`
-      : `${transfer.from_user.display_name} deve a ${transfer.to_user.display_name}`
+      ? interpolate(gettext('%(name)s deve a te'), { name: transfer.from_user.display_name }, true)
+      : interpolate(
+          gettext('%(from)s deve a %(to)s'),
+          { from: transfer.from_user.display_name, to: transfer.to_user.display_name },
+          true,
+        )
 
   return (
     <section className="rounded-panel bg-primary p-7 text-on-primary">
       <p className="text-body-medium font-medium uppercase tracking-wide text-primary-container">
-        Chi deve cosa
+        {gettext('Chi deve cosa')}
       </p>
       <p className="mt-5 text-[18px] leading-6">{sentence}</p>
       <p className="amount mt-1 text-headline-medium md:text-display-large">
@@ -253,7 +261,7 @@ function HeroCard({
           className="state inline-flex items-center gap-2 rounded-pill bg-primary-container px-6 py-3.5 text-body-medium font-medium text-on-primary-container"
         >
           <Icon name="handshake" size={20} />
-          Segna come saldato
+          {gettext('Segna come saldato')}
         </button>
         <button
           type="button"
@@ -261,7 +269,7 @@ function HeroCard({
           className="state inline-flex items-center gap-2 rounded-pill border px-6 py-3.5 text-body-medium font-medium"
           style={{ borderColor: 'rgba(255,255,255,0.5)' }}
         >
-          Come si compone
+          {gettext('Come si compone')}
         </button>
       </div>
 
@@ -309,10 +317,12 @@ function SettledCard({
   return (
     <section className="rounded-panel bg-primary p-7 text-on-primary">
       <p className="text-body-medium font-medium uppercase tracking-wide text-primary-container">
-        Chi deve cosa
+        {gettext('Chi deve cosa')}
       </p>
       <p className="mt-5 text-title-large">
-        {person ? `${person.display_name} è in pari` : 'Siete in pari'}
+        {person
+          ? interpolate(gettext('%(name)s è in pari'), { name: person.display_name }, true)
+          : gettext('Siete in pari')}
       </p>
       <div className="mt-5 border-t pt-4" style={{ borderColor: 'rgba(255,255,255,0.24)' }}>
         {rows.map((balance, index) => (
@@ -345,12 +355,12 @@ function BalanceRow({
     <div className="flex items-center gap-3 py-1.5">
       <Avatar name={balance.user.display_name} size={32} color={color} />
       <span className="min-w-0 flex-1 truncate text-body-medium">
-        {balance.user.display_name} · pagato{' '}
+        {balance.user.display_name} · {gettext('pagato')}{' '}
         <span className="amount">{formatMoney(balance.paid, tracker.currency)}</span>
         {showOwed && (
           <>
             {' '}
-            · di competenza{' '}
+            · {gettext('di competenza')}{' '}
             <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
           </>
         )}
@@ -379,7 +389,7 @@ function SettleModal({
   const create = useCreateSettlement(tracker.id)
 
   return (
-    <Modal open={open} onClose={onClose} title="Segna come saldato">
+    <Modal open={open} onClose={onClose} title={gettext('Segna come saldato')}>
       <form
         className="grid gap-3 text-on-surface"
         onSubmit={async (event) => {
@@ -395,10 +405,12 @@ function SettleModal({
       >
         <ErrorBanner error={create.error} />
         <p className="text-body-medium text-on-surface-variant">
-          {transfer.from_user.display_name} → {transfer.to_user.display_name}. Un pareggio azzera il
-          debito e non compare in nessuna statistica per categoria.
+          {transfer.from_user.display_name} → {transfer.to_user.display_name}.{' '}
+          {gettext(
+            'Un pareggio azzera il debito e non compare in nessuna statistica per categoria.',
+          )}
         </p>
-        <Field label="Importo">
+        <Field label={gettext('Importo')}>
           <input
             className="field-input amount text-right"
             inputMode="decimal"
@@ -406,7 +418,7 @@ function SettleModal({
             onChange={(event) => setAmount(normalizeDecimal(event.target.value))}
           />
         </Field>
-        <Field label="Data">
+        <Field label={gettext('Data')}>
           <input
             className="field-input"
             type="date"
@@ -416,7 +428,7 @@ function SettleModal({
         </Field>
         <button className="btn-filled mt-1 w-full" disabled={create.isPending}>
           <Icon name="handshake" size={20} />
-          Registra il pareggio
+          {gettext('Registra il pareggio')}
         </button>
       </form>
     </Modal>
@@ -434,8 +446,15 @@ function ProposalsCard({ tracker }: { tracker: Tracker }) {
       <div className="flex items-center gap-2">
         <Icon name="inbox" size={22} />
         <p className="text-body-large font-medium">
-          {proposals.length}{' '}
-          {proposals.length === 1 ? 'ricorrenza da approvare' : 'ricorrenze da approvare'}
+          {interpolate(
+            ngettext(
+              '%(count)s ricorrenza da approvare',
+              '%(count)s ricorrenze da approvare',
+              proposals.length,
+            ),
+            { count: proposals.length },
+            true,
+          )}
         </p>
       </div>
       <p className="mt-2 text-body-medium">
@@ -443,14 +462,14 @@ function ProposalsCard({ tracker }: { tracker: Tracker }) {
           .slice(0, 3)
           .map((rule) => `${rule.title} ${formatMoney(rule.amount, tracker.currency)}`)
           .join(' · ')}
-        . Nessuna scrittura senza il tuo ok.
+        . {gettext('Nessuna scrittura senza il tuo ok.')}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Link
           to="abbonamenti"
           className="state inline-flex items-center rounded-pill bg-on-warning-container px-5 py-2.5 text-body-medium font-medium text-warning-container"
         >
-          Vedi le proposte
+          {gettext('Vedi le proposte')}
         </Link>
       </div>
     </section>
@@ -474,21 +493,22 @@ function MonthCard({ tracker, person }: { tracker: Tracker; person: Membership |
       <div className="mb-3 flex items-center justify-between">
         <p className="text-label-small uppercase tracking-wide text-on-surface-variant">
           {monthLabel(now.getMonth() + 1)} {now.getFullYear()}
-          {person && ` · quota di ${person.display_name}`}
+          {person &&
+            ' · ' + interpolate(gettext('quota di %(name)s'), { name: person.display_name }, true)}
         </p>
         <Icon name="calendar_month" size={18} className="text-on-surface-variant" />
       </div>
-      <p className="text-body-medium text-on-surface-variant">Uscite</p>
+      <p className="text-body-medium text-on-surface-variant">{gettext('Uscite')}</p>
       <p className="amount text-[30px] font-semibold leading-9 text-error">
         {formatMoney(data.total_expense, tracker.currency)}
       </p>
-      <p className="mt-2 text-body-medium text-on-surface-variant">Entrate</p>
+      <p className="mt-2 text-body-medium text-on-surface-variant">{gettext('Entrate')}</p>
       <p className="amount text-[30px] font-semibold leading-9 text-primary">
         {formatMoney(data.total_income, tracker.currency)}
       </p>
       <div className="my-3 h-px bg-outline-variant" />
       <div className="flex items-baseline justify-between">
-        <span className="text-body-medium text-on-surface-variant">Resta</span>
+        <span className="text-body-medium text-on-surface-variant">{gettext('Resta')}</span>
         <span className="amount text-[22px] font-semibold">
           {formatSigned(data.net, tracker.currency)}
         </span>
@@ -521,7 +541,9 @@ function GroupTotalCard({
     <section className="rounded-panel bg-surface-container p-6">
       <div className="mb-3 flex items-center justify-between">
         <p className="text-label-small uppercase tracking-wide text-on-surface-variant">
-          Speso in tutto{person && ` · quota di ${person.display_name}`}
+          {gettext('Speso in tutto')}
+          {person &&
+            ' · ' + interpolate(gettext('quota di %(name)s'), { name: person.display_name }, true)}
         </p>
         <Icon name="payments" size={18} className="text-on-surface-variant" />
       </div>
@@ -539,11 +561,14 @@ function GroupTotalCard({
           <span className="min-w-0 flex-1 truncate text-body-medium">
             {balance.user.display_name}
             <span className="block text-body-small text-on-surface-variant">
-              quota <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
+              {gettext('quota')}{' '}
+              <span className="amount">{formatMoney(balance.owed, tracker.currency)}</span>
             </span>
           </span>
           <span className="text-right">
-            <span className="block text-body-small text-on-surface-variant">ha pagato</span>
+            <span className="block text-body-small text-on-surface-variant">
+              {gettext('ha pagato')}
+            </span>
             <span className="amount font-semibold">
               {formatMoney(balance.paid, tracker.currency)}
             </span>
@@ -584,7 +609,9 @@ function SpendingCard({
     <section className="card-m3 p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-title-medium">
-          Dove sono finiti{person && ` · quota di ${person.display_name}`}
+          {gettext('Dove sono finiti')}
+          {person &&
+            ' · ' + interpolate(gettext('quota di %(name)s'), { name: person.display_name }, true)}
         </h2>
         <div className="flex gap-2">
           {(Object.entries(PERIOD_LABEL) as [Period, string][]).map(([id, label]) => (
@@ -609,14 +636,16 @@ function SpendingCard({
         to={`/t/${tracker.id}/grafici?periodo=${period}${person ? `&persona=${person.user!.id}` : ''}`}
         className="state mb-4 inline-flex items-center gap-1 rounded-pill text-body-medium font-medium text-primary"
       >
-        Grafici, persone e filtri
+        {gettext('Grafici, persone e filtri')}
         <Icon name="chevron_right" size={18} />
       </Link>
 
       {loading ? (
         <Skeleton className="h-[26px] rounded-pill" />
       ) : rows.length === 0 ? (
-        <p className="text-body-medium text-on-surface-variant">Nessun movimento nel periodo.</p>
+        <p className="text-body-medium text-on-surface-variant">
+          {gettext('Nessun movimento nel periodo.')}
+        </p>
       ) : (
         <>
           <CompositeBar
@@ -640,7 +669,12 @@ function SpendingCard({
                     {formatMoney(row.total, tracker.currency)}
                   </p>
                   <p className="text-body-small text-on-surface-variant">
-                    {share}% · {row.count} movimenti
+                    {share}% ·{' '}
+                    {interpolate(
+                      ngettext('%(count)s movimento', '%(count)s movimenti', row.count),
+                      { count: row.count },
+                      true,
+                    )}
                   </p>
                 </div>
               )
@@ -675,11 +709,13 @@ function ReconciliationCard({
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
           <h2 className="text-title-medium">
-            Riconciliazione{person && ` · ${person.display_name}`}
+            {gettext('Riconciliazione')}
+            {person && ` · ${person.display_name}`}
           </h2>
           <p className="mt-1 text-body-small text-on-surface-variant">
-            Saldo iniziale + entrate − uscite deve fare conti + in attesa. Contano i soldi che
-            passano davvero dai conti: spese pagate ed entrate incassate, non le quote.
+            {gettext(
+              'Saldo iniziale + entrate − uscite deve fare conti + in attesa. Contano i soldi che passano davvero dai conti: spese pagate ed entrate incassate, non le quote.',
+            )}
           </p>
         </div>
         <StatusPill ok={delta === 0}>{deltaText(figures.delta, tracker.currency)}</StatusPill>
@@ -687,20 +723,33 @@ function ReconciliationCard({
 
       <p className="mb-5 max-w-2xl text-body-medium">
         {delta === 0
-          ? 'I conti tornano con i movimenti segnati.'
+          ? gettext('I conti tornano con i movimenti segnati.')
           : delta < 0
-            ? `Sui conti ci sono ${formatCents(-delta, tracker.currency)} in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.`
-            : `Sui conti ci sono ${formatCents(delta, tracker.currency)} in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.`}
+            ? interpolate(
+                gettext(
+                  'Sui conti ci sono %(amount)s in meno di quanto risulta dai movimenti: probabilmente qualche spesa non è stata segnata.',
+                ),
+                { amount: formatCents(-delta, tracker.currency) },
+                true,
+              )
+            : interpolate(
+                gettext(
+                  "Sui conti ci sono %(amount)s in più di quanto risulta dai movimenti: manca un'entrata, o una spesa è stata segnata due volte.",
+                ),
+                { amount: formatCents(delta, tracker.currency) },
+                true,
+              )}
       </p>
 
       <ReconciliationWaterfall figures={figures} currency={tracker.currency} />
 
       {noOpening && (
         <p className="mt-5 rounded-nested bg-warning-container p-3 text-body-small text-on-warning-container">
-          Saldo iniziale a zero: se all&apos;inizio sui conti c&apos;erano già dei soldi, lo scarto
-          viene da lì.{' '}
+          {gettext(
+            "Saldo iniziale a zero: se all'inizio sui conti c'erano già dei soldi, lo scarto viene da lì.",
+          )}{' '}
           <Link to={`/t/${tracker.id}/conti`} className="font-medium underline">
-            Impostalo in Conti
+            {gettext('Impostalo in Conti')}
           </Link>
           .
         </p>
@@ -729,12 +778,14 @@ function ReconciliationCard({
                         rowDelta === 0 ? 'text-primary' : 'text-warning',
                       )}
                     >
-                      {rowDelta === 0 ? 'quadra' : formatSigned(row.delta, tracker.currency)}
+                      {rowDelta === 0
+                        ? gettext('quadra')
+                        : formatSigned(row.delta, tracker.currency)}
                     </span>
                   </span>
                   <span className="amount block truncate text-body-small text-on-surface-variant">
-                    reale {formatMoney(row.available_balance, tracker.currency)} · atteso{' '}
-                    {formatMoney(row.expected_balance, tracker.currency)}
+                    {gettext('reale')} {formatMoney(row.available_balance, tracker.currency)} ·{' '}
+                    {gettext('atteso')} {formatMoney(row.expected_balance, tracker.currency)}
                   </span>
                 </span>
               </button>

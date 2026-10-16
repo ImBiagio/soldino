@@ -4,6 +4,8 @@
 
 // In sviluppo l'API sta su un'altra porta (VITE_API_BASE_URL); in produzione
 // frontend e API escono dallo stesso dominio, quindi basta l'origin della pagina.
+import { gettext, interpolate } from './i18n'
+
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || window.location.origin
 
 let accessToken: string | null = null
@@ -26,7 +28,7 @@ export class ApiError extends Error {
   data: unknown
 
   constructor(status: number, data: unknown) {
-    super(extractMessage(data) ?? `Errore ${status}`)
+    super(extractMessage(data) ?? interpolate(gettext('Errore %s'), [status]))
     this.status = status
     this.data = data
   }

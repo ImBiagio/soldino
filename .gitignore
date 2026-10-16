@@ -16,3 +16,6 @@ frontend/tsconfig.tsbuildinfo
 .vscode/
 .DS_Store
 CLAUDE.md
+
+# JS traspilato solo per makemessages -d djangojs (ADR 0016)
+frontend/.i18n/

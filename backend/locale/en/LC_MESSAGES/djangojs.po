@@ -1,0 +1,2166 @@
+# Soldino — traduzione inglese (ADR 0016).
+msgid ""
+msgstr ""
+"Project-Id-Version: Soldino\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-16 10:22+0200\n"
+"PO-Revision-Date: 2026-10-16 10:30+0200\n"
+"Last-Translator: Soldino\n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "A mano"
+msgstr "Manually"
+
+msgid "Da scontrino"
+msgstr "From receipt"
+
+msgid "A voce"
+msgstr "By voice"
+
+msgid "Da estratto conto"
+msgstr "From statement"
+
+msgid "Nuovo inserimento"
+msgstr "New entry"
+
+msgid "Chiudi"
+msgstr "Close"
+
+msgid "Nuova spesa"
+msgstr "New expense"
+
+msgid "Nuovo movimento"
+msgstr "New transaction"
+
+msgid "Sezioni"
+msgstr "Sections"
+
+msgid "Menu"
+msgstr "Menu"
+
+msgid "Tracker archiviato: niente ricorrenze automatiche."
+msgstr "Archived tracker: no automatic recurring items."
+
+msgid "Gestisci"
+msgstr "Manage"
+
+msgid "Altro"
+msgstr "More"
+
+msgid "I tuoi tracker"
+msgstr "Your trackers"
+
+msgid "Riordina il menu"
+msgstr "Reorder menu"
+
+msgid "Tutti i tracker"
+msgstr "All trackers"
+
+msgid "Account"
+msgstr "Account"
+
+msgid "Lingua"
+msgstr "Language"
+
+msgid "Esci"
+msgstr "Sign out"
+
+msgid "Cerca"
+msgstr "Search"
+
+msgid ""
+"Sposta le voci con le frecce. Su mobile le prime %(count)s stanno nella "
+"barra in basso, le altre in \"Altro\"."
+msgstr ""
+"Move items with the arrows. On mobile the first %(count)s sit in the bottom "
+"bar, the rest under \"More\"."
+
+msgid "Su mobile in \"Altro\""
+msgstr "On mobile under \"More\""
+
+#, javascript-format
+msgid "Sposta su %s"
+msgstr "Move %s up"
+
+#, javascript-format
+msgid "Sposta giù %s"
+msgstr "Move %s down"
+
+msgid "Ripristina"
+msgstr "Restore"
+
+msgid "Salvo…"
+msgstr "Saving…"
+
+msgid "Salva"
+msgstr "Save"
+
+msgid "%(shares)s di default"
+msgstr "%(shares)s default"
+
+msgid "Solo mia"
+msgstr "Just mine"
+
+msgid "Percentuali"
+msgstr "Percentages"
+
+msgid "Importi esatti"
+msgstr "Exact amounts"
+
+msgid "Come si divide"
+msgstr "How it's split"
+
+msgid "Manca il %(pct)s%"
+msgstr "%(pct)s% missing"
+
+msgid "Oltre di %(pct)s%"
+msgstr "%(pct)s% over"
+
+#, javascript-format
+msgid "Quadra: %s"
+msgstr "Balanced: %s"
+
+#, javascript-format
+msgid "Residuo %s"
+msgstr "Remaining %s"
+
+#, javascript-format
+msgid "Importo di %s"
+msgstr "Amount for %s"
+
+msgid "Sposta la quota fra %(first)s e %(second)s"
+msgstr "Move the share between %(first)s and %(second)s"
+
+msgid "trascina la maniglia per cambiare"
+msgstr "drag the handle to change"
+
+#, javascript-format
+msgid "Percentuale di %s"
+msgstr "Percentage for %s"
+
+msgid ""
+"Il centesimo dispari va a %(name)s: la somma delle quote è sempre "
+"esattamente il totale."
+msgstr ""
+"The odd cent goes to %(name)s: the shares always add up to exactly the total."
+
+msgid "Senza categoria"
+msgstr "Uncategorised"
+
+msgid "Nessuno"
+msgstr "None"
+
+msgid "Nascondi password"
+msgstr "Hide password"
+
+msgid "Mostra password"
+msgstr "Show password"
+
+msgid "Torna ai tracker"
+msgstr "Back to trackers"
+
+msgid "Tracker"
+msgstr "Tracker"
+
+msgid "Profilo"
+msgstr "Profile"
+
+msgid "Il nome con cui ti vedono gli altri membri dei tracker."
+msgstr "The name other tracker members see you by."
+
+msgid "Nome"
+msgstr "Name"
+
+msgid "Salvato"
+msgstr "Saved"
+
+msgid "Email"
+msgstr "Email"
+
+msgid "Confermata"
+msgstr "Confirmed"
+
+msgid "Da confermare"
+msgstr "Not confirmed yet"
+
+msgid "Mail mandata"
+msgstr "Email sent"
+
+msgid "Rimanda la mail di conferma"
+msgstr "Resend confirmation email"
+
+msgid "Password"
+msgstr "Password"
+
+msgid ""
+"Cambiandola si chiudono le sessioni aperte sugli altri dispositivi; questa "
+"resta aperta."
+msgstr ""
+"Changing it signs you out on your other devices; this one stays signed in."
+
+msgid "Password cambiata."
+msgstr "Password changed."
+
+msgid "Password attuale"
+msgstr "Current password"
+
+msgid "Cambia password"
+msgstr "Change password"
+
+msgid "Non ricordi quella attuale?"
+msgstr "Can't remember your current one?"
+
+msgid "Ti mandiamo a %(email)s un link per reimpostarla, valido 2 ore."
+msgstr "We'll send a link to %(email)s to reset it, valid for 2 hours."
+
+msgid "Link mandato, controlla la mail"
+msgstr "Link sent, check your email"
+
+msgid "Mandami il link di reset"
+msgstr "Send me the reset link"
+
+msgid "Vale per l'app e per le mail che ti mandiamo."
+msgstr "Applies to the app and to the emails we send you."
+
+msgid "Conti"
+msgstr "Accounts"
+
+msgid ""
+"I saldi veri, aggiornati a mano. Per ognuno: saldo iniziale + entrate − "
+"uscite deve tornare con conti + in attesa. Se non torna, manca qualcosa nei "
+"movimenti."
+msgstr ""
+"Your real balances, updated by hand. For each one: opening balance + income "
+"− expenses should match accounts + pending. If it doesn't, something is "
+"missing from your transactions."
+
+msgid "tu"
+msgstr "you"
+
+msgid "%(count)s conto"
+msgid_plural "%(count)s conti"
+msgstr[0] "%(count)s account"
+msgstr[1] "%(count)s accounts"
+
+msgid "nei totali"
+msgstr "in totals"
+
+msgid ""
+"Nessun conto. Aggiungine uno per confrontare i soldi veri coi movimenti."
+msgstr ""
+"No accounts. Add one to compare your real money with your transactions."
+
+msgid "aggiornato il %(date)s"
+msgstr "updated on %(date)s"
+
+msgid "Saldo di %(name)s"
+msgstr "Balance of %(name)s"
+
+msgid "%(name)s nei totali"
+msgstr "%(name)s in totals"
+
+msgid "Elimina %(name)s"
+msgstr "Delete %(name)s"
+
+msgid "Eliminare il conto %(name)s?"
+msgstr "Delete the account %(name)s?"
+
+msgid "Conto di %(name)s"
+msgstr "%(name)s's account"
+
+msgid "Saldo iniziale"
+msgstr "Opening balance"
+
+msgid ""
+"Quanto c'era su tutti i conti alla data di partenza. Da lì in poi contano i "
+"movimenti."
+msgstr ""
+"How much was in all accounts on the start date. From then on, transactions "
+"count."
+
+msgid "Importo"
+msgstr "Amount"
+
+msgid "Saldo iniziale di %(name)s"
+msgstr "Opening balance of %(name)s"
+
+msgid "Dal"
+msgstr "From"
+
+msgid "Data di partenza di %(name)s"
+msgstr "Start date of %(name)s"
+
+msgid "Senza data contano tutti i movimenti."
+msgstr "With no date, all transactions count."
+
+msgid "Atteso dai movimenti"
+msgstr "Expected from transactions"
+
+msgid "+ Entrate incassate"
+msgstr "+ Income received"
+
+msgid "− Spese pagate"
+msgstr "− Expenses paid"
+
+msgid "± Pareggi"
+msgstr "± Settlements"
+
+msgid "= Atteso"
+msgstr "= Expected"
+
+msgid "Reale"
+msgstr "Actual"
+
+msgid "+ In attesa"
+msgstr "+ Pending"
+
+msgid "= Reale"
+msgstr "= Actual"
+
+msgid "Nuovo conto di %(name)s"
+msgstr "New account for %(name)s"
+
+msgid "Tipo"
+msgstr "Type"
+
+msgid "Saldo attuale"
+msgstr "Current balance"
+
+msgid "Lo sovrascrive la prima lettura della banca."
+msgstr "Overwritten by the first bank reading."
+
+msgid "Conta nei totali e nella riconciliazione"
+msgstr "Counts in totals and reconciliation"
+
+msgid "Crea e abbina"
+msgstr "Create and link"
+
+msgid "Aggiungi"
+msgstr "Add"
+
+msgid "Il saldo si aggiorna a mano da questa pagina, quando guardi la banca."
+msgstr ""
+"The balance is updated by hand from this page, whenever you check your bank."
+
+msgid "I soldi attesi o già promessi vanno in In attesa."
+msgstr "Money expected or already promised goes in Pending."
+
+msgid "Il conto della casa, a colpo d'occhio."
+msgstr "The household books, at a glance."
+
+msgid "Prima di entrare conferma l'indirizzo dal link che ti abbiamo mandato."
+msgstr "Before signing in, confirm your address using the link we sent you."
+
+msgid "Mail rimandata"
+msgstr "Email resent"
+
+msgid "Rimanda la mail"
+msgstr "Resend email"
+
+msgid "Accedi"
+msgstr "Sign in"
+
+msgid "Non hai un account?"
+msgstr "Don't have an account?"
+
+msgid "Registrati"
+msgstr "Sign up"
+
+msgid "Accesso…"
+msgstr "Signing in…"
+
+msgid "Entra"
+msgstr "Sign in"
+
+msgid "Password dimenticata?"
+msgstr "Forgot password?"
+
+msgid "Crea un account"
+msgstr "Create an account"
+
+msgid "Hai già un account?"
+msgstr "Already have an account?"
+
+msgid "Torna al login"
+msgstr "Back to sign in"
+
+msgid "Come ti chiamano"
+msgstr "What people call you"
+
+msgid "Almeno 10 caratteri."
+msgstr "At least 10 characters."
+
+msgid "Creazione…"
+msgstr "Creating…"
+
+msgid "Crea account"
+msgstr "Create account"
+
+msgid "Conferma email"
+msgstr "Confirm email"
+
+msgid "Password dimenticata"
+msgstr "Forgot password"
+
+msgid "Se"
+msgstr "If"
+
+msgid ""
+"ha un account, tra poco ti arriva una mail con il link per scegliere una "
+"nuova password. Il link vale 2 ore. Controlla anche lo spam."
+msgstr ""
+"has an account, you'll shortly get an email with a link to choose a new "
+"password. The link is valid for 2 hours. Check your spam folder too."
+
+msgid ""
+"Scrivi l'email dell'account: ti mandiamo un link per sceglierne una nuova."
+msgstr "Enter your account email: we'll send you a link to choose a new one."
+
+msgid "Invio…"
+msgstr "Sending…"
+
+msgid "Mandami il link"
+msgstr "Send me the link"
+
+msgid "Nuova password"
+msgstr "New password"
+
+msgid "Ripeti la nuova password"
+msgstr "Repeat new password"
+
+msgid "Non coincide."
+msgstr "Doesn't match."
+
+msgid "Salva ed entra"
+msgstr "Save and sign in"
+
+msgid "Il link non va? Chiedine uno nuovo"
+msgstr "Link not working? Request a new one"
+
+msgid "Invito"
+msgstr "Invite"
+
+msgid "Ti hanno invitato"
+msgstr "You've been invited"
+
+msgid "Invito per %(email)s · ruolo %(role)s"
+msgstr "Invite for %(email)s · role %(role)s"
+
+msgid "Accetta invito"
+msgstr "Accept invite"
+
+msgid "Accedi con l'indirizzo invitato per accettare."
+msgstr "Sign in with the invited address to accept."
+
+msgid "Collegamento non riuscito"
+msgstr "Connection failed"
+
+msgid "La banca ha risposto: %(error)s"
+msgstr "The bank replied: %(error)s"
+
+msgid "Mancano i dati di ritorno dalla banca."
+msgstr "The data returned by the bank is missing."
+
+msgid "Torna a Soldino"
+msgstr "Back to Soldino"
+
+msgid "Collego la banca…"
+msgstr "Connecting the bank…"
+
+msgid "Leggo i conti autorizzati, ci vuole qualche secondo."
+msgstr "Reading the authorised accounts, this takes a few seconds."
+
+msgid "Banca"
+msgstr "Bank"
+
+msgid ""
+"Saldo e movimenti letti dalla banca con l'open banking. I movimenti arrivano "
+"in una bozza da rivedere come lo scan, oppure si registrano da soli se "
+"attivi l'interruttore sul conto."
+msgstr ""
+"Balance and transactions read from your bank via open banking. Transactions "
+"land in a draft to review, like a scan, or are recorded automatically if you "
+"turn on the switch on the account."
+
+msgid "Banche collegate"
+msgstr "Connected banks"
+
+msgid "Collega una banca"
+msgstr "Connect a bank"
+
+msgid "Nessuna banca collegata"
+msgstr "No connected banks"
+
+msgid ""
+"La tua applicazione è pronta: collega la prima banca e abbina i suoi conti."
+msgstr ""
+"Your application is ready: connect your first bank and link its accounts."
+
+msgid "Consenso scaduto: va rinnovato con la banca"
+msgstr "Consent expired: renew it with the bank"
+
+msgid "Consenso valido fino al %(date)s"
+msgstr "Consent valid until %(date)s"
+
+msgid "Consenso attivo"
+msgstr "Consent active"
+
+msgid "Rinnova"
+msgstr "Renew"
+
+msgid ""
+"Scollegare %(bank)s? I movimenti già registrati restano, la sincronizzazione "
+"si ferma."
+msgstr ""
+"Disconnect %(bank)s? Transactions already recorded stay, syncing stops."
+
+msgid "Scollega"
+msgstr "Disconnect"
+
+msgid ""
+"Banca collegata. Ora abbina ogni conto a un conto di Soldino: scegli da "
+"quando importare e se registrare in automatico."
+msgstr ""
+"Bank connected. Now link each account to a Soldino account: choose the date "
+"to import from and whether to record automatically."
+
+msgid "La banca non ha restituito conti."
+msgstr "The bank returned no accounts."
+
+msgid "Conto"
+msgstr "Account"
+
+msgid "%(count)s da rivedere"
+msgstr "%(count)s to review"
+
+msgid "Conto in Soldino"
+msgstr "Account in Soldino"
+
+msgid "Non abbinato (non si sincronizza)"
+msgstr "Not linked (won't sync)"
+
+msgid "+ Nuovo conto “%(name)s”"
+msgstr "+ New account “%(name)s”"
+
+msgid "Importa movimenti dal"
+msgstr "Import transactions from"
+
+msgid "Registra in automatico"
+msgstr "Record automatically"
+
+msgid ""
+"I movimenti nuovi diventano subito movimenti; i possibili doppioni restano "
+"da rivedere."
+msgstr ""
+"New transactions become transactions right away; possible duplicates are "
+"left to review."
+
+msgid "I movimenti nuovi arrivano in una bozza: li rivedi e li registri tu."
+msgstr "New transactions land in a draft: you review and record them yourself."
+
+msgid ""
+"Alla prossima sincronizzazione rilegge dal %(date)s; i movimenti già letti "
+"non si ripetono."
+msgstr ""
+"On the next sync it re-reads from %(date)s; transactions already read aren't "
+"repeated."
+
+msgid "Ultima lettura %(when)s."
+msgstr "Last read %(when)s."
+
+msgid "Leggo…"
+msgstr "Reading…"
+
+msgid "Sincronizza ora"
+msgstr "Sync now"
+
+msgid "Saldo %(amount)s."
+msgstr "Balance %(amount)s."
+
+msgid "%(count)s registrati."
+msgstr "%(count)s recorded."
+
+msgid "%(count)s da rivedere."
+msgstr "%(count)s to review."
+
+msgid ""
+"Nessun movimento nuovo: %(count)s era già stato letto (registrati o tolti in "
+"revisione)."
+msgid_plural ""
+"Nessun movimento nuovo: %(count)s erano già stati letti (registrati o tolti "
+"in revisione)."
+msgstr[0] ""
+"No new transactions: %(count)s had already been read (recorded or removed "
+"during review)."
+msgstr[1] ""
+"No new transactions: %(count)s had already been read (recorded or removed "
+"during review)."
+
+msgid "Nessun movimento nuovo."
+msgstr "No new transactions."
+
+msgid ""
+"Scegli la banca: si apre la sua pagina di autorizzazione, poi torni qui ad "
+"abbinare i conti. Usa una banca che hai già collegato all'applicazione nel "
+"pannello di Enable Banking."
+msgstr ""
+"Choose your bank: its authorisation page opens, then you come back here to "
+"link the accounts. Use a bank you've already connected to the application in "
+"the Enable Banking control panel."
+
+msgid "Cerca la banca (es. Hype, BBVA, illimity)"
+msgstr "Search for your bank (e.g. Hype, BBVA, illimity)"
+
+msgid "beta"
+msgstr "beta"
+
+msgid "Nessuna banca con questo nome."
+msgstr "No bank with this name."
+
+msgid "Applicazione Enable Banking"
+msgstr "Enable Banking application"
+
+msgid "senza nome"
+msgstr "unnamed"
+
+msgid "non ancora attiva"
+msgstr "not active yet"
+
+msgid "Cambia chiave"
+msgstr "Change key"
+
+msgid ""
+"Togliere la chiave? Tutte le banche collegate si scollegano. I movimenti "
+"registrati restano."
+msgstr ""
+"Remove the key? All connected banks will be disconnected. Recorded "
+"transactions stay."
+
+msgid "Rimuovi"
+msgstr "Remove"
+
+msgid "Crea il tuo account Enable Banking"
+msgstr "Create your Enable Banking account"
+
+msgid "La pagina di accesso di Enable Banking"
+msgstr "The Enable Banking sign-in page"
+
+msgid ""
+"Enable Banking è il servizio autorizzato (AISP, vigilato in Finlandia) che "
+"legge saldo e movimenti dalla tua banca. Per uso personale è gratuito: la "
+"tua applicazione legge solo i conti che colleghi tu."
+msgstr ""
+"Enable Banking is the authorised service (AISP, supervised in Finland) that "
+"reads balance and transactions from your bank. It's free for personal use: "
+"your application only reads the accounts you connect yourself."
+
+msgid ""
+"Apri la pagina di accesso, scrivi la tua email e segui il link che ti "
+"arriva: l'account si crea da solo al primo accesso."
+msgstr ""
+"Open the sign-in page, enter your email and follow the link you receive: the "
+"account is created automatically the first time you sign in."
+
+msgid "Apri Enable Banking"
+msgstr "Open Enable Banking"
+
+msgid "Registra l'applicazione"
+msgstr "Register the application"
+
+msgid ""
+"Il modulo per aggiungere una nuova applicazione nel pannello di Enable "
+"Banking"
+msgstr ""
+"The form for adding a new application in the Enable Banking control panel"
+
+msgid "Dal menu in alto apri"
+msgstr "From the top menu open"
+
+msgid "e compila \"Add a new application\":"
+msgstr "and fill in \"Add a new application\":"
+
+msgid "scegli"
+msgstr "choose"
+
+msgid "(non Sandbox, che ha solo banche finte)"
+msgstr "(not Sandbox, which only has fake banks)"
+
+msgid "lascia \"Generate in the browser\": la chiave la crea il browser"
+msgstr "leave \"Generate in the browser\": the browser creates the key"
+
+msgid "(lo vedrai quando autorizzi la banca)"
+msgstr "(you'll see it when you authorise the bank)"
+
+msgid "esattamente questo indirizzo"
+msgstr "exactly this address"
+
+msgid ""
+"Gli altri campi sono facoltativi: per Privacy e Terms URL va bene "
+"l'indirizzo di Soldino. Poi premi"
+msgstr ""
+"The other fields are optional: for the Privacy and Terms URLs, Soldino's "
+"address is fine. Then press"
+
+msgid "Il browser scarica un file"
+msgstr "The browser downloads a"
+
+msgid "che si chiama come l'application ID"
+msgstr "file named after the application ID"
+
+msgid "es."
+msgstr "e.g."
+
+msgid ""
+"È la chiave della tua applicazione: tienila per te, ti serve tra due passi."
+msgstr ""
+"This is your application's key: keep it to yourself, you'll need it in two "
+"steps."
+
+msgid "Apri API applications"
+msgstr "Open API applications"
+
+msgid "Attiva l'applicazione collegando i conti"
+msgstr "Activate the application by linking accounts"
+
+msgid ""
+"La card dell'applicazione Soldino: attiva, con un conto collegato e i menu "
+"per collegarne un altro"
+msgstr ""
+"The Soldino application card: active, with one account linked and the menus "
+"to link another"
+
+msgid "L'applicazione appena creata è"
+msgstr "The newly created application is"
+
+msgid "si attiva collegando un conto. In fondo alla sua card scegli"
+msgstr "activates when you link an account. At the bottom of its card choose"
+
+msgid "(Italy), la banca in"
+msgstr "(Italy), the bank in"
+
+msgid "e l'uso in"
+msgstr "and the usage in"
+
+msgid "(personale), poi premi"
+msgstr "(personal), then press"
+
+msgid "o"
+msgstr "or"
+
+msgid "Accetta i termini di Enable Banking e autorizza con l'app della banca."
+msgstr "Accept Enable Banking's terms and authorise with your bank's app."
+
+msgid "Ripeti per"
+msgstr "Repeat for"
+
+msgid "ogni conto"
+msgstr "every account"
+
+msgid ""
+"che vuoi in Soldino: in modalità gratuita l'applicazione legge solo i conti "
+"sotto"
+msgstr ""
+"you want in Soldino: in free mode the application only reads the accounts "
+"under"
+
+msgid "Quando è pronta vedi"
+msgstr "When it's ready you'll see"
+
+msgid ""
+"e \"Account Information · Restricted\". Non si scarica nessun file, la "
+"chiave resta una."
+msgstr ""
+"and \"Account Information · Restricted\". No file is downloaded, the key "
+"stays the same."
+
+msgid "Carica la chiave in Soldino"
+msgstr "Upload the key to Soldino"
+
+msgid "Passaggi"
+msgstr "Steps"
+
+msgid "Indietro"
+msgstr "Back"
+
+msgid "Fatto, avanti"
+msgstr "Done, next"
+
+msgid "Scegli il file"
+msgstr "Choose the"
+
+msgid ""
+"scaricato al passo 2. Soldino controlla con Enable Banking che chiave e "
+"application ID funzionino e che l'indirizzo di ritorno sia giusto, poi salva "
+"la chiave cifrata."
+msgstr ""
+"file downloaded in step 2. Soldino checks with Enable Banking that the key "
+"and application ID work and that the return address is correct, then saves "
+"the encrypted key."
+
+msgid "Scegli il file .pem"
+msgstr "Choose the .pem file"
+
+msgid "Application ID"
+msgstr "Application ID"
+
+msgid ""
+"Si compila dal nome del file; lo trovi anche nel pannello, sotto il nome "
+"dell'app."
+msgstr ""
+"Filled in from the file name; you can also find it in the panel, under the "
+"app name."
+
+msgid "Applicazione \"%(name)s\" verificata."
+msgstr "Application \"%(name)s\" verified."
+
+msgid "Verifico…"
+msgstr "Verifying…"
+
+msgid "Verifica e salva"
+msgstr "Verify and save"
+
+msgid "Copiato"
+msgstr "Copied"
+
+msgid "Copia"
+msgstr "Copy"
+
+msgid "Andamento dei soldi di %(name)s"
+msgstr "How %(name)s's money is doing"
+
+msgid "Andamento dei soldi, tutti insieme"
+msgstr "How the money is doing, all together"
+
+msgid ""
+"Saldo iniziale + entrate − uscite, giorno per giorno. Contano i soldi che "
+"passano dai conti, come nella riconciliazione."
+msgstr ""
+"Opening balance + income − expenses, day by day. Only money that goes "
+"through the accounts counts, as in the reconciliation."
+
+msgid "Il filtro categoria qui non si applica."
+msgstr "The category filter doesn't apply here."
+
+msgid "Da %(start)s a %(end)s"
+msgstr "From %(start)s to %(end)s"
+
+msgid "Grafico"
+msgstr "Chart"
+
+msgid "Tabella"
+msgstr "Table"
+
+msgid "Andamento del saldo nel periodo"
+msgstr "Balance over the period"
+
+msgid "Saldo dai movimenti"
+msgstr "Balance from transactions"
+
+msgid "Oggi sui conti: %(amount)s"
+msgstr "Today in the accounts: %(amount)s"
+
+msgid "Saldo"
+msgstr "Balance"
+
+msgid "Entrate del giorno"
+msgstr "Day's income"
+
+msgid "Uscite del giorno"
+msgstr "Day's expenses"
+
+msgid "Nessun movimento nel periodo."
+msgstr "No transactions in this period."
+
+msgid "Giorno"
+msgstr "Day"
+
+msgid "Entrate"
+msgstr "Income"
+
+msgid "Uscite"
+msgstr "Expenses"
+
+msgid "Grafici"
+msgstr "Charts"
+
+msgid "La quota di %(name)s: una spesa divisa a metà conta per metà."
+msgstr "%(name)s's share: an expense split in half counts as half."
+
+msgid "Tutti i movimenti del tracker, per intero."
+msgstr "All the tracker's transactions, in full."
+
+msgid "Netto"
+msgstr "Net"
+
+msgid "Movimenti"
+msgstr "Transactions"
+
+msgid "a cui partecipa %(name)s"
+msgstr "that include %(name)s"
+
+msgid "Date"
+msgstr "Dates"
+
+msgid "Al"
+msgstr "To"
+
+msgid "Periodo precedente"
+msgstr "Previous period"
+
+msgid "Periodo successivo"
+msgstr "Next period"
+
+msgid "Persona"
+msgstr "Person"
+
+msgid "Tutte le persone"
+msgstr "Everyone"
+
+msgid "Categoria"
+msgstr "Category"
+
+msgid "Tutte le categorie"
+msgstr "All categories"
+
+msgid "Per categoria"
+msgstr "By category"
+
+msgid "%(count)s movimento"
+msgid_plural "%(count)s movimenti"
+msgstr[0] "%(count)s transaction"
+msgstr[1] "%(count)s transactions"
+
+msgid "Tocca di nuovo la categoria per togliere il filtro."
+msgstr "Tap the category again to clear the filter."
+
+msgid "Per persona"
+msgstr "By person"
+
+msgid ""
+"La quota di ciascuno nel periodo, secondo le divisioni: non chi ha pagato."
+msgstr "Each person's share in the period, based on the splits: not who paid."
+
+msgid "netto"
+msgstr "net"
+
+msgid "Tocca di nuovo la persona per tornare a tutto il tracker."
+msgstr "Tap the person again to go back to the whole tracker."
+
+msgid "Ciao %(name)s"
+msgstr "Hi %(name)s"
+
+msgid "Io"
+msgstr "Me"
+
+msgid "Di chi è la dashboard"
+msgstr "Whose dashboard"
+
+msgid "Tutti"
+msgstr "Everyone"
+
+msgid "Conti e movimenti quadrano"
+msgstr "Accounts and transactions balance"
+
+msgid "Conti e movimenti non quadrano per"
+msgstr "Accounts and transactions are off by"
+
+msgid "Devi a %(name)s"
+msgstr "You owe %(name)s"
+
+msgid "%(name)s deve a te"
+msgstr "%(name)s owes you"
+
+msgid "%(from)s deve a %(to)s"
+msgstr "%(from)s owes %(to)s"
+
+msgid "Chi deve cosa"
+msgstr "Who owes what"
+
+msgid "Segna come saldato"
+msgstr "Mark as settled"
+
+msgid "Come si compone"
+msgstr "Breakdown"
+
+msgid "%(name)s è in pari"
+msgstr "%(name)s is settled up"
+
+msgid "Siete in pari"
+msgstr "You're all settled up"
+
+msgid "pagato"
+msgstr "paid"
+
+msgid "di competenza"
+msgstr "share"
+
+msgid ""
+"Un pareggio azzera il debito e non compare in nessuna statistica per "
+"categoria."
+msgstr "A settlement clears the debt and doesn't appear in any category stats."
+
+msgid "Data"
+msgstr "Date"
+
+msgid "Registra il pareggio"
+msgstr "Record the settlement"
+
+msgid "%(count)s ricorrenza da approvare"
+msgid_plural "%(count)s ricorrenze da approvare"
+msgstr[0] "%(count)s recurring item to approve"
+msgstr[1] "%(count)s recurring items to approve"
+
+msgid "Nessuna scrittura senza il tuo ok."
+msgstr "Nothing is recorded without your OK."
+
+msgid "Vedi le proposte"
+msgstr "See the proposals"
+
+msgid "quota di %(name)s"
+msgstr "%(name)s's share"
+
+msgid "Resta"
+msgstr "Left"
+
+msgid "Speso in tutto"
+msgstr "Total spent"
+
+msgid "quota"
+msgstr "share"
+
+msgid "ha pagato"
+msgstr "paid"
+
+msgid "Dove sono finiti"
+msgstr "Where it went"
+
+msgid "Grafici, persone e filtri"
+msgstr "Charts, people and filters"
+
+msgid "Riconciliazione"
+msgstr "Reconciliation"
+
+msgid ""
+"Saldo iniziale + entrate − uscite deve fare conti + in attesa. Contano i "
+"soldi che passano davvero dai conti: spese pagate ed entrate incassate, non "
+"le quote."
+msgstr ""
+"Opening balance + income − expenses should equal accounts + pending. Only "
+"money that actually goes through the accounts counts: expenses paid and "
+"income received, not shares."
+
+msgid "I conti tornano con i movimenti segnati."
+msgstr "The accounts match the recorded transactions."
+
+msgid ""
+"Sui conti ci sono %(amount)s in meno di quanto risulta dai movimenti: "
+"probabilmente qualche spesa non è stata segnata."
+msgstr ""
+"The accounts hold %(amount)s less than the transactions show: some expense "
+"probably wasn't recorded."
+
+msgid ""
+"Sui conti ci sono %(amount)s in più di quanto risulta dai movimenti: manca "
+"un'entrata, o una spesa è stata segnata due volte."
+msgstr ""
+"The accounts hold %(amount)s more than the transactions show: an income is "
+"missing, or an expense was recorded twice."
+
+msgid ""
+"Saldo iniziale a zero: se all'inizio sui conti c'erano già dei soldi, lo "
+"scarto viene da lì."
+msgstr ""
+"Opening balance is zero: if the accounts already had money at the start, "
+"that's where the gap comes from."
+
+msgid "Impostalo in Conti"
+msgstr "Set it in Accounts"
+
+msgid "quadra"
+msgstr "balanced"
+
+msgid "reale"
+msgstr "actual"
+
+msgid "atteso"
+msgstr "expected"
+
+msgid "Pareggi"
+msgstr "Settlements"
+
+msgid "Atteso"
+msgstr "Expected"
+
+msgid "Scarto"
+msgstr "Gap"
+
+msgid "Conti %(accounts)s + in attesa %(pending)s"
+msgstr "Accounts %(accounts)s + pending %(pending)s"
+
+msgid "Atteso %(expected)s, reale %(real)s, scarto %(delta)s"
+msgstr "Expected %(expected)s, actual %(real)s, gap %(delta)s"
+
+msgid "Scontrino"
+msgstr "Receipt"
+
+msgid "Da rivedere"
+msgstr "To review"
+
+msgid ""
+"Movimenti letti da scontrini, vocali, estratti conto e banche che aspettano "
+"il tuo OK. Niente entra nei conti finché non li registri."
+msgstr ""
+"Transactions read from receipts, voice notes, statements and banks, waiting "
+"for your OK. Nothing reaches the accounts until you record them."
+
+msgid "Tutto rivisto"
+msgstr "All reviewed"
+
+msgid ""
+"Quando fotografi uno scontrino, detti un movimento o arriva un estratto, lo "
+"trovi qui."
+msgstr ""
+"When you snap a receipt, dictate a transaction or a statement comes in, "
+"you'll find it here."
+
+msgid "%(count)s riga"
+msgid_plural "%(count)s righe"
+msgstr[0] "%(count)s line"
+msgstr[1] "%(count)s lines"
+
+msgid "Nuovo"
+msgstr "New"
+
+msgid "Niente in attesa."
+msgstr "Nothing pending."
+
+msgid "Estratti conto"
+msgstr "Statements"
+
+msgid "Scontrini"
+msgstr "Receipts"
+
+msgid "Vocali"
+msgstr "Voice notes"
+
+msgid "Banche"
+msgstr "Banks"
+
+msgid "Aperti"
+msgstr "Open"
+
+msgid "Convertiti"
+msgstr "Converted"
+
+msgid "Annullati"
+msgstr "Cancelled"
+
+msgid "In attesa"
+msgstr "Pending"
+
+msgid "Soldi attesi o già impegnati che non sono ancora un movimento."
+msgstr "Money expected or already committed that isn't a transaction yet."
+
+msgid "Voce"
+msgstr "Item"
+
+msgid "Totale in attesa"
+msgstr "Total pending"
+
+msgid "Niente in attesa"
+msgstr "Nothing pending"
+
+msgid ""
+"Rimborsi, accrediti, impegni futuri: quello che sai che arriverà o che è già "
+"promesso."
+msgstr ""
+"Refunds, incoming payments, future commitments: what you know will come in "
+"or is already promised."
+
+msgid "attesa %(date)s"
+msgstr "expected %(date)s"
+
+msgid "impegno %(date)s"
+msgstr "committed %(date)s"
+
+msgid "Converti"
+msgstr "Convert"
+
+msgid "Elimina"
+msgstr "Delete"
+
+msgid "Nuova voce in attesa"
+msgstr "New pending item"
+
+msgid "Descrizione"
+msgstr "Description"
+
+msgid "Negativo per un impegno, es. −700 per un regalo."
+msgstr "Negative for a commitment, e.g. −700 for a gift."
+
+msgid "Di chi"
+msgstr "Whose"
+
+msgid "Data attesa"
+msgstr "Expected date"
+
+msgid "Nota"
+msgstr "Note"
+
+msgid "Converti “%(title)s”"
+msgstr "Convert “%(title)s”"
+
+msgid "Diventa un'entrata di"
+msgstr "Becomes an income of"
+
+msgid "Diventa una spesa di"
+msgstr "Becomes an expense of"
+
+msgid "Converti in movimento"
+msgstr "Convert to transaction"
+
+msgid "Ricorrenze"
+msgstr "Recurring"
+
+msgid ""
+"Le proposte da approvare stanno in cima: senza conferma automatica nulla "
+"viene scritto."
+msgstr ""
+"Proposals to approve are at the top: without auto-confirm nothing gets "
+"recorded."
+
+msgid "Al mese"
+msgstr "Per month"
+
+msgid "All'anno"
+msgstr "Per year"
+
+msgid "Ricorrenza"
+msgstr "Recurring item"
+
+msgid "Nessuna ricorrenza"
+msgstr "No recurring items"
+
+msgid "Affitto, mutuo, Netflix: tutto quello che torna da solo."
+msgstr "Rent, mortgage, Netflix: everything that comes back on its own."
+
+msgid "abbonamento"
+msgstr "subscription"
+
+msgid "sospesa"
+msgstr "paused"
+
+msgid "conferma automatica"
+msgstr "auto-confirm"
+
+msgid "da approvare"
+msgstr "to approve"
+
+msgid "%(amount)s/mese"
+msgstr "%(amount)s/month"
+
+msgid "Attiva %(title)s"
+msgstr "Activate %(title)s"
+
+msgid "proposta in sospeso"
+msgstr "pending proposal"
+
+msgid "Proposta per il %(date)s"
+msgstr "Proposal for %(date)s"
+
+msgid "Approvo…"
+msgstr "Approving…"
+
+msgid "Approva"
+msgstr "Approve"
+
+msgid "Salta questa occorrenza"
+msgstr "Skip this occurrence"
+
+msgid "Nuova ricorrenza"
+msgstr "New recurring item"
+
+msgid "Frequenza"
+msgstr "Frequency"
+
+msgid "Prossima occorrenza"
+msgstr "Next occurrence"
+
+msgid "A carico di"
+msgstr "Paid by"
+
+msgid "È un abbonamento"
+msgstr "It's a subscription"
+
+msgid "Conferma automatica (scrive senza chiedere)"
+msgstr "Auto-confirm (records without asking)"
+
+msgid "Crea"
+msgstr "Create"
+
+msgid "Scan scontrino"
+msgstr "Receipt scan"
+
+msgid ""
+"Fotografa lo scontrino e vai: Gemini legge esercente, data e totale in "
+"background e propone la categoria. La spesa ti aspetta in"
+msgstr ""
+"Snap the receipt and go: Gemini reads the merchant, date and total in the "
+"background and suggests the category. The expense will be waiting for you in"
+
+msgid ", con la foto accanto."
+msgstr ", with the photo next to it."
+
+msgid "Scontrino che sto caricando"
+msgstr "Receipt being uploaded"
+
+msgid "Carico la foto…"
+msgstr "Uploading the photo…"
+
+msgid "Scatta una foto"
+msgstr "Take a photo"
+
+msgid "Apre la fotocamera del telefono"
+msgstr "Opens the phone camera"
+
+msgid "Scegli una foto"
+msgstr "Choose a photo"
+
+msgid "Dalla galleria o dal computer · JPEG, PNG, HEIC fino a 15 MB"
+msgstr "From the gallery or computer · JPEG, PNG, HEIC up to 15 MB"
+
+msgid "Scontrino caricato: lo leggo in background, lo trovi in Da rivedere."
+msgid_plural ""
+"%(count)s scontrini caricati: li leggo in background, li trovi in Da "
+"rivedere."
+msgstr[0] ""
+"Receipt uploaded: I'll read it in the background, you'll find it in To "
+"review."
+msgstr[1] ""
+"%(count)s receipts uploaded: I'll read them in the background, you'll find "
+"them in To review."
+
+msgid "Puoi scattarne un altro."
+msgstr "You can take another one."
+
+msgid ""
+"La foto viene inviata a Google Gemini per la lettura e cancellata da Soldino "
+"quando registri o scarti la spesa."
+msgstr ""
+"The photo is sent to Google Gemini to be read and deleted from Soldino when "
+"you record or discard the expense."
+
+msgid "Scontrini recenti"
+msgstr "Recent receipts"
+
+msgid "Ancora nessuno"
+msgstr "None yet"
+
+msgid "Il primo scontrino letto comparirà qui."
+msgstr "The first receipt read will show up here."
+
+msgid "Dallo storico: questo esercente era già in questa categoria"
+msgstr "From history: this merchant was already in this category"
+
+msgid "Suggerita leggendo le descrizioni delle categorie"
+msgstr "Suggested by reading the category descriptions"
+
+msgid "Elimina %(title)s"
+msgstr "Delete %(title)s"
+
+msgid "Elimina riga"
+msgstr "Delete line"
+
+msgid "Pareggio: soldi dati a un altro membro. Tocca per farlo uscita"
+msgstr "Settlement: money given to another member. Tap to make it an expense"
+
+msgid "Uscita: tocca per farla entrata"
+msgstr "Expense: tap to make it income"
+
+msgid "Entrata: tocca per farla pareggio"
+msgstr "Income: tap to make it a settlement"
+
+msgid "Entrata: tocca per farla uscita"
+msgstr "Income: tap to make it an expense"
+
+msgid "Pareggio"
+msgstr "Settlement"
+
+msgid "Uscita"
+msgstr "Expense"
+
+msgid "Entrata"
+msgstr "Income"
+
+msgid "Chi paga"
+msgstr "Who pays"
+
+msgid "Da %(name)s"
+msgstr "From %(name)s"
+
+msgid "Paga %(name)s"
+msgstr "%(name)s pays"
+
+msgid "Chi dà i soldi"
+msgstr "Who gives the money"
+
+msgid "Chi ha pagato"
+msgstr "Who paid"
+
+msgid "A chi"
+msgstr "To whom"
+
+msgid "A chi…"
+msgstr "To whom…"
+
+msgid "A %(name)s"
+msgstr "To %(name)s"
+
+msgid "A chi?"
+msgstr "To whom?"
+
+msgid "Chi riceve i soldi"
+msgstr "Who receives the money"
+
+msgid "Divisione"
+msgstr "Split"
+
+msgid "Solo sua"
+msgstr "Just theirs"
+
+msgid "Divisa di default"
+msgstr "Default split"
+
+msgid "Divisa"
+msgstr "Split"
+
+msgid "Stessa data, importo e tipo di un movimento già registrato"
+msgstr "Same date, amount and type as a transaction already recorded"
+
+msgid "Doppione?"
+msgstr "Duplicate?"
+
+msgid "Scan estratto conto"
+msgstr "Statement scan"
+
+msgid ""
+"Carica il PDF della banca: lo legge Gemini e ti propone i movimenti, già con "
+"la categoria. Li rivedi riga per riga e niente viene registrato finché non "
+"confermi."
+msgstr ""
+"Upload your bank's PDF: Gemini reads it and suggests the transactions, "
+"already categorised. You review them line by line and nothing is recorded "
+"until you confirm."
+
+msgid "Trascina qui il PDF o tocca per sceglierlo"
+msgstr "Drag the PDF here or tap to choose it"
+
+msgid "Solo PDF, fino a 15 MB"
+msgstr "PDF only, up to 15 MB"
+
+msgid "Conto dell'estratto"
+msgstr "Statement account"
+
+msgid "Decide chi ha pagato: si può cambiare riga per riga."
+msgstr "It decides who paid: you can change it line by line."
+
+msgid "Nessun conto (pago io)"
+msgstr "No account (I pay)"
+
+msgid "Carico…"
+msgstr "Uploading…"
+
+msgid "Leggi l'estratto conto"
+msgstr "Read the statement"
+
+msgid ""
+"Il PDF viene inviato a Google Gemini per la lettura e cancellato da Soldino "
+"appena letto."
+msgstr ""
+"The PDF is sent to Google Gemini to be read and deleted from Soldino as soon "
+"as it's read."
+
+msgid "Estratti conto caricati"
+msgstr "Uploaded statements"
+
+msgid "Il primo estratto conto letto comparirà qui."
+msgstr "The first statement you scan will show up here."
+
+msgid "Torna alla banca"
+msgstr "Back to bank"
+
+msgid "Torna agli scontrini"
+msgstr "Back to receipts"
+
+msgid "Torna ai vocali"
+msgstr "Back to voice notes"
+
+msgid "Torna agli estratti conto"
+msgstr "Back to statements"
+
+msgid "Messaggio vocale"
+msgstr "Voice note"
+
+msgid "Estratto conto"
+msgstr "Bank statement"
+
+msgid "Nessun conto"
+msgstr "No account"
+
+msgid "dal %(start)s al %(end)s"
+msgstr "from %(start)s to %(end)s"
+
+msgid "dal %(start)s"
+msgstr "from %(start)s"
+
+msgid "Sto leggendo lo scontrino…"
+msgstr "Reading the receipt…"
+
+msgid "Sto leggendo l'estratto conto…"
+msgstr "Reading the statement…"
+
+msgid "Di solito bastano pochi secondi."
+msgstr "It usually takes a few seconds."
+
+msgid ""
+"Di solito ci vogliono 10–30 secondi. Puoi lasciare la pagina: quando torni "
+"le righe sono pronte da rivedere."
+msgstr ""
+"It usually takes 10–30 seconds. You can leave the page: when you come back "
+"the lines will be ready to review."
+
+msgid "Sembra bloccato da più di 10 minuti: rilanciamo la lettura."
+msgstr ""
+"Looks like it's been stuck for more than 10 minutes: let's restart the "
+"reading."
+
+msgid "Riprova"
+msgstr "Try again"
+
+msgid "Lettura non riuscita"
+msgstr "Reading failed"
+
+msgid "Errore sconosciuto."
+msgstr "Unknown error."
+
+msgid "Scarta"
+msgstr "Discard"
+
+msgid "Spesa registrata"
+msgstr "Expense recorded"
+
+msgid "%(count)s movimento registrato"
+msgid_plural "%(count)s movimenti registrati"
+msgstr[0] "%(count)s transaction recorded"
+msgstr[1] "%(count)s transactions recorded"
+
+msgid "il %(date)s"
+msgstr "on %(date)s"
+
+msgid "La trovi nei movimenti. La foto dello scontrino è stata cancellata."
+msgstr "You'll find it in transactions. The receipt photo has been deleted."
+
+msgid "Li trovi nei movimenti, con origine \"open banking\"."
+msgstr "You'll find them in transactions, with source \"open banking\"."
+
+msgid ""
+"Spese ed entrate sono nei movimenti (origine \"voce\"), i pareggi nei debiti."
+msgstr ""
+"Expenses and income are in transactions (source \"voice\"), settlements in "
+"debts."
+
+msgid "Li trovi nei movimenti, con origine \"scan\"."
+msgstr "You'll find them in transactions, with source \"scan\"."
+
+msgid "Vai ai movimenti"
+msgstr "Go to transactions"
+
+msgid "Applica a tutte"
+msgstr "Apply to all"
+
+msgid "Chi paga, per tutte le righe"
+msgstr "Who pays, for all lines"
+
+msgid "Chi paga…"
+msgstr "Who pays…"
+
+msgid "Divisione, per tutte le righe"
+msgstr "Split, for all lines"
+
+msgid "Divisione…"
+msgstr "Split…"
+
+msgid "Solo di chi paga"
+msgstr "Just the payer's"
+
+msgid "%(count)s possibile doppione"
+msgid_plural "%(count)s possibili doppioni"
+msgstr[0] "%(count)s possible duplicate"
+msgstr[1] "%(count)s possible duplicates"
+
+msgid ""
+"Elimina le righe con la stessa data, importo e tipo di un movimento già "
+"registrato"
+msgstr ""
+"Delete lines with the same date, amount and type as a transaction already "
+"recorded"
+
+msgid "Togli i doppioni"
+msgstr "Remove duplicates"
+
+msgid "Riga eliminata: aggiungila di nuovo o scarta lo scontrino."
+msgstr "Line deleted: add it again or discard the receipt."
+
+msgid "Nessuna riga. Aggiungine una o scarta l'estratto conto."
+msgstr "No lines. Add one or discard the statement."
+
+msgid "Aggiungi riga"
+msgstr "Add line"
+
+msgid "Totale"
+msgstr "Total"
+
+msgid "riga"
+msgid_plural "righe"
+msgstr[0] "line"
+msgstr[1] "lines"
+
+msgid "%(count)s pareggio"
+msgid_plural "%(count)s pareggi"
+msgstr[0] "%(count)s settlement"
+msgstr[1] "%(count)s settlements"
+
+msgid "%(count)s riga incompleta"
+msgid_plural "%(count)s righe incomplete"
+msgstr[0] "%(count)s incomplete line"
+msgstr[1] "%(count)s incomplete lines"
+
+msgid "Scartare lo scontrino? Anche la foto viene cancellata."
+msgstr "Discard the receipt? The photo will be deleted too."
+
+msgid ""
+"Scartare la bozza? I movimenti torneranno alla prossima sincronizzazione. "
+"Per ignorarne uno per sempre, eliminalo dalla lista."
+msgstr ""
+"Discard the draft? The transactions will come back at the next sync. To "
+"ignore one for good, delete it from the list."
+
+msgid "Scartare il messaggio vocale e tutte le righe?"
+msgstr "Discard the voice note and all its lines?"
+
+msgid "Scartare l'estratto conto e tutte le righe?"
+msgstr "Discard the statement and all its lines?"
+
+msgid "bozza"
+msgstr "draft"
+
+msgid "Registro…"
+msgstr "Recording…"
+
+msgid "Registra"
+msgstr "Record"
+
+msgid "spesa"
+msgstr "expense"
+
+msgid "movimento"
+msgid_plural "movimenti"
+msgstr[0] "transaction"
+msgstr[1] "transactions"
+
+msgid "Rimpicciolisci la foto"
+msgstr "Shrink photo"
+
+msgid "Ingrandisci la foto"
+msgstr "Enlarge photo"
+
+msgid "Foto dello scontrino"
+msgstr "Receipt photo"
+
+msgid "La foto non c'è più."
+msgstr "The photo is no longer available."
+
+msgid "In lettura"
+msgstr "Reading"
+
+msgid "Non riuscito"
+msgstr "Failed"
+
+msgid "Registrato"
+msgstr "Recorded"
+
+msgid "Setup del tracker"
+msgstr "Tracker setup"
+
+msgid "Tipo di tracker"
+msgstr "Tracker type"
+
+msgid ""
+"Cambia solo cosa si vede: movimenti, conti e ricorrenze restano tutti, e "
+"tornando indietro ricompaiono."
+msgstr ""
+"It only changes what you see: transactions, accounts and recurring items all "
+"stay, and they come back if you switch back."
+
+msgid "Lo decide il proprietario del tracker."
+msgstr "The tracker owner decides this."
+
+msgid "Semplifica i debiti"
+msgstr "Simplify debts"
+
+msgid ""
+"Acceso: i debiti si chiudono col minor numero di bonifici, anche fra persone "
+"che non hanno spese in comune. Se Anna ha pagato per Bruno e Bruno per "
+"Carla, basta che Carla dia i soldi ad Anna."
+msgstr ""
+"On: debts are settled with the fewest transfers, even between people with no "
+"shared expenses. If Anna paid for Bruno and Bruno paid for Carla, Carla just "
+"pays Anna."
+
+msgid ""
+"Spento: ognuno restituisce a chi ha pagato per lui, al netto di quello che "
+"quella persona deve a lui. Più bonifici, ma ogni debito resta fra chi ha "
+"condiviso la spesa."
+msgstr ""
+"Off: everyone pays back whoever paid for them, minus what that person owes "
+"them. More transfers, but each debt stays between the people who shared the "
+"expense."
+
+msgid "In due non cambia nulla."
+msgstr "With two people nothing changes."
+
+msgid "Ogni giorno"
+msgstr "Every day"
+
+msgid "Ogni settimana"
+msgstr "Every week"
+
+msgid "Ogni mese"
+msgstr "Every month"
+
+msgid "Ogni mattina saldo e movimenti del giorno prima."
+msgstr "Every morning: balance and the previous day's transactions."
+
+msgid "Il lunedì mattina saldo e movimenti della settimana passata."
+msgstr "Monday morning: balance and last week's transactions."
+
+msgid ""
+"Il primo del mese saldo e movimenti del mese appena chiuso, come un estratto "
+"conto."
+msgstr ""
+"On the first of the month: balance and transactions for the month just "
+"ended, like a bank statement."
+
+msgid "Lettura dei conti in banca"
+msgstr "Reading your bank accounts"
+
+msgid ""
+"I movimenti arrivano in Da rivedere, o si registrano da soli sui conti con "
+"\"Registra in automatico\". Dalla Banca puoi sempre fare \"Sincronizza ora\"."
+msgstr ""
+"Transactions land in To review, or are recorded automatically on accounts "
+"with \"Record automatically\". From Bank you can always tap \"Sync now\"."
+
+msgid "Archivio ed eliminazione"
+msgstr "Archive and deletion"
+
+msgid "Tracker archiviato"
+msgstr "Tracker archived"
+
+msgid "Archivia"
+msgstr "Archive"
+
+msgid ""
+"È nel gruppo degli archiviati e non riceve ricorrenze automatiche. "
+"Ripristinalo per riportarlo fra gli attivi."
+msgstr ""
+"It's in the archived group and doesn't get automatic recurring items. "
+"Restore it to bring it back to the active ones."
+
+msgid ""
+"Per un anno chiuso o un tracker che non usi più: resta consultabile, finisce "
+"fra gli archiviati e non riceve più ricorrenze automatiche."
+msgstr ""
+"For a closed year or a tracker you no longer use: it stays viewable, moves "
+"to the archived ones and no longer gets automatic recurring items."
+
+msgid ""
+"Sparisce per tutti i membri, con movimenti, conti e ricorrenze. Se vuoi solo "
+"toglierlo di mezzo, archivialo."
+msgstr ""
+"It disappears for all members, along with its transactions, accounts and "
+"recurring items. If you just want it out of the way, archive it."
+
+msgid "Elimina tracker"
+msgstr "Delete tracker"
+
+msgid "Eliminare il tracker?"
+msgstr "Delete the tracker?"
+
+msgid ""
+"Spariranno per tutti i %(count)s membri i movimenti, i conti, le voci in "
+"attesa e le ricorrenze di"
+msgstr ""
+"All %(count)s members will lose the transactions, accounts, pending items "
+"and recurring items of"
+
+msgid "Scrivi «%(name)s» per confermare"
+msgstr "Type “%(name)s” to confirm"
+
+msgid "Elimino…"
+msgstr "Deleting…"
+
+msgid "Elimina definitivamente"
+msgstr "Delete permanently"
+
+msgid "Chi c'è, e con quale peso"
+msgstr "Who's in, and with what weight"
+
+msgid "Invita"
+msgstr "Invite"
+
+msgid "invito in sospeso"
+msgstr "invite pending"
+
+msgid "Peso di %(name)s"
+msgstr "%(name)s's weight"
+
+msgid "conta da attivo"
+msgstr "counts once active"
+
+msgid "Ruolo di %(name)s"
+msgstr "%(name)s's role"
+
+msgid ""
+"Pesi fra 0 e 100, non devono fare 100: a destra la percentuale che ne "
+"risulta nella divisione di default."
+msgstr ""
+"Weights from 0 to 100, they don't need to add up to 100: on the right, the "
+"resulting percentage in the default split."
+
+msgid "Invita una persona"
+msgstr "Invite someone"
+
+msgid "Invito creato. In sviluppo la mail va in console:"
+msgstr "Invite created. In development the email goes to the console:"
+
+msgid "Email inviata."
+msgstr "Email sent."
+
+msgid "Ruolo"
+msgstr "Role"
+
+msgid "Peso di default"
+msgstr "Default weight"
+
+msgid "Invia invito"
+msgstr "Send invite"
+
+msgid "Categorie"
+msgstr "Categories"
+
+msgid ""
+"La descrizione di ogni categoria alimenterà la categorizzazione automatica: "
+"si modifica toccando la chip."
+msgstr ""
+"Each category's description will feed automatic categorisation: tap the chip "
+"to edit it."
+
+msgid "Categoria “%(name)s”"
+msgstr "Category “%(name)s”"
+
+msgid "Nuova categoria di entrata"
+msgstr "New income category"
+
+msgid "Nuova categoria di uscita"
+msgstr "New expense category"
+
+msgid "Colore"
+msgstr "Colour"
+
+msgid "Icona"
+msgstr "Icon"
+
+msgid "Nome di un glifo Material Symbols, es. shopping_basket."
+msgstr "Name of a Material Symbols glyph, e.g. shopping_basket."
+
+msgid ""
+"È il testo che in fase 3 verrà passato alla categorizzazione automatica."
+msgstr ""
+"This is the text that will be passed to automatic categorisation in phase 3."
+
+msgid "Nuovo tracker"
+msgstr "New tracker"
+
+msgid "Nessun tracker"
+msgstr "No trackers"
+
+msgid "Crea il primo tracker per iniziare a registrare spese ed entrate."
+msgstr "Create your first tracker to start recording expenses and income."
+
+msgid "Crea tracker"
+msgstr "Create tracker"
+
+msgid "Nessun tracker attivo."
+msgstr "No active trackers."
+
+msgid "Archiviati · %(count)s"
+msgstr "Archived · %(count)s"
+
+msgid "Es. “Spese casa 2026”"
+msgstr "E.g. “Home expenses 2026”"
+
+msgid "%(count)s membro"
+msgid_plural "%(count)s membri"
+msgstr[0] "%(count)s member"
+msgstr[1] "%(count)s members"
+
+msgid "archiviato"
+msgstr "archived"
+
+msgid "dividere le spese"
+msgstr "split expenses"
+
+msgid "non quadra per %(amount)s"
+msgstr "doesn't balance by %(amount)s"
+
+msgid "Modifica movimento"
+msgstr "Edit transaction"
+
+msgid "Nuova entrata"
+msgstr "New income"
+
+msgid "senza descrizione"
+msgstr "no description"
+
+msgid "Esselunga, affitto, stipendio…"
+msgstr "Supermarket, rent, salary…"
+
+msgid "Ha pagato"
+msgstr "Paid by"
+
+msgid "Ha incassato"
+msgstr "Received by"
+
+msgid "Annulla"
+msgstr "Cancel"
+
+msgid "Salvataggio…"
+msgstr "Saving…"
+
+msgid "Le quote non quadrano: manca %(amount)s."
+msgstr "The shares don't balance: %(amount)s missing."
+
+msgid "Le percentuali devono fare 100%."
+msgstr "Percentages must add up to 100%."
+
+msgid "Cancella"
+msgstr "Backspace"
+
+msgid "Cerca fra %(count)s movimento"
+msgid_plural "Cerca fra %(count)s movimenti"
+msgstr[0] "Search %(count)s transaction"
+msgstr[1] "Search %(count)s transactions"
+
+msgid "Dal %(date)s"
+msgstr "From %(date)s"
+
+msgid "Al %(date)s"
+msgstr "To %(date)s"
+
+msgid "Solo spese"
+msgstr "Expenses only"
+
+msgid "Solo entrate"
+msgstr "Income only"
+
+msgid "Altri filtri"
+msgstr "More filters"
+
+msgid "Azzera"
+msgstr "Reset"
+
+msgid "Nessun movimento"
+msgstr "No transactions"
+
+msgid "Cambia i filtri, oppure registra il primo movimento."
+msgstr "Change the filters, or record your first transaction."
+
+msgid "Importo minimo"
+msgstr "Minimum amount"
+
+msgid "Importo massimo"
+msgstr "Maximum amount"
+
+msgid "Applica"
+msgstr "Apply"
+
+msgid "personale"
+msgstr "personal"
+
+msgid "possibile doppione"
+msgstr "possible duplicate"
+
+msgid "Tocca per correggere"
+msgstr "Tap to fix"
+
+msgid "Azioni"
+msgstr "Actions"
+
+msgid "Modifica"
+msgstr "Edit"
+
+msgid "Ho dato 10 euro a Maurizio per le spese di casa"
+msgstr "I gave Maurizio 10 euros for household expenses"
+
+msgid "Ieri ho pagato 42 euro di spesa al supermercato, da dividere"
+msgstr "Yesterday I paid 42 euros for groceries at the supermarket, to split"
+
+msgid "Benzina 60 euro"
+msgstr "Fuel 60 euros"
+
+msgid "Il browser non ha il permesso di usare il microfono."
+msgstr "The browser doesn't have permission to use the microphone."
+
+msgid "Non ti ho sentito: riprova o scrivi."
+msgstr "I didn't hear you: try again or type."
+
+msgid ""
+"Di' cosa hai speso, incassato o dato a chi: lo legge Gemini in background e "
+"lo ritrovi in"
+msgstr ""
+"Say what you spent, received or gave to whom: Gemini reads it in the "
+"background and you'll find it in"
+
+msgid ", pronto da confermare."
+msgstr ", ready to confirm."
+
+msgid "Ferma la dettatura"
+msgstr "Stop dictation"
+
+msgid "Detta"
+msgstr "Dictate"
+
+msgid "Questo browser non detta: usa il microfono della tastiera o scrivi."
+msgstr "This browser can't dictate: use your keyboard's microphone or type."
+
+msgid "Ti ascolto… tocca per fermare"
+msgstr "Listening… tap to stop"
+
+msgid "Tocca e parla"
+msgstr "Tap and speak"
+
+msgid "Es. \"%(example)s\""
+msgstr "E.g. \"%(example)s\""
+
+msgid "Cosa vuoi registrare"
+msgstr "What do you want to record"
+
+msgid ""
+"Inviato: lo leggo in background, lo trovi in Da rivedere. Puoi dettarne un "
+"altro."
+msgstr ""
+"Sent: I'll read it in the background, you'll find it in To review. You can "
+"dictate another one."
+
+msgid "Invia"
+msgstr "Send"
+
+msgid "Funziona con più movimenti nella stessa frase."
+msgstr "Works with several transactions in the same sentence."
+
+msgid "Il testo viene inviato a Google Gemini per la lettura."
+msgstr "The text is sent to Google Gemini to be read."
+
+msgid "Vocali recenti"
+msgstr "Recent voice notes"
+
+msgid "Il primo messaggio vocale comparirà qui."
+msgstr "Your first voice note will show up here."
+
+#, javascript-format
+msgid "Errore %s"
+msgstr "Error %s"
+
+msgid "Proprietario"
+msgstr "Owner"
+
+msgid "Editor"
+msgstr "Editor"
+
+msgid "Sola lettura"
+msgstr "View only"
+
+msgid "Spesa"
+msgstr "Expense"
+
+msgid "Conto corrente"
+msgstr "Current account"
+
+msgid "Carta"
+msgstr "Card"
+
+msgid "Contanti"
+msgstr "Cash"
+
+msgid "Wallet"
+msgstr "Wallet"
+
+msgid "settimanale"
+msgstr "weekly"
+
+msgid "mensile"
+msgstr "monthly"
+
+msgid "annuale"
+msgstr "yearly"
+
+msgid "personalizzata"
+msgstr "custom"
+
+msgid "Mese"
+msgstr "Month"
+
+msgid "Trimestre"
+msgstr "Quarter"
+
+msgid "Anno"
+msgstr "Year"
+
+msgid "Quadra"
+msgstr "Balanced"
+
+#, javascript-format
+msgid "Scarto %s"
+msgstr "Gap %s"
+
+msgid "Oggi"
+msgstr "Today"
+
+msgid "Setup"
+msgstr "Setup"
+
+msgid "%(quarter)s° trimestre %(year)s"
+msgstr "Q%(quarter)s %(year)s"
+
+msgid "Tracking continuo"
+msgstr "Ongoing tracking"
+
+msgid ""
+"Spese di casa o di coppia: entrate, conti, ricorrenze e riconciliazione."
+msgstr ""
+"Home or couple expenses: income, accounts, recurring items and "
+"reconciliation."
+
+msgid "Dividere le spese"
+msgstr "Split expenses"
+
+msgid "Viaggi, cene fra amici: solo spese e chi deve cosa, alla Splitwise."
+msgstr ""
+"Trips, dinners with friends: just expenses and who owes what, Splitwise-"
+"style."

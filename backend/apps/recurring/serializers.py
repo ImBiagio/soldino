@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from apps.trackers.methods import is_active_member
@@ -47,13 +48,13 @@ class RecurringRuleSerializer(serializers.ModelSerializer):
         paid_by = attrs.get("paid_by") or getattr(self.instance, "paid_by", None)
         if paid_by and not is_active_member(tracker, paid_by):
             raise serializers.ValidationError(
-                {"paid_by": "Chi paga deve essere un membro attivo del tracker."}
+                {"paid_by": _("Chi paga deve essere un membro attivo del tracker.")}
             )
         # Categoria e conto di un altro tracker esploderebbero solo all'approvazione.
         for field in ("category", "account"):
             related = attrs.get(field)
             if related is not None and related.tracker_id != tracker.pk:
-                raise serializers.ValidationError({field: "Appartiene a un altro tracker."})
+                raise serializers.ValidationError({field: _("Appartiene a un altro tracker.")})
 
         template = attrs.get("split_template")
         if template:
@@ -73,7 +74,7 @@ class RecurringRuleSerializer(serializers.ModelSerializer):
                 resolved = resolve_split_amounts(amount, items)
             except (KeyError, TypeError, ValueError, ArithmeticError):
                 raise serializers.ValidationError(
-                    {"split_template": "Formato non valido: [{user, share_pct}]."}
+                    {"split_template": _("Formato non valido: [{user, share_pct}].")}
                 ) from None
             except DjangoValidationError as exc:
                 raise serializers.ValidationError({"split_template": exc.messages}) from None

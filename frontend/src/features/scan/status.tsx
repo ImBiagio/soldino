@@ -1,26 +1,27 @@
 import clsx from 'clsx'
 
 import { Icon } from '../../components/ui'
+import { gettext } from '../../lib/i18n'
 import type { StatementStatus } from '../../lib/types'
 
 const STATUS_LABEL: Record<StatementStatus, { label: string; icon: string; tone: string }> = {
   processing: {
-    label: 'In lettura',
+    label: gettext('In lettura'),
     icon: 'hourglass_top',
     tone: 'bg-surface-container-high text-on-surface',
   },
   ready: {
-    label: 'Da rivedere',
+    label: gettext('Da rivedere'),
     icon: 'edit_note',
     tone: 'bg-warning-container text-on-warning-container',
   },
   failed: {
-    label: 'Non riuscito',
+    label: gettext('Non riuscito'),
     icon: 'error',
     tone: 'bg-error-container text-on-error-container',
   },
   committed: {
-    label: 'Registrato',
+    label: gettext('Registrato'),
     icon: 'check_circle',
     tone: 'bg-secondary-container text-on-secondary-container',
   },

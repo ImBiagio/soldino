@@ -1,3 +1,5 @@
+import { intlLocale } from './i18n'
+
 // Sul frontend gli importi restano stringhe decimali. I calcoli si fanno in
 // centesimi interi: nessun float tocca mai un importo.
 
@@ -59,7 +61,7 @@ export function normalizePercentages(weights: number[]): string[] {
 }
 
 export function formatCents(cents: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency }).format(cents / 100)
+  return new Intl.NumberFormat(intlLocale(), { style: 'currency', currency }).format(cents / 100)
 }
 
 export function formatSignedCents(cents: number, currency = 'EUR'): string {

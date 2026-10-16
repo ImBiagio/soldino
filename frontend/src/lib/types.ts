@@ -16,6 +16,8 @@ export interface User {
   email_verified_at?: string | null
   /** Ordine delle voci di navigazione (chiavi di `lib/navigation`). */
   nav_order?: string[]
+  /** Lingua dell'interfaccia e delle mail ('it' | 'en'). */
+  language?: string
 }
 
 export interface Membership {

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { useSaveAccount } from '../../api/hooks'
 import { ErrorBanner, Field, Modal } from '../../components/ui'
+import { gettext, interpolate } from '../../lib/i18n'
 import { ACCOUNT_KIND_LABEL } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
 import type { Account, Membership, Tracker } from '../../lib/types'
@@ -28,7 +29,11 @@ export function NewAccountModal({
   const save = useSaveAccount(tracker.id)
 
   return (
-    <Modal open onClose={onClose} title={`Nuovo conto di ${owner.display_name}`}>
+    <Modal
+      open
+      onClose={onClose}
+      title={interpolate(gettext('Nuovo conto di %(name)s'), { name: owner.display_name }, true)}
+    >
       <form
         className="grid gap-3"
         onSubmit={async (event) => {
@@ -46,7 +51,7 @@ export function NewAccountModal({
         }}
       >
         <ErrorBanner error={save.error} />
-        <Field label="Nome">
+        <Field label={gettext('Nome')}>
           <input
             className="field-input"
             name="name"
@@ -57,7 +62,7 @@ export function NewAccountModal({
             placeholder="Hype, BBVA…"
           />
         </Field>
-        <Field label="Tipo">
+        <Field label={gettext('Tipo')}>
           <select className="field-input" name="kind" defaultValue="bank">
             {Object.entries(ACCOUNT_KIND_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
@@ -67,8 +72,8 @@ export function NewAccountModal({
           </select>
         </Field>
         <Field
-          label="Saldo attuale"
-          hint={fromBank ? 'Lo sovrascrive la prima lettura della banca.' : undefined}
+          label={gettext('Saldo attuale')}
+          hint={fromBank ? gettext('Lo sovrascrive la prima lettura della banca.') : undefined}
         >
           <input
             className="field-input amount text-right"
@@ -79,16 +84,16 @@ export function NewAccountModal({
         </Field>
         <label className="flex items-center gap-3 px-1 text-body-medium">
           <input type="checkbox" name="include_in_totals" defaultChecked className="h-5 w-5" />
-          Conta nei totali e nella riconciliazione
+          {gettext('Conta nei totali e nella riconciliazione')}
         </label>
         <button className="btn-filled w-full" disabled={save.isPending}>
-          {fromBank ? 'Crea e abbina' : 'Aggiungi'}
+          {fromBank ? gettext('Crea e abbina') : gettext('Aggiungi')}
         </button>
         {!fromBank && (
           <p className="text-body-small text-on-surface-variant">
-            Il saldo si aggiorna a mano da questa pagina, quando guardi la banca.{' '}
+            {gettext('Il saldo si aggiorna a mano da questa pagina, quando guardi la banca.')}{' '}
             <Link to={`/t/${tracker.id}/attese`} className="text-primary underline">
-              I soldi attesi o già promessi vanno in In attesa.
+              {gettext('I soldi attesi o già promessi vanno in In attesa.')}
             </Link>
           </p>
         )}

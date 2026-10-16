@@ -24,11 +24,12 @@ import {
 import { formatDate, todayIso } from '../../lib/format'
 import { formatSigned, formatSignedCents, normalizeDecimal, toCents } from '../../lib/money'
 import type { PendingItem, Tracker } from '../../lib/types'
+import { gettext, interpolate } from '../../lib/i18n'
 
 const STATUSES = [
-  { id: 'open', label: 'Aperti' },
-  { id: 'converted', label: 'Convertiti' },
-  { id: 'cancelled', label: 'Annullati' },
+  { id: 'open', label: gettext('Aperti') },
+  { id: 'converted', label: gettext('Convertiti') },
+  { id: 'cancelled', label: gettext('Annullati') },
 ]
 
 export function PendingPage() {
@@ -47,9 +48,9 @@ export function PendingPage() {
   return (
     <div className="p-5 md:p-7">
       <div className="panel sm:p-6 md:p-7">
-        <h1 className="text-title-large">In attesa</h1>
+        <h1 className="text-title-large">{gettext('In attesa')}</h1>
         <p className="mt-1 text-body-medium text-on-surface-variant">
-          Soldi attesi o già impegnati che non sono ancora un movimento.
+          {gettext('Soldi attesi o già impegnati che non sono ancora un movimento.')}
         </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -59,7 +60,7 @@ export function PendingPage() {
               selected={status === option.id}
               label={
                 option.id === 'open' && status === 'open'
-                  ? `${option.label} · ${items.length}`
+                  ? option.label + ' · ' + items.length
                   : option.label
               }
               onClick={() => setStatus(option.id)}
@@ -71,7 +72,7 @@ export function PendingPage() {
             onClick={() => setFormOpen(true)}
           >
             <Icon name="add" size={20} />
-            Voce
+            {gettext('Voce')}
           </button>
         </div>
 
@@ -81,7 +82,7 @@ export function PendingPage() {
           <div className="mt-5 flex items-center gap-4 rounded-card bg-secondary-container p-5 text-on-secondary-container">
             <Icon name="hourglass_top" size={40} />
             <div>
-              <p className="text-body-medium">Totale in attesa</p>
+              <p className="text-body-medium">{gettext('Totale in attesa')}</p>
               <p className="amount text-[32px] font-semibold leading-10">
                 {formatSignedCents(total, tracker.currency)}
               </p>
@@ -95,8 +96,10 @@ export function PendingPage() {
           ) : items.length === 0 ? (
             <EmptyState
               icon="hourglass_top"
-              title="Niente in attesa"
-              description="Rimborsi, accrediti, impegni futuri: quello che sai che arriverà o che è già promesso."
+              title={gettext('Niente in attesa')}
+              description={gettext(
+                'Rimborsi, accrediti, impegni futuri: quello che sai che arriverà o che è già promesso.',
+              )}
             />
           ) : (
             <div className="grid gap-2">
@@ -118,7 +121,12 @@ export function PendingPage() {
                       <p className="text-body-small text-on-surface-variant">
                         {item.owner_detail.display_name}
                         {item.expected_date &&
-                          ` · ${positive ? 'attesa' : 'impegno'} ${formatDate(item.expected_date)}`}
+                          ' · ' +
+                            interpolate(
+                              positive ? gettext('attesa %(date)s') : gettext('impegno %(date)s'),
+                              { date: formatDate(item.expected_date) },
+                              true,
+                            )}
                       </p>
                     </div>
                     <span
@@ -136,11 +144,11 @@ export function PendingPage() {
                           className="btn-tonal btn-sm"
                           onClick={() => setConverting(item)}
                         >
-                          Converti
+                          {gettext('Converti')}
                         </button>
                         <IconButton
                           icon="close"
-                          label="Elimina"
+                          label={gettext('Elimina')}
                           onClick={() => remove.mutate(item.id)}
                         />
                       </>
@@ -153,7 +161,11 @@ export function PendingPage() {
         </div>
       </div>
 
-      <Modal open={formOpen} onClose={() => setFormOpen(false)} title="Nuova voce in attesa">
+      <Modal
+        open={formOpen}
+        onClose={() => setFormOpen(false)}
+        title={gettext('Nuova voce in attesa')}
+      >
         <form
           className="grid gap-3"
           onSubmit={async (event) => {
@@ -170,10 +182,13 @@ export function PendingPage() {
           }}
         >
           <ErrorBanner error={save.error} />
-          <Field label="Descrizione">
+          <Field label={gettext('Descrizione')}>
             <input className="field-input" name="title" required autoFocus />
           </Field>
-          <Field label="Importo" hint="Negativo per un impegno, es. −700 per un regalo.">
+          <Field
+            label={gettext('Importo')}
+            hint={gettext('Negativo per un impegno, es. −700 per un regalo.')}
+          >
             <input
               className="field-input amount text-right"
               name="amount"
@@ -181,17 +196,17 @@ export function PendingPage() {
               inputMode="decimal"
             />
           </Field>
-          <Field label="Di chi">
+          <Field label={gettext('Di chi')}>
             <MemberSelect members={members} name="owner" required />
           </Field>
-          <Field label="Data attesa">
+          <Field label={gettext('Data attesa')}>
             <input className="field-input" type="date" name="expected_date" />
           </Field>
-          <Field label="Nota">
+          <Field label={gettext('Nota')}>
             <textarea className="field-input resize-none" name="note" rows={2} />
           </Field>
           <button className="btn-filled w-full" disabled={save.isPending}>
-            Salva
+            {gettext('Salva')}
           </button>
         </form>
       </Modal>
@@ -216,7 +231,11 @@ function ConvertModal({
   const isIncome = toCents(item.amount) >= 0
 
   return (
-    <Modal open onClose={onClose} title={`Converti “${item.title}”`}>
+    <Modal
+      open
+      onClose={onClose}
+      title={interpolate(gettext('Converti “%(title)s”'), { title: item.title }, true)}
+    >
       <form
         className="grid gap-3"
         onSubmit={async (event) => {
@@ -233,10 +252,10 @@ function ConvertModal({
       >
         <ErrorBanner error={convert.error} />
         <p className="text-body-medium text-on-surface-variant">
-          Diventa un{isIncome ? "'entrata" : 'a spesa'} di{' '}
+          {isIncome ? gettext("Diventa un'entrata di") : gettext('Diventa una spesa di')}{' '}
           <span className="amount">{formatSigned(item.amount, tracker.currency)}</span>.
         </p>
-        <Field label="Data">
+        <Field label={gettext('Data')}>
           <input
             className="field-input"
             type="date"
@@ -244,7 +263,7 @@ function ConvertModal({
             defaultValue={item.expected_date ?? todayIso()}
           />
         </Field>
-        <Field label="Categoria">
+        <Field label={gettext('Categoria')}>
           <CategorySelect
             trackerId={tracker.id}
             type={isIncome ? 'income' : 'expense'}
@@ -252,11 +271,11 @@ function ConvertModal({
             defaultValue=""
           />
         </Field>
-        <Field label="Conto">
+        <Field label={gettext('Conto')}>
           <AccountSelect trackerId={tracker.id} name="account" defaultValue="" />
         </Field>
         <button className="btn-filled w-full" disabled={convert.isPending}>
-          Converti in movimento
+          {gettext('Converti in movimento')}
         </button>
       </form>
     </Modal>

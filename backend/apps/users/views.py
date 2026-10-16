@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -70,7 +71,7 @@ class RegisterView(APIView):
         if settings.REQUIRE_EMAIL_VERIFICATION:
             send_verification_email(user)
             return Response(
-                {"detail": "Registrazione completata. Controlla la mail per confermare."},
+                {"detail": _("Registrazione completata. Controlla la mail per confermare.")},
                 status=status.HTTP_201_CREATED,
             )
 
@@ -96,12 +97,12 @@ class LoginView(APIView):
         )
         if user is None:
             return Response(
-                {"detail": "Credenziali non valide."}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": _("Credenziali non valide.")}, status=status.HTTP_401_UNAUTHORIZED
             )
         if settings.REQUIRE_EMAIL_VERIFICATION and not user.is_email_verified:
             # ``code`` fa comparire nel login il bottone "Rimanda la mail".
             return Response(
-                {"detail": "Email non ancora confermata.", "code": "email_not_verified"},
+                {"detail": _("Email non ancora confermata."), "code": "email_not_verified"},
                 status=status.HTTP_403_FORBIDDEN,
             )
         return _auth_response(user)
@@ -117,18 +118,20 @@ class RefreshView(APIView):
         raw = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if not raw:
             return Response(
-                {"detail": "Refresh token assente."}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": _("Refresh token assente.")}, status=status.HTTP_401_UNAUTHORIZED
             )
         try:
             refresh = RefreshToken(raw)
         except TokenError:
             return Response(
-                {"detail": "Refresh token non valido."}, status=status.HTTP_401_UNAUTHORIZED
+                {"detail": _("Refresh token non valido.")}, status=status.HTTP_401_UNAUTHORIZED
             )
 
         user = User.objects.filter(pk=refresh.payload.get("user_id"), is_active=True).first()
         if user is None:
-            return Response({"detail": "Utente non valido."}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response(
+                {"detail": _("Utente non valido.")}, status=status.HTTP_401_UNAUTHORIZED
+            )
 
         # ROTATE_REFRESH_TOKENS: emettiamo una coppia nuova a ogni refresh.
         new_refresh = RefreshToken.for_user(user)
@@ -164,15 +167,17 @@ class VerifyEmailView(APIView):
         uid = read_token(token, EMAIL_VERIFY_SALT)
         if uid is None:
             return Response(
-                {"detail": "Link non valido o scaduto."}, status=status.HTTP_400_BAD_REQUEST
+                {"detail": _("Link non valido o scaduto.")}, status=status.HTTP_400_BAD_REQUEST
             )
         user = User.objects.filter(pk=uid).first()
         if user is None:
-            return Response({"detail": "Utente inesistente."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": _("Utente inesistente.")}, status=status.HTTP_400_BAD_REQUEST
+            )
         # Il link fa entrare senza password: vale una volta sola, non per tre giorni.
         if user.is_email_verified:
             return Response(
-                {"detail": "Email gia' confermata: accedi con la tua password."},
+                {"detail": _("Email gia' confermata: accedi con la tua password.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         user.email_verified_at = timezone.now()
@@ -204,7 +209,7 @@ class PasswordChangeView(APIView):
         serializer.is_valid(raise_exception=True)
         if not request.user.check_password(serializer.validated_data["current_password"]):
             return Response(
-                {"current_password": ["Password attuale errata."]},
+                {"current_password": [_("Password attuale errata.")]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         request.user.set_password(serializer.validated_data["new_password"])
@@ -266,7 +271,7 @@ class PasswordResetConfirmView(APIView):
         user = user_from_reset_token(data["uid"], data["token"])
         if user is None:
             return Response(
-                {"detail": "Link non valido, gia' usato o scaduto: chiedine uno nuovo."},
+                {"detail": _("Link non valido, gia' usato o scaduto: chiedine uno nuovo.")},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:

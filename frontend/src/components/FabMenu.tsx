@@ -3,16 +3,17 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useClickOutside, useCloseOnEscape } from '../lib/hooks'
+import { gettext } from '../lib/i18n'
 import { showsSection } from '../lib/trackerKind'
 import type { Tracker } from '../lib/types'
 import { Icon } from './ui'
 
 /** Le strade per inserire movimenti: a mano, da scontrino, a voce, dall'estratto conto. */
 const ACTIONS = [
-  { path: 'movimenti?new=1', icon: 'edit', label: 'A mano' },
-  { path: 'scontrino', icon: 'photo_camera', label: 'Da scontrino' },
-  { path: 'voce', icon: 'mic', label: 'A voce' },
-  { path: 'scan', icon: 'document_scanner', label: 'Da estratto conto' },
+  { path: 'movimenti?new=1', icon: 'edit', label: gettext('A mano') },
+  { path: 'scontrino', icon: 'photo_camera', label: gettext('Da scontrino') },
+  { path: 'voce', icon: 'mic', label: gettext('A voce') },
+  { path: 'scan', icon: 'document_scanner', label: gettext('Da estratto conto') },
 ]
 
 /** In un tracker "group" l'estratto conto non c'e': restano a mano e scontrino. */
@@ -57,7 +58,7 @@ export function FabMenu({
       >
         <div
           role="menu"
-          aria-label="Nuovo inserimento"
+          aria-label={gettext('Nuovo inserimento')}
           // Il contenitore resta montato anche da chiuso: non deve prendersi i
           // click del contenuto sotto, solo le pill aperte li ricevono.
           className={clsx(
@@ -95,7 +96,13 @@ export function FabMenu({
         <button
           type="button"
           onClick={() => (direct ? navigate(`/t/${tracker.id}/${direct.path}`) : setOpen(!open))}
-          aria-label={open ? 'Chiudi' : direct ? 'Nuova spesa' : 'Nuovo inserimento'}
+          aria-label={
+            open
+              ? gettext('Chiudi')
+              : direct
+                ? gettext('Nuova spesa')
+                : gettext('Nuovo inserimento')
+          }
           aria-expanded={direct ? undefined : open}
           aria-haspopup={direct ? undefined : 'menu'}
           className={clsx(
@@ -149,7 +156,7 @@ export function NewEntryMenuButton({
           onClick={() => navigate(`/t/${tracker.id}/${actions[0].path}`)}
         >
           <Icon name="add" size={20} />
-          Nuova spesa
+          {gettext('Nuova spesa')}
         </button>
       </div>
     )
@@ -165,7 +172,7 @@ export function NewEntryMenuButton({
         aria-haspopup="menu"
       >
         <Icon name="add" size={20} />
-        Nuovo movimento
+        {gettext('Nuovo movimento')}
         <Icon
           name="arrow_drop_down"
           size={20}

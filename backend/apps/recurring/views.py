@@ -1,4 +1,5 @@
 from django.db import transaction as db_transaction
+from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -30,7 +31,7 @@ class RecurringRuleViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         rule = lock_rule(self.get_object().pk)
         if rule.next_run != serializer.validated_data["occurrence"] or not is_due(rule):
             return None, Response(
-                {"detail": "Questa occorrenza e' gia' stata gestita."},
+                {"detail": _("Questa occorrenza e' gia' stata gestita.")},
                 status=status.HTTP_409_CONFLICT,
             )
         return rule, None

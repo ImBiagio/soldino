@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { api, setAccessToken, setUnauthenticatedHandler } from './api'
+import { api, getAccessToken, setAccessToken, setUnauthenticatedHandler } from './api'
+import { getLanguage, isExplicitLanguage, setLanguage } from './i18n'
 import type { User } from './types'
 
 interface AuthState {
@@ -18,6 +19,23 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null)
 
+/**
+ * Allinea la lingua dell'interfaccia a quella dell'utente. Appena entrato, una
+ * lingua scelta a mano sulla pagina di login vince e si salva sul profilo;
+ * altrimenti (sessione ripresa, lingua solo dedotta dal browser) vale quella
+ * salvata, e la pagina si ricarica tradotta.
+ */
+function syncLanguage(user: User, justLoggedIn: boolean): User {
+  const current = getLanguage()
+  if (!user.language || user.language === current) return user
+  if (justLoggedIn && isExplicitLanguage()) {
+    void api.post('/api/i18n/language', { language: current }).catch(() => undefined)
+    return { ...user, language: current }
+  }
+  void setLanguage(user.language, getAccessToken())
+  return user
+}
+
 interface AuthPayload {
   access: string
   user: User
@@ -29,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const apply = useCallback((payload: AuthPayload) => {
     setAccessToken(payload.access)
-    setUser(payload.user)
+    setUser(syncLanguage(payload.user, true))
   }, [])
 
   const logout = useCallback(async () => {
@@ -51,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(async (ok) => {
         if (!ok || cancelled) return
         const me = await api.get<User>('/api/me')
-        if (!cancelled) setUser(me)
+        if (!cancelled) setUser(syncLanguage(me, false))
       })
       .catch(() => undefined)
       .finally(() => {

@@ -11,6 +11,7 @@ from decimal import Decimal
 from django.core import signing
 from django.db.models import QuerySet, Sum
 from django.template.loader import render_to_string
+from django.utils.translation import gettext as _
 from rest_framework import serializers
 
 from .money import ZERO, quantize
@@ -46,6 +47,9 @@ def send_email(
     note: str = "",
 ) -> None:
     """Mail di servizio con un bottone (testo + HTML, stesso layout per tutte).
+
+    La lingua e' quella attiva: chi chiama la sceglie con
+    ``translation.override(<lingua del destinatario>)`` attorno ai testi.
 
     Parte dal worker Celery dopo il commit: l'SMTP puo' metterci secondi o
     non rispondere, e la richiesta dell'utente non deve aspettarlo. Se la
@@ -84,10 +88,10 @@ def sums_by(qs: QuerySet, key: str, field: str) -> dict[str, Decimal]:
 
 def validate_positive_amount(value: Decimal | None) -> Decimal:
     if value is None or value <= 0:
-        raise serializers.ValidationError("L'importo deve essere positivo.")
+        raise serializers.ValidationError(_("L'importo deve essere positivo."))
     return value
 
 
 def validate_date_range(start, end) -> None:
     if start and end and start > end:
-        raise serializers.ValidationError("La data iniziale e' dopo quella finale.")
+        raise serializers.ValidationError(_("La data iniziale e' dopo quella finale."))

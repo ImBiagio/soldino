@@ -5,6 +5,7 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 import { useAccounts, useStatements, useUploadStatement } from '../../api/hooks'
 import { EmptyState, ErrorBanner, Field, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import type { Tracker } from '../../lib/types'
 import { StatusBadge } from './status'
 
@@ -26,10 +27,11 @@ export function ScanPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Scan estratto conto</h1>
+        <h1 className="text-title-large">{gettext('Scan estratto conto')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
-          Carica il PDF della banca: lo legge Gemini e ti propone i movimenti, già con la categoria.
-          Li rivedi riga per riga e niente viene registrato finché non confermi.
+          {gettext(
+            'Carica il PDF della banca: lo legge Gemini e ti propone i movimenti, già con la categoria. Li rivedi riga per riga e niente viene registrato finché non confermi.',
+          )}
         </p>
       </div>
 
@@ -69,10 +71,10 @@ export function ScanPage() {
               className="text-primary"
             />
             <span className="text-body-large font-medium">
-              {file ? file.name : 'Trascina qui il PDF o tocca per sceglierlo'}
+              {file ? file.name : gettext('Trascina qui il PDF o tocca per sceglierlo')}
             </span>
             <span className="text-body-small text-on-surface-variant">
-              {file ? `${(file.size / 1024).toFixed(0)} KB` : 'Solo PDF, fino a 15 MB'}
+              {file ? `${(file.size / 1024).toFixed(0)} KB` : gettext('Solo PDF, fino a 15 MB')}
             </span>
           </button>
           <input
@@ -85,15 +87,15 @@ export function ScanPage() {
 
           <div className="grid gap-3">
             <Field
-              label="Conto dell'estratto"
-              hint="Decide chi ha pagato: si può cambiare riga per riga."
+              label={gettext("Conto dell'estratto")}
+              hint={gettext('Decide chi ha pagato: si può cambiare riga per riga.')}
             >
               <select
                 className="field-input"
                 value={account}
                 onChange={(event) => setAccount(event.target.value)}
               >
-                <option value="">Nessun conto (pago io)</option>
+                <option value="">{gettext('Nessun conto (pago io)')}</option>
                 {(accounts.data?.results ?? []).map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.name} · {a.owner_detail.display_name}
@@ -103,26 +105,28 @@ export function ScanPage() {
             </Field>
             <button className="btn-filled" disabled={!file || upload.isPending}>
               <Icon name="document_scanner" size={20} />
-              {upload.isPending ? 'Carico…' : "Leggi l'estratto conto"}
+              {upload.isPending ? gettext('Carico…') : gettext("Leggi l'estratto conto")}
             </button>
           </div>
         </form>
         <ErrorBanner error={upload.error} />
         <p className="mt-3 text-body-small text-on-surface-variant">
-          Il PDF viene inviato a Google Gemini per la lettura e cancellato da Soldino appena letto.
+          {gettext(
+            'Il PDF viene inviato a Google Gemini per la lettura e cancellato da Soldino appena letto.',
+          )}
         </p>
       </section>
 
       <section className="grid gap-2">
-        <h2 className="text-title-medium">Estratti conto caricati</h2>
+        <h2 className="text-title-medium">{gettext('Estratti conto caricati')}</h2>
         <ErrorBanner error={statements.error} />
         {statements.isLoading ? (
           <RowsSkeleton rows={3} />
         ) : (statements.data?.results ?? []).every((s) => s.source !== 'scan') ? (
           <EmptyState
             icon="document_scanner"
-            title="Ancora nessuno"
-            description="Il primo estratto conto letto comparirà qui."
+            title={gettext('Ancora nessuno')}
+            description={gettext('Il primo estratto conto letto comparirà qui.')}
           />
         ) : (
           (statements.data?.results ?? [])
@@ -142,7 +146,13 @@ export function ScanPage() {
                   <span className="text-body-small text-on-surface-variant">
                     {formatDate(statement.created_at.slice(0, 10))}
                     {statement.account_name && ` · ${statement.account_name}`}
-                    {statement.status !== 'processing' && ` · ${statement.line_count} righe`}
+                    {statement.status !== 'processing' &&
+                      ' · ' +
+                        interpolate(
+                          ngettext('%(count)s riga', '%(count)s righe', statement.line_count),
+                          { count: statement.line_count },
+                          true,
+                        )}
                   </span>
                 </span>
                 <StatusBadge status={statement.status} />

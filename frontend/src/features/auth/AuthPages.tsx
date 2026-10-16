@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
+import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { ErrorBanner, Field, Icon, PasswordInput, Skeleton } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import { gettext, interpolate } from '../../lib/i18n'
 
 /** Pagina piena: pannello primary con il marchio, card chiara con il form. */
 function Shell({
@@ -24,7 +26,7 @@ function Shell({
           <div>
             <p className="text-[34px] font-semibold leading-none">Soldino</p>
             <p className="mt-1 text-body-medium text-primary-container">
-              Il conto della casa, a colpo d'occhio.
+              {gettext("Il conto della casa, a colpo d'occhio.")}
             </p>
           </div>
         </div>
@@ -35,6 +37,9 @@ function Shell({
         </div>
 
         {footer && <div className="mt-4 text-center text-body-medium">{footer}</div>}
+        <div className="mt-4 flex justify-center">
+          <LanguageSwitcher />
+        </div>
       </div>
     </div>
   )
@@ -58,7 +63,7 @@ function ResendVerification({ email }: { email: string }) {
   const [state, setState] = useState<'idle' | 'busy' | 'sent'>('idle')
   return (
     <div className="rounded-row bg-surface-container p-4 text-body-medium">
-      <p>Prima di entrare conferma l'indirizzo dal link che ti abbiamo mandato.</p>
+      <p>{gettext("Prima di entrare conferma l'indirizzo dal link che ti abbiamo mandato.")}</p>
       <button
         type="button"
         className="btn-tonal btn-sm mt-3"
@@ -70,7 +75,7 @@ function ResendVerification({ email }: { email: string }) {
         }}
       >
         <Icon name="forward_to_inbox" size={18} />
-        {state === 'sent' ? 'Mail rimandata' : 'Rimanda la mail'}
+        {state === 'sent' ? gettext('Mail rimandata') : gettext('Rimanda la mail')}
       </button>
     </div>
   )
@@ -87,12 +92,12 @@ export function LoginPage() {
 
   return (
     <Shell
-      title="Accedi"
+      title={gettext('Accedi')}
       footer={
         <span className="text-primary-container">
-          Non hai un account?{' '}
+          {gettext('Non hai un account?')}{' '}
           <Link className="font-medium text-on-primary underline" to="/registrati">
-            Registrati
+            {gettext('Registrati')}
           </Link>
         </span>
       }
@@ -113,7 +118,7 @@ export function LoginPage() {
         }}
       >
         {isUnverified(error) ? <ResendVerification email={email} /> : <ErrorBanner error={error} />}
-        <Field label="Email">
+        <Field label={gettext('Email')}>
           <input
             className="field-input"
             type="email"
@@ -123,7 +128,7 @@ export function LoginPage() {
             required
           />
         </Field>
-        <Field label="Password">
+        <Field label={gettext('Password')}>
           <PasswordInput
             autoComplete="current-password"
             value={password}
@@ -132,7 +137,7 @@ export function LoginPage() {
           />
         </Field>
         <button className="btn-filled mt-1 w-full" disabled={busy}>
-          {busy ? 'Accesso…' : 'Entra'}
+          {busy ? gettext('Accesso…') : gettext('Entra')}
         </button>
         <Link
           to={
@@ -142,7 +147,7 @@ export function LoginPage() {
           }
           className="btn-text w-full"
         >
-          Password dimenticata?
+          {gettext('Password dimenticata?')}
         </Link>
       </form>
     </Shell>
@@ -162,12 +167,12 @@ export function RegisterPage() {
 
   return (
     <Shell
-      title="Crea un account"
+      title={gettext('Crea un account')}
       footer={
         <span className="text-primary-container">
-          Hai già un account?{' '}
+          {gettext('Hai già un account?')}{' '}
           <Link className="font-medium text-on-primary underline" to="/accedi">
-            Accedi
+            {gettext('Accedi')}
           </Link>
         </span>
       }
@@ -176,7 +181,7 @@ export function RegisterPage() {
         <div className="grid gap-3">
           <p className="text-body-medium">{message}</p>
           <Link className="btn-tonal w-full" to="/accedi">
-            Torna al login
+            {gettext('Torna al login')}
           </Link>
         </div>
       ) : (
@@ -196,15 +201,15 @@ export function RegisterPage() {
           }}
         >
           <ErrorBanner error={error} />
-          <Field label="Nome">
+          <Field label={gettext('Nome')}>
             <input
               className="field-input"
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              placeholder="Come ti chiamano"
+              placeholder={gettext('Come ti chiamano')}
             />
           </Field>
-          <Field label="Email">
+          <Field label={gettext('Email')}>
             <input
               className="field-input"
               type="email"
@@ -215,9 +220,9 @@ export function RegisterPage() {
             />
           </Field>
           <Field
-            label="Password"
+            label={gettext('Password')}
             error={error instanceof ApiError ? error.fieldErrors().password : undefined}
-            hint="Almeno 10 caratteri."
+            hint={gettext('Almeno 10 caratteri.')}
           >
             <PasswordInput
               autoComplete="new-password"
@@ -227,7 +232,7 @@ export function RegisterPage() {
             />
           </Field>
           <button className="btn-filled mt-1 w-full" disabled={busy}>
-            {busy ? 'Creazione…' : 'Crea account'}
+            {busy ? gettext('Creazione…') : gettext('Crea account')}
           </button>
         </form>
       )}
@@ -250,7 +255,7 @@ export function VerifyEmailPage() {
 
   if (done) return <Navigate to="/" replace />
   return (
-    <Shell title="Conferma email">
+    <Shell title={gettext('Conferma email')}>
       {error ? <ErrorBanner error={error} /> : <Skeleton className="h-12" />}
     </Shell>
   )
@@ -265,17 +270,19 @@ export function ForgotPasswordPage() {
 
   return (
     <Shell
-      title="Password dimenticata"
+      title={gettext('Password dimenticata')}
       footer={
         <Link className="font-medium text-on-primary underline" to="/accedi">
-          Torna al login
+          {gettext('Torna al login')}
         </Link>
       }
     >
       {sent ? (
         <p className="text-body-medium">
-          Se <strong>{email}</strong> ha un account, tra poco ti arriva una mail con il link per
-          scegliere una nuova password. Il link vale 2 ore. Controlla anche lo spam.
+          {gettext('Se')} <strong>{email}</strong>{' '}
+          {gettext(
+            'ha un account, tra poco ti arriva una mail con il link per scegliere una nuova password. Il link vale 2 ore. Controlla anche lo spam.',
+          )}
         </p>
       ) : (
         <form
@@ -295,10 +302,10 @@ export function ForgotPasswordPage() {
           }}
         >
           <p className="text-body-medium text-on-surface-variant">
-            Scrivi l'email dell'account: ti mandiamo un link per sceglierne una nuova.
+            {gettext("Scrivi l'email dell'account: ti mandiamo un link per sceglierne una nuova.")}
           </p>
           <ErrorBanner error={error} />
-          <Field label="Email">
+          <Field label={gettext('Email')}>
             <input
               className="field-input"
               type="email"
@@ -310,7 +317,7 @@ export function ForgotPasswordPage() {
             />
           </Field>
           <button className="btn-filled mt-1 w-full" disabled={busy}>
-            {busy ? 'Invio…' : 'Mandami il link'}
+            {busy ? gettext('Invio…') : gettext('Mandami il link')}
           </button>
         </form>
       )}
@@ -335,7 +342,7 @@ export function NewPasswordFields({
   const mismatch = confirm.length > 0 && confirm !== password
   return (
     <>
-      <Field label="Nuova password" error={error} hint="Almeno 10 caratteri.">
+      <Field label={gettext('Nuova password')} error={error} hint={gettext('Almeno 10 caratteri.')}>
         <PasswordInput
           autoComplete="new-password"
           value={password}
@@ -343,7 +350,10 @@ export function NewPasswordFields({
           required
         />
       </Field>
-      <Field label="Ripeti la nuova password" error={mismatch ? 'Non coincide.' : undefined}>
+      <Field
+        label={gettext('Ripeti la nuova password')}
+        error={mismatch ? gettext('Non coincide.') : undefined}
+      >
         <PasswordInput autoComplete="new-password" value={confirm} onChange={onConfirm} required />
       </Field>
     </>
@@ -360,7 +370,7 @@ export function ResetPasswordPage() {
   const [busy, setBusy] = useState(false)
 
   return (
-    <Shell title="Nuova password">
+    <Shell title={gettext('Nuova password')}>
       <form
         className="grid gap-3"
         onSubmit={async (event) => {
@@ -387,10 +397,10 @@ export function ResetPasswordPage() {
           error={error instanceof ApiError ? error.fieldErrors().new_password : undefined}
         />
         <button className="btn-filled mt-1 w-full" disabled={busy || password !== confirm}>
-          {busy ? 'Salvo…' : 'Salva ed entra'}
+          {busy ? gettext('Salvo…') : gettext('Salva ed entra')}
         </button>
         <Link to="/password-dimenticata" className="btn-text w-full">
-          Il link non va? Chiedine uno nuovo
+          {gettext('Il link non va? Chiedine uno nuovo')}
         </Link>
       </form>
     </Shell>
@@ -419,21 +429,25 @@ export function AcceptInvitePage() {
 
   if (!ready) {
     return (
-      <Shell title="Invito">
+      <Shell title={gettext('Invito')}>
         <Skeleton className="h-12" />
       </Shell>
     )
   }
 
   return (
-    <Shell title="Ti hanno invitato">
+    <Shell title={gettext('Ti hanno invitato')}>
       <div className="grid gap-3">
         <ErrorBanner error={error} />
         {preview && (
           <div className="rounded-row bg-surface-container p-4">
             <p className="text-body-large font-medium">{preview.tracker_name}</p>
             <p className="text-body-small text-on-surface-variant">
-              Invito per {preview.invited_email} · ruolo {preview.role}
+              {interpolate(
+                gettext('Invito per %(email)s · ruolo %(role)s'),
+                { email: preview.invited_email, role: preview.role },
+                true,
+              )}
             </p>
           </div>
         )}
@@ -456,18 +470,18 @@ export function AcceptInvitePage() {
             }}
           >
             <Icon name="check" size={20} />
-            Accetta invito
+            {gettext('Accetta invito')}
           </button>
         ) : (
           <div className="grid gap-2">
             <p className="text-body-medium text-on-surface-variant">
-              Accedi con l'indirizzo invitato per accettare.
+              {gettext("Accedi con l'indirizzo invitato per accettare.")}
             </p>
             <Link className="btn-filled w-full" to="/accedi">
-              Accedi
+              {gettext('Accedi')}
             </Link>
             <Link className="btn-outlined w-full" to="/registrati">
-              Crea un account
+              {gettext('Crea un account')}
             </Link>
           </div>
         )}

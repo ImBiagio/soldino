@@ -3,9 +3,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 
-import App from './App'
 import './index.css'
-import { AuthProvider } from './lib/auth'
+import { loadCatalog } from './lib/i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -17,14 +16,25 @@ const queryClient = new QueryClient({
   },
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <App />
-        </AuthProvider>
-      </BrowserRouter>
-    </QueryClientProvider>
-  </React.StrictMode>,
-)
+// Prima il catalogo delle traduzioni, poi l'app: le etichette definite come
+// costanti di modulo chiamano gettext() quando il modulo viene importato.
+async function start() {
+  await loadCatalog()
+  const [{ default: App }, { AuthProvider }] = await Promise.all([
+    import('./App'),
+    import('./lib/auth'),
+  ])
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AuthProvider>
+            <App />
+          </AuthProvider>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </React.StrictMode>,
+  )
+}
+
+void start()

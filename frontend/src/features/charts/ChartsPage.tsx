@@ -20,13 +20,14 @@ import { PERIOD_LABEL } from '../../lib/labels'
 import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import { rangeFor, rangeLabel, shiftRange, type DateRange, type PeriodKind } from '../../lib/period'
 import type { Summary, SummaryParams, Tracker, TransactionType, UUID } from '../../lib/types'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 
 // Due serie sole, sempre gli stessi colori: entrate = primary, uscite = error.
 // Validati con lo script dataviz: separazione CVD nella fascia 6-8, quindi
 // servono legenda, etichette e lo spazio fra le barre (mai il colore da solo).
 const SERIES = {
-  income: { label: 'Entrate', color: 'var(--primary)' },
-  expense: { label: 'Uscite', color: 'var(--error)' },
+  income: { label: gettext('Entrate'), color: 'var(--primary)' },
+  expense: { label: gettext('Uscite'), color: 'var(--error)' },
 } as const
 
 /** Filtri nell'URL, come nei movimenti: un grafico si condivide con un link. */
@@ -89,11 +90,15 @@ export function ChartsPage() {
   return (
     <div className="grid gap-5 p-5 md:p-7">
       <div>
-        <h1 className="text-title-large">Grafici</h1>
+        <h1 className="text-title-large">{gettext('Grafici')}</h1>
         <p className="mt-1 text-body-medium text-on-surface-variant">
           {personName
-            ? `La quota di ${personName}: una spesa divisa a metà conta per metà.`
-            : 'Tutti i movimenti del tracker, per intero.'}
+            ? interpolate(
+                gettext('La quota di %(name)s: una spesa divisa a metà conta per metà.'),
+                { name: personName },
+                true,
+              )
+            : gettext('Tutti i movimenti del tracker, per intero.')}
         </p>
       </div>
 
@@ -106,28 +111,32 @@ export function ChartsPage() {
         ) : (
           <>
             <Stat
-              label="Entrate"
+              label={gettext('Entrate')}
               value={formatMoney(data.total_income, tracker.currency)}
               tone="positive"
               icon="trending_up"
             />
             <Stat
-              label="Uscite"
+              label={gettext('Uscite')}
               value={formatMoney(data.total_expense, tracker.currency)}
               tone="negative"
               icon="trending_down"
             />
             <Stat
-              label="Netto"
+              label={gettext('Netto')}
               value={formatSigned(data.net, tracker.currency)}
               icon="balance"
               hint={rangeLabel(filters.kind, filters.range)}
             />
             <Stat
-              label="Movimenti"
+              label={gettext('Movimenti')}
               value={String(data.transaction_count)}
               icon="receipt_long"
-              hint={personName ? `a cui partecipa ${personName}` : undefined}
+              hint={
+                personName
+                  ? interpolate(gettext('a cui partecipa %(name)s'), { name: personName }, true)
+                  : undefined
+              }
             />
           </>
         )}
@@ -184,7 +193,7 @@ function FilterBar({
           { value: 'month', label: PERIOD_LABEL.month },
           { value: 'quarter', label: PERIOD_LABEL.quarter },
           { value: 'year', label: PERIOD_LABEL.year },
-          { value: 'custom', label: 'Date' },
+          { value: 'custom', label: gettext('Date') },
         ]}
       />
 
@@ -198,7 +207,7 @@ function FilterBar({
             onChange={(event) =>
               event.target.value && filters.setRange({ ...range, from: event.target.value })
             }
-            aria-label="Dal"
+            aria-label={gettext('Dal')}
           />
           <span className="text-on-surface-variant">–</span>
           <input
@@ -209,14 +218,14 @@ function FilterBar({
             onChange={(event) =>
               event.target.value && filters.setRange({ ...range, to: event.target.value })
             }
-            aria-label="Al"
+            aria-label={gettext('Al')}
           />
         </div>
       ) : (
         <div className="flex items-center gap-1">
           <IconButton
             icon="chevron_left"
-            label="Periodo precedente"
+            label={gettext('Periodo precedente')}
             onClick={() => filters.setRange(shiftRange(kind, range, -1))}
             size="md"
             iconSize={22}
@@ -227,7 +236,7 @@ function FilterBar({
           </span>
           <IconButton
             icon="chevron_right"
-            label="Periodo successivo"
+            label={gettext('Periodo successivo')}
             onClick={() => filters.setRange(shiftRange(kind, range, 1))}
             size="md"
             iconSize={22}
@@ -241,9 +250,9 @@ function FilterBar({
           className="field-input w-auto py-2"
           value={filters.person}
           onChange={(event) => filters.setPerson(event.target.value)}
-          aria-label="Persona"
+          aria-label={gettext('Persona')}
         >
-          <option value="">Tutte le persone</option>
+          <option value="">{gettext('Tutte le persone')}</option>
           {members.map((member) => (
             <option key={member.id} value={member.user!.id}>
               {member.display_name}
@@ -254,10 +263,10 @@ function FilterBar({
           className="field-input w-auto py-2"
           value={filters.category}
           onChange={(event) => filters.setCategory(event.target.value)}
-          aria-label="Categoria"
+          aria-label={gettext('Categoria')}
         >
-          <option value="">Tutte le categorie</option>
-          <option value="none">Senza categoria</option>
+          <option value="">{gettext('Tutte le categorie')}</option>
+          <option value="none">{gettext('Senza categoria')}</option>
           {(categories.data?.results ?? []).map((category) => (
             <option key={category.id} value={category.id}>
               {category.name}
@@ -314,13 +323,13 @@ function CategoryCard({
   return (
     <section className="card-m3 p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-title-medium">Per categoria</h2>
+        <h2 className="text-title-medium">{gettext('Per categoria')}</h2>
         <Segmented<TransactionType>
           value={type}
           onChange={onType}
           options={[
-            { value: 'expense', label: 'Uscite' },
-            { value: 'income', label: 'Entrate' },
+            { value: 'expense', label: gettext('Uscite') },
+            { value: 'income', label: gettext('Entrate') },
           ]}
         />
       </div>
@@ -329,7 +338,7 @@ function CategoryCard({
         <Skeleton className="h-[200px] rounded-card" />
       ) : rows.length === 0 ? (
         <p className="py-6 text-body-medium text-on-surface-variant">
-          Nessun movimento nel periodo.
+          {gettext('Nessun movimento nel periodo.')}
         </p>
       ) : (
         <ul className="grid gap-1">
@@ -344,7 +353,14 @@ function CategoryCard({
                   type="button"
                   onClick={() => onSelect(active ? '' : id)}
                   aria-pressed={active}
-                  title={`${row.category_name}: ${formatMoney(row.total, tracker.currency)} · ${row.count} movimenti`}
+                  title={
+                    `${row.category_name}: ${formatMoney(row.total, tracker.currency)} · ` +
+                    interpolate(
+                      ngettext('%(count)s movimento', '%(count)s movimenti', row.count),
+                      { count: row.count },
+                      true,
+                    )
+                  }
                   className={clsx(
                     'state grid w-full grid-cols-[36px_1fr_auto] items-center gap-3 rounded-row px-2 py-2 text-left',
                     active && 'bg-secondary-container',
@@ -369,7 +385,7 @@ function CategoryCard({
                       <span
                         className="block h-full rounded-sm"
                         style={{
-                          width: `${Math.max((cents / max) * 100, 1)}%`,
+                          width: Math.max((cents / max) * 100, 1) + '%',
                           background: SERIES[type].color,
                         }}
                       />
@@ -386,7 +402,7 @@ function CategoryCard({
       )}
       {selected && (
         <p className="mt-3 text-body-small text-on-surface-variant">
-          Tocca di nuovo la categoria per togliere il filtro.
+          {gettext('Tocca di nuovo la categoria per togliere il filtro.')}
         </p>
       )}
     </section>
@@ -418,11 +434,11 @@ function PeopleCard({
   return (
     <section className="card-m3 p-6">
       <div className="mb-1">
-        <h2 className="text-title-medium">Per persona</h2>
+        <h2 className="text-title-medium">{gettext('Per persona')}</h2>
         <Legend />
       </div>
       <p className="mb-4 text-body-small text-on-surface-variant">
-        La quota di ciascuno nel periodo, secondo le divisioni: non chi ha pagato.
+        {gettext('La quota di ciascuno nel periodo, secondo le divisioni: non chi ha pagato.')}
       </p>
 
       {!summary ? (
@@ -450,7 +466,8 @@ function PeopleCard({
                         {member.display_name}
                       </span>
                       <span className="amount text-body-small text-on-surface-variant">
-                        netto {formatSignedCents(entry.income - entry.expense, tracker.currency)}
+                        {gettext('netto')}{' '}
+                        {formatSignedCents(entry.income - entry.expense, tracker.currency)}
                       </span>
                     </span>
                     {(['income', 'expense'] as const).map((series) => (
@@ -481,7 +498,7 @@ function PeopleCard({
       )}
       {selected && (
         <p className="mt-3 text-body-small text-on-surface-variant">
-          Tocca di nuovo la persona per tornare a tutto il tracker.
+          {gettext('Tocca di nuovo la persona per tornare a tutto il tracker.')}
         </p>
       )}
     </section>

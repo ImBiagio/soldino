@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.db.models import Count, Sum
+from django.utils.translation import gettext as _
 
 from apps.accounts.models import Account, PendingItem
 from apps.core.methods import sum_amount
@@ -196,7 +197,7 @@ def summary(
     by_category = [
         {
             "category_id": str(row[field("category_id")]) if row[field("category_id")] else None,
-            "category_name": row[field("category__name")] or "Senza categoria",
+            "category_name": row[field("category__name")] or _("Senza categoria"),
             "color": row[field("category__color")] or "#94a3b8",
             "icon": row[field("category__icon")] or "",
             "type": row[field("type")],

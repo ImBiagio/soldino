@@ -15,11 +15,16 @@ from typing import Literal
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.core.cache import cache
+from django.utils.translation import gettext as _
 from pydantic import BaseModel, Field, PrivateAttr
 
 
 class ExtractionError(Exception):
-    """Errore da mostrare all'utente cosi' com'e'."""
+    """Errore da mostrare all'utente cosi' com'e'.
+
+    Si alza nel worker e finisce salvato su ``StatementImport.error``: il testo
+    resta nella lingua di default (il worker non ha la lingua di chi ha caricato).
+    """
 
 
 # 429 limite di frequenza, 500/503 sovraccarico, 504 timeout lato Google: passano da soli.
@@ -33,8 +38,11 @@ RECEIPT_TIMEOUT_MS = 30_000
 
 def _explain(exc, *, model: str) -> str:
     if exc.code in (401, 403):
-        return "Gemini ha rifiutato la chiave: controlla GEMINI_API_KEY."
-    return f"Gemini ha risposto con un errore ({exc.code}): {exc.message or exc.status}"
+        return _("Gemini ha rifiutato la chiave: controlla GEMINI_API_KEY.")
+    return _("Gemini ha risposto con un errore (%(code)s): %(message)s") % {
+        "code": exc.code,
+        "message": exc.message or exc.status,
+    }
 
 
 # --- Scelta del modello in base alla disponibilita' ---------------------------
@@ -200,7 +208,7 @@ def _generate(contents, schema, *, timeout_ms: int):
     """
     if not settings.GEMINI_API_KEY:
         raise ExtractionError(
-            "Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e riavvia."
+            _("Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e riavvia.")
         )
 
     from google import genai
@@ -234,7 +242,7 @@ def _generate(contents, schema, *, timeout_ms: int):
                 else:
                     raise ExtractionError(_explain(exc, model=model)) from exc
                 tried.append(model)
-                last_error = f"errore {exc.code}"
+                last_error = _("errore %(code)s") % {"code": exc.code}
                 continue
             except SoftTimeLimitExceeded:
                 # Il task ha finito il suo tempo: non e' colpa del modello.
@@ -251,8 +259,11 @@ def _generate(contents, schema, *, timeout_ms: int):
 
     models = ", ".join(dict.fromkeys(tried))
     raise ExtractionError(
-        f"Gemini e' sovraccarico in questo momento: nessun modello ha risposto ({models}; "
-        f"ultimo: {last_error}). Riprova tra qualche minuto."
+        _(
+            "Gemini e' sovraccarico in questo momento: nessun modello ha risposto "
+            "(%(models)s; ultimo: %(error)s). Riprova tra qualche minuto."
+        )
+        % {"models": models, "error": last_error}
     )
 
 
@@ -263,7 +274,7 @@ def _parse(response, schema):
     try:
         return schema.model_validate_json(response.text or "")
     except Exception as exc:
-        raise ExtractionError("La risposta di Gemini non e' nel formato atteso.") from exc
+        raise ExtractionError(_("La risposta di Gemini non e' nel formato atteso.")) from exc
 
 
 def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
@@ -294,8 +305,10 @@ def extract_receipt(
     )
     if not receipt.total:
         raise ExtractionError(
-            "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
-            "dritto e ben illuminato."
+            _(
+                "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
+                "dritto e ben illuminato."
+            )
         )
     statement = ExtractedStatement(
         lines=[
@@ -337,8 +350,10 @@ def extract_voice(
     )
     if not voice.lines:
         raise ExtractionError(
-            "Non ho trovato nessun importo in quello che hai detto: riprova dicendo "
-            "quanto, per cosa e chi ha pagato."
+            _(
+                "Non ho trovato nessun importo in quello che hai detto: riprova dicendo "
+                "quanto, per cosa e chi ha pagato."
+            )
         )
     statement = ExtractedStatement(
         lines=[
