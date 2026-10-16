@@ -5,31 +5,17 @@ import { NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-rout
 import { useOpenStatements, useTracker, useTrackers } from '../api/hooks'
 import { useAuth } from '../lib/auth'
 import { memberColor } from '../lib/colors'
+import { MOBILE_SLOTS, orderDestinations } from '../lib/navigation'
 import { showsSection } from '../lib/trackerKind'
 import type { Membership, Tracker } from '../lib/types'
 import { FabMenu } from './FabMenu'
+import { NavOrderModal } from './NavOrderModal'
 import { Avatar, AvatarStack, Chip, Icon, Modal, Skeleton } from './ui'
 
-const DESTINATIONS = [
-  { to: '', label: 'Oggi', icon: 'dashboard', end: true },
-  { to: 'movimenti', label: 'Movimenti', icon: 'receipt_long' },
-  { to: 'da-rivedere', label: 'Da rivedere', icon: 'inbox' },
-  { to: 'conti', label: 'Conti', icon: 'account_balance' },
-  { to: 'attese', label: 'In attesa', icon: 'hourglass_top' },
-  { to: 'grafici', label: 'Grafici', icon: 'bar_chart' },
-  { to: 'abbonamenti', label: 'Ricorrenze', icon: 'autorenew' },
-  { to: 'banca', label: 'Banca', icon: 'sync_alt' },
-  { to: 'impostazioni', label: 'Setup', icon: 'tune' },
-]
-
-/**
- * Sul mobile la bottom bar tiene le prime quattro voci visibili, le altre
- * passano nel menu. In un tracker "group" le voci sono quattro in tutto.
- */
-const MOBILE_SLOTS = 4
-
-function destinationsFor(tracker: Tracker) {
-  const visible = DESTINATIONS.filter((destination) => showsSection(tracker, destination.to))
+function destinationsFor(tracker: Tracker, order: readonly string[] | undefined) {
+  const visible = orderDestinations(order).filter((destination) =>
+    showsSection(tracker, destination.to),
+  )
   return { all: visible, bar: visible.slice(0, MOBILE_SLOTS), menu: visible.slice(MOBILE_SLOTS) }
 }
 
@@ -47,7 +33,9 @@ export function TrackerLayout() {
     (s) => s.status !== 'processing',
   ).length
   const location = useLocation()
+  const { user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [orderOpen, setOrderOpen] = useState(false)
 
   if (isLoading || !tracker) {
     return (
@@ -61,7 +49,7 @@ export function TrackerLayout() {
     )
   }
 
-  const destinations = destinationsFor(tracker)
+  const destinations = destinationsFor(tracker, user?.nav_order)
   const section = location.pathname.split('/')[3] ?? ''
   const inMenuSection = destinations.menu.some((destination) => destination.to === section)
 
@@ -86,8 +74,11 @@ export function TrackerLayout() {
         <div className="mt-6 flex flex-col items-center gap-3.5">
           {destinations.all.map((destination) => (
             <RailItem
-              key={destination.label}
-              {...destination}
+              key={destination.key}
+              to={destination.to}
+              label={destination.label}
+              icon={destination.icon}
+              end={destination.end}
               badge={destination.to === 'da-rivedere' ? waiting : 0}
             />
           ))}
@@ -111,7 +102,6 @@ export function TrackerLayout() {
       </div>
 
       {/* --- bottom bar + FAB (mobile) --- */}
-      {/* Durante la revisione di uno scan il "+" coprirebbe i pulsanti in basso. */}
       {/* Durante uno scan il "+" coprirebbe la barra di revisione su mobile. */}
       {!SCAN_SECTIONS.has(section) && <FabMenu tracker={tracker} placement="mobile" />}
 
@@ -121,8 +111,11 @@ export function TrackerLayout() {
       >
         {destinations.bar.map((destination) => (
           <BottomItem
-            key={destination.label}
-            {...destination}
+            key={destination.key}
+            to={destination.to}
+            label={destination.label}
+            icon={destination.icon}
+            end={destination.end}
             badge={destination.to === 'da-rivedere' ? waiting : 0}
           />
         ))}
@@ -154,7 +147,22 @@ export function TrackerLayout() {
         </button>
       </nav>
 
-      <MenuSheet open={menuOpen} onClose={() => setMenuOpen(false)} tracker={tracker} />
+      <MenuSheet
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        tracker={tracker}
+        onReorder={() => {
+          setMenuOpen(false)
+          setOrderOpen(true)
+        }}
+      />
+      {orderOpen && (
+        <NavOrderModal
+          open
+          onClose={() => setOrderOpen(false)}
+          isVisible={(destination) => showsSection(tracker, destination.to)}
+        />
+      )}
     </div>
   )
 }
@@ -259,10 +267,12 @@ function MenuSheet({
   open,
   onClose,
   tracker,
+  onReorder,
 }: {
   open: boolean
   onClose: () => void
   tracker: Tracker
+  onReorder: () => void
 }) {
   const { data } = useTrackers()
   const { user, logout } = useAuth()
@@ -296,9 +306,9 @@ function MenuSheet({
         ))}
 
         <div className="mt-2 grid gap-2">
-          {destinationsFor(tracker).menu.map((destination) => (
+          {destinationsFor(tracker, user?.nav_order).menu.map((destination) => (
             <button
-              key={destination.to}
+              key={destination.key}
               type="button"
               onClick={() => {
                 navigate(`/t/${tracker.id}/${destination.to}`)
@@ -310,6 +320,14 @@ function MenuSheet({
               <span className="flex-1 text-body-large">{destination.label}</span>
             </button>
           ))}
+          <button
+            type="button"
+            onClick={onReorder}
+            className="state flex items-center gap-3 rounded-card bg-surface-container-low px-4 py-3 text-left"
+          >
+            <Icon name="swap_vert" size={22} />
+            <span className="flex-1 text-body-large">Riordina il menu</span>
+          </button>
           <button
             type="button"
             onClick={() => {

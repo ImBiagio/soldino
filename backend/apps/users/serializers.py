@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from django.contrib.auth import get_user_model, password_validation
 from rest_framework import serializers
 
@@ -8,11 +10,26 @@ from apps.core.methods import normalize_email
 User = get_user_model()
 
 
+NAV_KEY = re.compile(r"^[a-z][a-z-]{0,29}$")
+NAV_MAX_ITEMS = 30
+
+
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["id", "email", "display_name", "avatar", "email_verified_at"]
+        fields = ["id", "email", "display_name", "avatar", "email_verified_at", "nav_order"]
         read_only_fields = ["id", "email", "email_verified_at"]
+
+    def validate_nav_order(self, value):
+        # Le sezioni le conosce il frontend: qui basta che sia una lista corta di
+        # chiavi pulite e senza doppioni.
+        if not isinstance(value, list) or len(value) > NAV_MAX_ITEMS:
+            raise serializers.ValidationError("Deve essere una lista di sezioni.")
+        if not all(isinstance(key, str) and NAV_KEY.match(key) for key in value):
+            raise serializers.ValidationError("Sezione non valida.")
+        if len(set(value)) != len(value):
+            raise serializers.ValidationError("Sezione ripetuta.")
+        return value
 
 
 class UserBriefSerializer(serializers.ModelSerializer):

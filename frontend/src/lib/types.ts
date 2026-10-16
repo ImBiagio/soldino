@@ -14,6 +14,8 @@ export interface User {
   display_name: string
   avatar: string | null
   email_verified_at?: string | null
+  /** Ordine delle voci di navigazione (chiavi di `lib/navigation`). */
+  nav_order?: string[]
 }
 
 export interface Membership {

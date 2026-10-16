@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { NavOrderModal } from '../../components/NavOrderModal'
 import { Avatar, ErrorBanner, Field, Icon, PasswordInput } from '../../components/ui'
 import { ApiError, api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
+import { orderDestinations } from '../../lib/navigation'
 import type { User } from '../../lib/types'
 import { NewPasswordFields, requestEmail } from '../auth/AuthPages'
 
@@ -30,6 +32,7 @@ export function AccountPage() {
         <ProfileSection user={user} />
         <EmailSection user={user} />
         <PasswordSection user={user} />
+        <MenuSection user={user} />
       </div>
     </div>
   )
@@ -211,6 +214,24 @@ function PasswordSection({ user }: { user: User }) {
           {linkSent ? 'Link mandato, controlla la mail' : 'Mandami il link di reset'}
         </button>
       </div>
+    </section>
+  )
+}
+
+/** Ordine delle voci di navigazione: vale in tutti i tracker e su ogni dispositivo. */
+function MenuSection({ user }: { user: User }) {
+  const [open, setOpen] = useState(false)
+  const labels = orderDestinations(user.nav_order).map((destination) => destination.label)
+
+  return (
+    <section className="rounded-card bg-surface-container-low p-5">
+      <h2 className="text-body-large font-medium">Menu</h2>
+      <p className="mt-1 text-body-small text-on-surface-variant">{labels.join(' · ')}</p>
+      <button type="button" className="btn-tonal btn-sm mt-3" onClick={() => setOpen(true)}>
+        <Icon name="swap_vert" size={18} />
+        Riordina il menu
+      </button>
+      {open && <NavOrderModal open onClose={() => setOpen(false)} />}
     </section>
   )
 }
