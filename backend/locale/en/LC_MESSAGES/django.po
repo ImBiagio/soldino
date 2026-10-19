@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 10:18+0200\n"
+"POT-Creation-Date: 2026-10-19 16:56+0200\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -18,7 +18,11 @@ msgstr ""
 msgid "Chi paga deve essere un membro attivo del tracker."
 msgstr "Whoever pays must be an active member of the tracker."
 
-#: apps/accounts/views.py:51
+#: apps/accounts/views.py:45
+msgid "Si modificano solo le voci ancora aperte."
+msgstr "Only open items can be edited."
+
+#: apps/accounts/views.py:58
 msgid "Questo elemento e' gia' stato chiuso."
 msgstr "This item has already been closed."
 
@@ -354,63 +358,67 @@ msgstr "Refunds and reversals"
 msgid "Altre entrate"
 msgstr "Other income"
 
-#: apps/trackers/serializers.py:196
+#: apps/trackers/serializers.py:205
 msgid "Categoria non valida."
 msgstr "Invalid category."
 
-#: apps/trackers/serializers.py:211
+#: apps/trackers/serializers.py:220
 msgid "Al massimo tre anni per volta."
 msgstr "At most three years at a time."
 
-#: apps/trackers/views.py:53
+#: apps/trackers/views.py:55
 msgid "Solo il proprietario puo' modificare il tracker."
 msgstr "Only the owner can edit the tracker."
 
-#: apps/trackers/views.py:65
+#: apps/trackers/views.py:67
 msgid "Solo il proprietario puo' eliminare il tracker."
 msgstr "Only the owner can delete the tracker."
 
-#: apps/trackers/views.py:74
+#: apps/trackers/views.py:76
 msgid "Solo il proprietario puo' archiviare il tracker."
 msgstr "Only the owner can archive the tracker."
 
-#: apps/trackers/views.py:83
+#: apps/trackers/views.py:85
 msgid "Solo il proprietario puo' ripristinare il tracker."
 msgstr "Only the owner can restore the tracker."
 
-#: apps/trackers/views.py:105
+#: apps/trackers/views.py:96
+msgid "Solo il proprietario puo' duplicare il tracker."
+msgstr "Only the owner can duplicate the tracker."
+
+#: apps/trackers/views.py:120
 msgid "Questa persona e' gia' invitata o gia' membro."
 msgstr "This person has already been invited or is already a member."
 
-#: apps/trackers/views.py:237
+#: apps/trackers/views.py:252
 msgid "Solo il proprietario modifica i membri."
 msgstr "Only the owner can edit members."
 
-#: apps/trackers/views.py:245
+#: apps/trackers/views.py:260
 msgid "Il proprietario non puo' declassare se stesso."
 msgstr "The owner can't demote themselves."
 
-#: apps/trackers/views.py:253
+#: apps/trackers/views.py:268
 msgid "Solo il proprietario rimuove i membri."
 msgstr "Only the owner can remove members."
 
-#: apps/trackers/views.py:257
+#: apps/trackers/views.py:272
 msgid "Il proprietario non si puo' rimuovere."
 msgstr "The owner can't be removed."
 
-#: apps/trackers/views.py:282 apps/trackers/views.py:324
+#: apps/trackers/views.py:297 apps/trackers/views.py:339
 msgid "Invito non valido o scaduto."
 msgstr "Invalid or expired invite."
 
-#: apps/trackers/views.py:287
+#: apps/trackers/views.py:302
 msgid "Invito non piu' disponibile."
 msgstr "Invite no longer available."
 
-#: apps/trackers/views.py:294
+#: apps/trackers/views.py:309
 msgid "L'invito e' intestato a un altro utente."
 msgstr "The invite is for another user."
 
-#: apps/trackers/views.py:300
+#: apps/trackers/views.py:315
 msgid "L'invito e' stato inviato a un altro indirizzo email."
 msgstr "The invite was sent to a different email address."
 
