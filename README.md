@@ -465,6 +465,18 @@ widget di split a quattro modalità, dashboard, impostazioni, BTA.
 finisce nel gruppo "Archiviati" della lista e non riceve ricorrenze automatiche.
 Elimina (`DELETE /trackers/{id}`, conferma scrivendo il nome) è un soft delete
 che porta giù anche le membership, perché le rotte annidate controllano quelle.
+Duplica (`POST /trackers/{id}/duplicate`, [ADR 0017](docs/decisions/0017-duplicare-un-tracker.md))
+crea un tracker nuovo con categorie e impostazioni, a scelta membri, conti e
+ricorrenze; mai movimenti, pareggi e voci in attesa.
+
+**Voci in attesa**: quelle aperte si modificano (tocco sulla riga o matita,
+`PATCH`); convertite e annullate no (400).
+
+**Conferme**: niente `window.confirm`. `useConfirm()` di
+`components/ConfirmDialog.tsx` apre un dialog Material 3 dell'app e risolve a
+`true`/`false` (`if (!(await confirm({...}))) return`). Resta nativo solo
+l'avviso del browser quando si chiude la scheda con una revisione non salvata
+(`beforeunload` non si può disegnare).
 
 **Tipo di tracker** (`kind`: `household` o `group`, scelto alla creazione e
 modificabile dal Setup): un tracker `group` mostra solo spese e chi deve cosa.

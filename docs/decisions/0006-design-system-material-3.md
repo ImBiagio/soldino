@@ -16,6 +16,15 @@ Il design non definisce una variante scura, quindi `color-scheme: light` è
 fissato. Aggiungerla in seguito significa ridefinire i token dentro un
 `@media (prefers-color-scheme: dark)`, non toccare i componenti.
 
+## Conferme dentro l'app (2026-10-19)
+
+Nessun `window.confirm` / `alert`: le conferme passano da `useConfirm()`
+(`components/ConfirmDialog.tsx`), un basic dialog M3 centrato anche su mobile
+(icona, titolo, testo, "Annulla" + azione; rossa se toglie qualcosa), sopra le
+modali (z-70), Esc e tocco sullo scrim annullano. Così sono tradotte e hanno
+lo stile dell'app. Unica eccezione: il `beforeunload` alla chiusura della
+scheda, che il browser non lascia personalizzare.
+
 ## Colori e icone delle categorie sono dati
 
 `Category.color` e `Category.icon` arrivano dall'API. Il client ha solo
