@@ -5,6 +5,7 @@ from django.utils.translation import gettext as _
 from drf_spectacular.utils import extend_schema
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -37,6 +38,12 @@ class PendingItemViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(tracker=self.get_tracker())
+
+    def perform_update(self, serializer):
+        # Una voce convertita e' gia' un movimento: si modifica quello.
+        if serializer.instance.status != PendingItem.Status.OPEN:
+            raise ValidationError({"detail": _("Si modificano solo le voci ancora aperte.")})
+        serializer.save()
 
     @extend_schema(
         request=PendingItemConvertSerializer, responses={201: TransactionSerializer}
