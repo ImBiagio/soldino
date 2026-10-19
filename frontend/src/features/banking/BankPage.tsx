@@ -18,6 +18,7 @@ import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
 import { formatMoney } from '../../lib/money'
 import type { Account, Aspsp, BankAccountLink, BankConnection, Tracker } from '../../lib/types'
+import { useConfirm } from '../../components/ConfirmDialog'
 import { activeMembers } from '../../components/Layout'
 import { NewAccountModal } from '../accounts/NewAccountModal'
 import { SetupWizard } from './SetupWizard'
@@ -126,6 +127,7 @@ function ConnectionCard({
   onRenew: () => void
 }) {
   const remove = useDeleteBankConnection(tracker.id)
+  const confirm = useConfirm()
   const left = daysLeft(connection.valid_until)
   const expired = connection.status === 'expired' || (left !== null && left < 0)
 
@@ -173,19 +175,21 @@ function ConnectionCard({
             type="button"
             className="btn-text btn-sm"
             disabled={remove.isPending}
-            onClick={() => {
-              if (
-                window.confirm(
-                  interpolate(
-                    gettext(
-                      'Scollegare %(bank)s? I movimenti già registrati restano, la sincronizzazione si ferma.',
-                    ),
-                    { bank: connection.aspsp_name },
-                    true,
-                  ),
-                )
-              )
-                remove.mutate(connection.id)
+            onClick={async () => {
+              const ok = await confirm({
+                title: interpolate(
+                  gettext('Scollegare %(bank)s?'),
+                  { bank: connection.aspsp_name },
+                  true,
+                ),
+                message: gettext(
+                  'I movimenti già registrati restano, la sincronizzazione si ferma.',
+                ),
+                confirmLabel: gettext('Scollega'),
+                icon: 'link_off',
+                destructive: true,
+              })
+              if (ok) remove.mutate(connection.id)
             }}
           >
             {gettext('Scollega')}
@@ -532,6 +536,7 @@ function BankPicker({
 function AppInfo({ onReconfigure }: { onReconfigure: () => void }) {
   const status = useBankingStatus()
   const remove = useDeleteBankingApp()
+  const confirm = useConfirm()
   const app = status.data?.app
   if (!app) return null
   return (
@@ -553,15 +558,17 @@ function AppInfo({ onReconfigure }: { onReconfigure: () => void }) {
         type="button"
         className="btn-text btn-sm"
         disabled={remove.isPending}
-        onClick={() => {
-          if (
-            window.confirm(
-              gettext(
-                'Togliere la chiave? Tutte le banche collegate si scollegano. I movimenti registrati restano.',
-              ),
-            )
-          )
-            remove.mutate()
+        onClick={async () => {
+          const ok = await confirm({
+            title: gettext('Togliere la chiave?'),
+            message: gettext(
+              'Tutte le banche collegate si scollegano. I movimenti registrati restano.',
+            ),
+            confirmLabel: gettext('Rimuovi'),
+            icon: 'key_off',
+            destructive: true,
+          })
+          if (ok) remove.mutate()
         }}
       >
         {gettext('Rimuovi')}
