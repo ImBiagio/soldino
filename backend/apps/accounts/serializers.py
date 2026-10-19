@@ -36,6 +36,19 @@ class AccountSerializer(serializers.ModelSerializer):
     def validate_owner(self, user):
         return validate_member_owner(self, user)
 
+    def validate(self, attrs):
+        # Il vincolo del DB, ma con un 400 leggibile invece di un errore di integrita'.
+        name = attrs.get("name", getattr(self.instance, "name", None))
+        owner = attrs.get("owner", getattr(self.instance, "owner", None))
+        clash = Account.objects.filter(tracker=self.context["tracker"], owner=owner, name=name)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError(
+                {"name": _("Questa persona ha gia' un conto con questo nome.")}
+            )
+        return attrs
+
     def _touch_balance(self, instance, validated_data):
         from django.utils import timezone
 

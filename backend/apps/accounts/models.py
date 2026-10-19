@@ -39,10 +39,12 @@ class Account(BaseModel):
     class Meta:
         ordering = ["name"]
         constraints = [
+            # Unico per persona, non per tracker: "Hype" di Anna e "Hype" di
+            # Bruno sono due conti diversi.
             models.UniqueConstraint(
-                fields=["tracker", "name"],
+                fields=["tracker", "owner", "name"],
                 condition=models.Q(deleted_at__isnull=True),
-                name="uniq_account_tracker_name",
+                name="uniq_account_tracker_owner_name",
             )
         ]
 

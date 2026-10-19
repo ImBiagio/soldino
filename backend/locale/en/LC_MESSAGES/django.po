@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-16 10:18+0200\n"
+"POT-Creation-Date: 2026-10-19 17:03+0200\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -13,7 +13,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: apps/accounts/serializers.py:99 apps/recurring/serializers.py:51
+#: apps/accounts/serializers.py:48
+msgid "Questa persona ha gia' un conto con questo nome."
+msgstr "This person already has an account with this name."
+
+#: apps/accounts/serializers.py:112 apps/recurring/serializers.py:51
 #: apps/transactions/serializers.py:112
 msgid "Chi paga deve essere un membro attivo del tracker."
 msgstr "Whoever pays must be an active member of the tracker."
