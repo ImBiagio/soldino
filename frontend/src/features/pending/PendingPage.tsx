@@ -8,6 +8,7 @@ import {
   usePendingItems,
   useSavePendingItem,
 } from '../../api/hooks'
+import { useConfirm } from '../../components/ConfirmDialog'
 import { activeMembers } from '../../components/Layout'
 import { AccountSelect, CategorySelect, MemberSelect } from '../../components/selects'
 import {
@@ -36,12 +37,12 @@ export function PendingPage() {
   const tracker = useOutletContext<Tracker>()
   const [status, setStatus] = useState('open')
   const { data, isLoading, error } = usePendingItems(tracker.id, status)
-  const save = useSavePendingItem(tracker.id)
   const remove = useDeletePendingItem(tracker.id)
-  const [formOpen, setFormOpen] = useState(false)
+  const confirm = useConfirm()
+  // null = chiuso, 'new' = nuova voce, altrimenti la voce da modificare.
+  const [editing, setEditing] = useState<PendingItem | 'new' | null>(null)
   const [converting, setConverting] = useState<PendingItem | null>(null)
 
-  const members = activeMembers(tracker)
   const items = data?.results ?? []
   const total = items.reduce((sum, item) => sum + toCents(item.amount), 0)
 
@@ -69,7 +70,7 @@ export function PendingPage() {
           <button
             type="button"
             className="btn-tonal btn-sm ml-auto"
-            onClick={() => setFormOpen(true)}
+            onClick={() => setEditing('new')}
           >
             <Icon name="add" size={20} />
             {gettext('Voce')}
@@ -106,29 +107,46 @@ export function PendingPage() {
               {items.map((item) => {
                 const cents = toCents(item.amount)
                 const positive = cents >= 0
+                const open = item.status === 'open'
                 return (
                   <div
                     key={item.id}
                     className="flex flex-wrap items-center gap-4 rounded-card bg-surface-container-low px-5 py-[18px]"
                   >
-                    <IconCircle
-                      name={positive ? 'savings' : 'redeem'}
-                      color={positive ? 'var(--primary)' : 'var(--error)'}
-                      size={44}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-body-large font-medium">{item.title}</p>
-                      <p className="text-body-small text-on-surface-variant">
-                        {item.owner_detail.display_name}
-                        {item.expected_date &&
-                          ' · ' +
-                            interpolate(
-                              positive ? gettext('attesa %(date)s') : gettext('impegno %(date)s'),
-                              { date: formatDate(item.expected_date) },
-                              true,
-                            )}
-                      </p>
-                    </div>
+                    {/* Su una voce aperta, icona e testo aprono la modifica. */}
+                    <button
+                      type="button"
+                      disabled={!open}
+                      onClick={() => setEditing(item)}
+                      aria-label={
+                        open
+                          ? interpolate(gettext('Modifica %(title)s'), { title: item.title }, true)
+                          : undefined
+                      }
+                      className={clsx(
+                        'flex min-w-0 flex-1 items-center gap-4 text-left',
+                        open && 'state -my-2 -ml-2 rounded-row py-2 pl-2',
+                      )}
+                    >
+                      <IconCircle
+                        name={positive ? 'savings' : 'redeem'}
+                        color={positive ? 'var(--primary)' : 'var(--error)'}
+                        size={44}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-body-large font-medium">{item.title}</p>
+                        <p className="text-body-small text-on-surface-variant">
+                          {item.owner_detail.display_name}
+                          {item.expected_date &&
+                            ' · ' +
+                              interpolate(
+                                positive ? gettext('attesa %(date)s') : gettext('impegno %(date)s'),
+                                { date: formatDate(item.expected_date) },
+                                true,
+                              )}
+                        </p>
+                      </div>
+                    </button>
                     <span
                       className={clsx(
                         'amount text-[18px] font-semibold',
@@ -147,9 +165,25 @@ export function PendingPage() {
                           {gettext('Converti')}
                         </button>
                         <IconButton
+                          icon="edit"
+                          label={gettext('Modifica')}
+                          onClick={() => setEditing(item)}
+                        />
+                        <IconButton
                           icon="close"
                           label={gettext('Elimina')}
-                          onClick={() => remove.mutate(item.id)}
+                          onClick={async () => {
+                            const ok = await confirm({
+                              title: interpolate(
+                                gettext('Eliminare “%(title)s”?'),
+                                { title: item.title },
+                                true,
+                              ),
+                              confirmLabel: gettext('Elimina'),
+                              destructive: true,
+                            })
+                            if (ok) remove.mutate(item.id)
+                          }}
                         />
                       </>
                     )}
@@ -161,60 +195,102 @@ export function PendingPage() {
         </div>
       </div>
 
-      <Modal
-        open={formOpen}
-        onClose={() => setFormOpen(false)}
-        title={gettext('Nuova voce in attesa')}
-      >
-        <form
-          className="grid gap-3"
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const form = new FormData(event.currentTarget)
-            await save.mutateAsync({
-              title: String(form.get('title')),
-              amount: normalizeDecimal(String(form.get('amount'))),
-              owner: String(form.get('owner')),
-              expected_date: (form.get('expected_date') as string) || null,
-              note: String(form.get('note') ?? ''),
-            })
-            setFormOpen(false)
-          }}
-        >
-          <ErrorBanner error={save.error} />
-          <Field label={gettext('Descrizione')}>
-            <input className="field-input" name="title" required autoFocus />
-          </Field>
-          <Field
-            label={gettext('Importo')}
-            hint={gettext('Negativo per un impegno, es. −700 per un regalo.')}
-          >
-            <input
-              className="field-input amount text-right"
-              name="amount"
-              required
-              inputMode="decimal"
-            />
-          </Field>
-          <Field label={gettext('Di chi')}>
-            <MemberSelect members={members} name="owner" required />
-          </Field>
-          <Field label={gettext('Data attesa')}>
-            <input className="field-input" type="date" name="expected_date" />
-          </Field>
-          <Field label={gettext('Nota')}>
-            <textarea className="field-input resize-none" name="note" rows={2} />
-          </Field>
-          <button className="btn-filled w-full" disabled={save.isPending}>
-            {gettext('Salva')}
-          </button>
-        </form>
-      </Modal>
+      {editing && (
+        <PendingItemModal
+          tracker={tracker}
+          item={editing === 'new' ? null : editing}
+          onClose={() => setEditing(null)}
+        />
+      )}
 
       {converting && (
         <ConvertModal tracker={tracker} item={converting} onClose={() => setConverting(null)} />
       )}
     </div>
+  )
+}
+
+/** Nuova voce o modifica di una voce aperta: stesso modulo. */
+function PendingItemModal({
+  tracker,
+  item,
+  onClose,
+}: {
+  tracker: Tracker
+  item: PendingItem | null
+  onClose: () => void
+}) {
+  const save = useSavePendingItem(tracker.id)
+  const members = activeMembers(tracker)
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={item ? gettext('Modifica voce in attesa') : gettext('Nuova voce in attesa')}
+    >
+      <form
+        className="grid gap-3"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const form = new FormData(event.currentTarget)
+          await save.mutateAsync({
+            id: item?.id,
+            title: String(form.get('title')),
+            amount: normalizeDecimal(String(form.get('amount'))),
+            owner: String(form.get('owner')),
+            expected_date: (form.get('expected_date') as string) || null,
+            note: String(form.get('note') ?? ''),
+          })
+          onClose()
+        }}
+      >
+        <ErrorBanner error={save.error} />
+        <Field label={gettext('Descrizione')}>
+          <input
+            className="field-input"
+            name="title"
+            required
+            autoFocus
+            defaultValue={item?.title}
+          />
+        </Field>
+        <Field
+          label={gettext('Importo')}
+          hint={gettext('Negativo per un impegno, es. −700 per un regalo.')}
+        >
+          <input
+            className="field-input amount text-right"
+            name="amount"
+            required
+            inputMode="decimal"
+            defaultValue={item?.amount.replace('.', ',')}
+          />
+        </Field>
+        <Field label={gettext('Di chi')}>
+          <MemberSelect members={members} name="owner" required defaultValue={item?.owner} />
+        </Field>
+        <Field label={gettext('Data attesa')}>
+          <input
+            className="field-input"
+            type="date"
+            name="expected_date"
+            defaultValue={item?.expected_date ?? undefined}
+          />
+        </Field>
+        <Field label={gettext('Nota')}>
+          <textarea
+            className="field-input resize-none"
+            name="note"
+            rows={2}
+            defaultValue={item?.note}
+          />
+        </Field>
+        <button className="btn-filled w-full" disabled={save.isPending}>
+          {save.isPending ? gettext('Salvo…') : gettext('Salva')}
+        </button>
+      </form>
+    </Modal>
   )
 }
 

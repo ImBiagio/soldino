@@ -167,6 +167,15 @@ class CategorySerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
+class TrackerDuplicateSerializer(serializers.Serializer):
+    """Cosa portare nella copia. Categorie e impostazioni ci vanno sempre."""
+
+    name = serializers.CharField(max_length=120)
+    members = serializers.BooleanField(default=True)
+    accounts = serializers.BooleanField(default=True)
+    recurring = serializers.BooleanField(default=False)
+
+
 class InviteSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(

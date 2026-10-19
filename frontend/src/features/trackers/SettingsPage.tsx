@@ -7,6 +7,7 @@ import {
   useCategories,
   useDeleteTracker,
   useDeleteCategory,
+  useDuplicateTracker,
   useInvite,
   useRemoveMember,
   useSaveCategory,
@@ -28,7 +29,7 @@ import {
   Switch,
 } from '../../components/ui'
 import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/colors'
-import { gettext, interpolate } from '../../lib/i18n'
+import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { categoryIcon } from '../../lib/icons'
 import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
@@ -177,13 +178,26 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
   const archive = useArchiveTracker(tracker.id)
   const remove = useDeleteTracker(tracker.id)
   const [confirming, setConfirming] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [typed, setTyped] = useState('')
   const archived = Boolean(tracker.archived_at)
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">{gettext('Archivio ed eliminazione')}</h2>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <h2 className="text-body-large font-medium">{gettext('Duplica, archivia, elimina')}</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div>
+          <p className="text-body-medium font-medium">{gettext('Duplica')}</p>
+          <p className="mb-3 text-body-small text-on-surface-variant">
+            {gettext(
+              'Un tracker nuovo con le stesse categorie e impostazioni, per esempio per l’anno nuovo. I movimenti non si copiano.',
+            )}
+          </p>
+          <button type="button" className="btn-tonal btn-sm" onClick={() => setDuplicating(true)}>
+            <Icon name="content_copy" size={18} />
+            {gettext('Duplica')}
+          </button>
+        </div>
         <div>
           <p className="text-body-medium font-medium">
             {archived ? gettext('Tracker archiviato') : gettext('Archivia')}
@@ -228,6 +242,8 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
         </div>
       </div>
       <ErrorBanner error={archive.error} />
+
+      {duplicating && <DuplicateModal tracker={tracker} onClose={() => setDuplicating(false)} />}
 
       <Modal
         open={confirming}
@@ -279,6 +295,107 @@ function LifecycleSection({ tracker }: { tracker: Tracker }) {
         </form>
       </Modal>
     </section>
+  )
+}
+
+function DuplicateModal({ tracker, onClose }: { tracker: Tracker; onClose: () => void }) {
+  const navigate = useNavigate()
+  const duplicate = useDuplicateTracker(tracker.id)
+  const [name, setName] = useState(
+    interpolate(gettext('%(name)s (copia)'), { name: tracker.name }, true),
+  )
+  const [members, setMembers] = useState(true)
+  const [accounts, setAccounts] = useState(true)
+  const [recurring, setRecurring] = useState(false)
+  const others = activeMembers(tracker).length - 1
+  const household = showsSection(tracker, 'conti')
+
+  const options = [
+    others > 0 && {
+      label: gettext('Membri e quote'),
+      hint: interpolate(
+        ngettext(
+          'Entra subito anche l’altra persona, con il suo ruolo e la sua quota.',
+          'Entrano subito anche le altre %(count)s persone, con ruolo e quota.',
+          others,
+        ),
+        { count: others },
+        true,
+      ),
+      checked: members,
+      onChange: setMembers,
+    },
+    household && {
+      label: gettext('Conti'),
+      hint: gettext('Con il saldo di oggi. Il collegamento alla banca resta su questo tracker.'),
+      checked: accounts,
+      onChange: setAccounts,
+    },
+    household && {
+      label: gettext('Ricorrenze e abbonamenti'),
+      hint: gettext(
+        'Quelle attive. Archivia questo tracker, o le automatiche si registrano in tutti e due.',
+      ),
+      checked: recurring,
+      onChange: setRecurring,
+    },
+  ].filter(Boolean) as {
+    label: string
+    hint: string
+    checked: boolean
+    onChange: (value: boolean) => void
+  }[]
+
+  return (
+    <Modal open onClose={onClose} title={gettext('Duplica il tracker')}>
+      <form
+        className="grid gap-4"
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const copy = await duplicate.mutateAsync({
+            name: name.trim(),
+            members: others > 0 && members,
+            accounts: household && accounts,
+            recurring: household && recurring,
+          })
+          navigate(`/t/${copy.id}`)
+        }}
+      >
+        <ErrorBanner error={duplicate.error} />
+        <Field label={gettext('Nome')}>
+          <input
+            className="field-input"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={120}
+            required
+            autoFocus
+          />
+        </Field>
+        <p className="text-body-medium text-on-surface-variant">
+          {gettext(
+            'Categorie, valuta, tipo e impostazioni si copiano sempre. Movimenti, pareggi e voci in attesa no.',
+          )}
+        </p>
+        {options.length > 0 && (
+          <div className="grid gap-1">
+            {options.map((option) => (
+              <div key={option.label} className="flex items-center gap-4 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-body-large">{option.label}</p>
+                  <p className="text-body-small text-on-surface-variant">{option.hint}</p>
+                </div>
+                <Switch checked={option.checked} onChange={option.onChange} label={option.label} />
+              </div>
+            ))}
+          </div>
+        )}
+        <button className="btn-filled w-full" disabled={!name.trim() || duplicate.isPending}>
+          <Icon name="content_copy" size={20} />
+          {duplicate.isPending ? gettext('Duplico…') : gettext('Duplica')}
+        </button>
+      </form>
+    </Modal>
   )
 }
 

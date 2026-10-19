@@ -22,6 +22,8 @@ urlpatterns = [
          name="tracker-archive"),
     path("trackers/<uuid:pk>/unarchive", TrackerViewSet.as_view({"post": "unarchive"}),
          name="tracker-unarchive"),
+    path("trackers/<uuid:pk>/duplicate", TrackerViewSet.as_view({"post": "duplicate"}),
+         name="tracker-duplicate"),
     path("trackers/<uuid:pk>/invite", TrackerViewSet.as_view({"post": "invite"}),
          name="tracker-invite"),
     path("trackers/<uuid:pk>/balances", TrackerViewSet.as_view({"get": "balances"}),

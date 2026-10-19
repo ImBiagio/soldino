@@ -20,16 +20,19 @@ const queryClient = new QueryClient({
 // costanti di modulo chiamano gettext() quando il modulo viene importato.
 async function start() {
   await loadCatalog()
-  const [{ default: App }, { AuthProvider }] = await Promise.all([
+  const [{ default: App }, { AuthProvider }, { ConfirmProvider }] = await Promise.all([
     import('./App'),
     import('./lib/auth'),
+    import('./components/ConfirmDialog'),
   ])
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
           </AuthProvider>
         </BrowserRouter>
       </QueryClientProvider>

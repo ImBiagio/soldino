@@ -10,6 +10,7 @@ import {
   useUpdateMember,
 } from '../../api/hooks'
 import { NewAccountModal } from './NewAccountModal'
+import { useConfirm } from '../../components/ConfirmDialog'
 import { activeMembers } from '../../components/Layout'
 import {
   Avatar,
@@ -100,6 +101,7 @@ function PersonSection({
   const { user } = useAuth()
   const save = useSaveAccount(tracker.id)
   const remove = useDeleteAccount(tracker.id)
+  const confirm = useConfirm()
   const isMe = member.user!.id === user?.id
   const canEditOpening = isMe || tracker.my_role === 'owner'
   const canWrite = tracker.my_role !== 'viewer'
@@ -197,18 +199,17 @@ function PersonSection({
                   <IconButton
                     icon="close"
                     label={interpolate(gettext('Elimina %(name)s'), { name: account.name }, true)}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          interpolate(
-                            gettext('Eliminare il conto %(name)s?'),
-                            { name: account.name },
-                            true,
-                          ),
-                        )
-                      ) {
-                        remove.mutate(account.id)
-                      }
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: interpolate(
+                          gettext('Eliminare il conto %(name)s?'),
+                          { name: account.name },
+                          true,
+                        ),
+                        confirmLabel: gettext('Elimina'),
+                        destructive: true,
+                      })
+                      if (ok) remove.mutate(account.id)
                     }}
                   />
                 )}

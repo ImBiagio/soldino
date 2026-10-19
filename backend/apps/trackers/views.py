@@ -19,6 +19,7 @@ from apps.transactions.services.debts import compute_balances, suggested_transfe
 from apps.transactions.services.reports import balance_history, reconcile, summary
 from apps.users.serializers import UserBriefSerializer
 
+from .duplicate import duplicate_tracker
 from .invites import read_invite_token, send_invite_email
 from .methods import active_memberships
 from .models import Category, Membership, Tracker
@@ -28,6 +29,7 @@ from .serializers import (
     InviteSerializer,
     MembershipSerializer,
     SummaryQuerySerializer,
+    TrackerDuplicateSerializer,
     TrackerSerializer,
 )
 
@@ -84,6 +86,19 @@ class TrackerViewSet(TrackerScopedMixin, viewsets.ModelViewSet):
         tracker.archived_at = None
         tracker.save(update_fields=["archived_at", "updated_at"])
         return Response(self.get_serializer(tracker).data)
+
+    @extend_schema(request=TrackerDuplicateSerializer, responses={201: TrackerSerializer})
+    @action(detail=True, methods=["post"])
+    def duplicate(self, request, pk=None):
+        """Copia categorie, impostazioni e a scelta membri, conti e ricorrenze."""
+        source = self.get_object()
+        # Porta con se' le altre persone: lo decide chi il tracker l'ha creato.
+        self._require_owner(source, _("Solo il proprietario puo' duplicare il tracker."))
+        serializer = TrackerDuplicateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        copy = duplicate_tracker(source, owner=request.user, **serializer.validated_data)
+        copy = self.get_queryset().get(pk=copy.pk)
+        return Response(self.get_serializer(copy).data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=InviteSerializer, responses={201: MembershipSerializer})
     @action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsTrackerOwner])

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
 import { useCategories, useStatement, useStatementAction, useStatementFile } from '../../api/hooks'
+import { useConfirm } from '../../components/ConfirmDialog'
 import { activeMembers } from '../../components/Layout'
 import { ErrorBanner, Icon, Skeleton } from '../../components/ui'
 import { formatDate, todayIso } from '../../lib/format'
@@ -229,6 +230,7 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
   const members = useMemo(() => activeMembers(tracker), [tracker])
   const categories = useCategories(tracker.id).data?.results ?? []
   const { save, commit, discard } = useStatementAction(tracker.id, statement.id)
+  const confirm = useConfirm()
   // Lo scontrino e' una spesa sola: niente "applica a tutte", niente righe in piu'.
   const receipt = statement.source === 'receipt'
 
@@ -449,16 +451,32 @@ function Review({ tracker, statement }: { tracker: Tracker; statement: Statement
             type="button"
             className="btn-text px-3 sm:px-4"
             onClick={async () => {
-              const question = receipt
-                ? gettext('Scartare lo scontrino? Anche la foto viene cancellata.')
-                : statement.source === 'bank'
-                  ? gettext(
-                      'Scartare la bozza? I movimenti torneranno alla prossima sincronizzazione. Per ignorarne uno per sempre, eliminalo dalla lista.',
-                    )
-                  : statement.source === 'voice'
-                    ? gettext('Scartare il messaggio vocale e tutte le righe?')
-                    : gettext("Scartare l'estratto conto e tutte le righe?")
-              if (!window.confirm(question)) return
+              const ok = await confirm({
+                ...(receipt
+                  ? {
+                      title: gettext('Scartare lo scontrino?'),
+                      message: gettext('Anche la foto viene cancellata.'),
+                    }
+                  : statement.source === 'bank'
+                    ? {
+                        title: gettext('Scartare la bozza?'),
+                        message: gettext(
+                          'I movimenti torneranno alla prossima sincronizzazione. Per ignorarne uno per sempre, eliminalo dalla lista.',
+                        ),
+                      }
+                    : statement.source === 'voice'
+                      ? {
+                          title: gettext('Scartare il messaggio vocale?'),
+                          message: gettext('Spariscono anche tutte le righe.'),
+                        }
+                      : {
+                          title: gettext("Scartare l'estratto conto?"),
+                          message: gettext('Spariscono anche tutte le righe.'),
+                        }),
+                confirmLabel: gettext('Scarta'),
+                destructive: true,
+              })
+              if (!ok) return
               await discard.mutateAsync()
               navigate(statement.source === 'bank' ? '../../banca' : '..', { relative: 'path' })
             }}

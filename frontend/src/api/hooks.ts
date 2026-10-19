@@ -98,8 +98,7 @@ export function useUpdateTracker(trackerId: UUID) {
       body: Partial<
         Pick<Tracker, 'name' | 'currency' | 'kind' | 'simplify_debts' | 'bank_sync_frequency'>
       >,
-    ) =>
-      api.patch<Tracker>(trackerBase(trackerId), body),
+    ) => api.patch<Tracker>(trackerBase(trackerId), body),
     onSuccess: () => {
       invalidate()
       return client.invalidateQueries({ queryKey: keys.trackers, exact: true })
@@ -125,6 +124,16 @@ export function useDeleteTracker(trackerId: UUID) {
       client.removeQueries({ queryKey: keys.tracker(trackerId) })
       return client.invalidateQueries({ queryKey: keys.trackers, exact: true })
     },
+  })
+}
+
+/** Copia struttura e impostazioni in un tracker nuovo, senza movimenti. */
+export function useDuplicateTracker(trackerId: UUID) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { name: string; members: boolean; accounts: boolean; recurring: boolean }) =>
+      api.post<Tracker>(`${trackerBase(trackerId)}/duplicate`, body),
+    onSuccess: () => client.invalidateQueries({ queryKey: keys.trackers, exact: true }),
   })
 }
 
