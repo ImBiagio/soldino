@@ -139,7 +139,8 @@ def test_conto_intestato_a_un_estraneo_rifiutato(api, user, tracker, other_user)
     assert response.status_code == 400
 
 
-def test_curva_del_saldo_per_cassa(api, user, tracker, partner, make_expense):
+def test_curva_del_saldo_patrimonio_e_cassa(api, user, tracker, partner, make_expense):
+    """Il patrimonio conta la quota delle spese, la cassa quello che esce dai conti."""
     _set_opening(tracker, user, "1000.00")
     _set_opening(tracker, partner, "200.00")
     half = [{"user": user.pk, "share_pct": D(50)}, {"user": partner.pk, "share_pct": D(50)}]
@@ -154,12 +155,26 @@ def test_curva_del_saldo_per_cassa(api, user, tracker, partner, make_expense):
         url, {"date_from": "2026-03-02", "date_to": "2026-03-04", "user_id": str(user.pk)}
     ).data
     # La spesa del 1/3 e' prima dell'intervallo: entra nel punto di partenza.
-    assert [p["balance"] for p in mine["points"]] == ["900.00", "910.00", "910.00"]
+    # Dei 100 pagati ne pesano 50: gli altri 50 sono un credito, ancora suo.
+    assert [p["balance"] for p in mine["points"]] == ["950.00", "910.00", "910.00"]
+    # Per cassa escono tutti e 100, e il pareggio del 3/3 li fa rientrare.
+    assert [p["cash"] for p in mine["points"]] == ["900.00", "910.00", "910.00"]
     assert mine["points"][1]["expense"] == "40.00"
 
+    theirs = api(user).get(
+        url, {"date_from": "2026-03-01", "date_to": "2026-03-03", "user_id": str(partner.pk)}
+    ).data
+    # Il pareggio salda un debito: cambia la cassa, non il patrimonio.
+    assert [p["balance"] for p in theirs["points"]] == ["150.00", "150.00", "150.00"]
+    assert [p["cash"] for p in theirs["points"]] == ["200.00", "200.00", "150.00"]
+    assert theirs["points"][0]["expense"] == "50.00"
+
     everyone = api(user).get(url, {"date_from": "2026-03-01", "date_to": "2026-03-03"}).data
-    # Il pareggio sposta soldi fra loro: sul totale non si vede.
+    # Su tutti insieme le quote fanno la spesa intera e i pareggi si annullano.
     assert [p["balance"] for p in everyone["points"]] == ["1100.00", "1100.00", "1060.00"]
+    assert [p["cash"] for p in everyone["points"]] == ["1100.00", "1100.00", "1060.00"]
+    # La partenza e' prima del 1/3: la spesa di quel giorno sta nel periodo.
+    assert everyone["start_balance"] == "1200.00"
     assert everyone["end_balance"] == "1060.00"
 
 

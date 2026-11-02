@@ -509,11 +509,15 @@ sopra l'unica riga e si ingrandisce toccandola. "Registra spesa" scrive il
 movimento (`source=receipt`) e cancella la foto. C'è anche nei tracker per
 dividere le spese, dove la riga nasce già divisa fra tutti.
 
-**Andamento dei soldi** (`GET /trackers/{id}/balance-history?date_from&date_to&user_id`):
-il saldo per cassa giorno per giorno, come la riconciliazione. In Grafici è una
-curva che si ferma a oggi, col punto "oggi sui conti" per vedere lo scarto; in
-dashboard la riconciliazione è un grafico a cascata (saldo iniziale → entrate →
-uscite → atteso → scarto → reale).
+**Andamento del patrimonio** (`GET /trackers/{id}/balance-history?date_from&date_to&user_id`):
+giorno per giorno il patrimonio (`balance`: saldo iniziale + entrate − **quota**
+delle spese) e la cassa (`cash`: come la riconciliazione). Quello anticipato per
+gli altri resta un credito, quindi pagare per intero una spesa condivisa non fa
+scendere la curva più della propria metà ([ADR 0018](docs/decisions/0018-curva-del-patrimonio.md)).
+In Grafici è una curva che si ferma a oggi, con la cassa tratteggiata dove se ne
+stacca e il punto "oggi, conti + crediti" per vedere lo scarto; in dashboard la
+riconciliazione, sempre per cassa, è un grafico a cascata (saldo iniziale →
+entrate → uscite → atteso → scarto → reale).
 
 **Grafici** (`/t/:id/grafici`). Entrate e
 uscite degli ultimi 12 mesi, ripartizione per categoria e per persona, filtri

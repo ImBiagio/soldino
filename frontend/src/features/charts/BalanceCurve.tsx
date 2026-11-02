@@ -2,8 +2,9 @@ import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 import {
   Area,
-  AreaChart,
   CartesianGrid,
+  ComposedChart,
+  Line,
   ReferenceDot,
   ReferenceLine,
   ResponsiveContainer,
@@ -26,14 +27,18 @@ interface Point {
   date: string
   /** Euro come numero solo per disegnare: i valori mostrati passano da formatMoney. */
   balance: number
+  cash: number
   income: number
   expense: number
 }
 
 /**
- * Andamento dei soldi: saldo iniziale + entrate − uscite ± pareggi, giorno per
- * giorno, per cassa come la riconciliazione. Il punto "oggi sui conti" e' il
- * saldo reale dichiarato: dove si stacca dalla curva c'e' lo scarto.
+ * Andamento del patrimonio: saldo iniziale + entrate − la propria quota delle
+ * spese, giorno per giorno. Quello anticipato per gli altri resta un credito,
+ * quindi la curva non scende quando si paga una spesa condivisa per intero.
+ * La linea tratteggiata e' la cassa (come la riconciliazione) e compare solo
+ * dove se ne stacca. Il punto "oggi" e' il saldo reale dichiarato piu' gli
+ * stessi crediti: dove si stacca dalla curva c'e' lo scarto.
  */
 export function BalanceCurve({
   tracker,
@@ -66,6 +71,7 @@ export function BalanceCurve({
         .map((p) => ({
           date: p.date,
           balance: toCents(p.balance) / 100,
+          cash: toCents(p.cash) / 100,
           income: toCents(p.income) / 100,
           expense: toCents(p.expense) / 100,
         })),
@@ -75,17 +81,27 @@ export function BalanceCurve({
   const realFigures = person
     ? reconciliation.data?.people.find((p) => p.user.id === person)
     : reconciliation.data
+  // I crediti verso gli altri valgono anche sul reale: si aggiungono quelli di oggi.
+  const todayPoint = points.at(-1)
   const realToday =
-    realFigures && today >= range.from && today <= range.to
-      ? toCents(realFigures.available_balance) / 100
+    realFigures && todayPoint && today >= range.from && today <= range.to
+      ? (toCents(realFigures.available_balance) +
+          toCents(todayPoint.balance) -
+          toCents(todayPoint.cash)) /
+        100
       : null
+  const showsCash = points.some((p) => p.cash !== p.balance)
 
-  const start = Math.round((points[0]?.balance ?? 0) * 100)
-  const end = Math.round((points.at(-1)?.balance ?? 0) * 100)
+  // La partenza e' prima del primo giorno, cosi' la variazione ne conta i movimenti.
+  const start = toCents(history.data?.start_balance ?? 0)
+  const end = todayPoint ? toCents(todayPoint.balance) : start
   const change = end - start
   const spanDays = points.length
   const ticks = useMemo(() => pickTicks(points.map((p) => p.date)), [points])
-  const minBalance = Math.min(...points.map((p) => p.balance), realToday ?? Infinity)
+  const minBalance = Math.min(
+    ...points.map((p) => Math.min(p.balance, p.cash)),
+    realToday ?? Infinity,
+  )
 
   const compact = new Intl.NumberFormat(intlLocale(), {
     style: 'currency',
@@ -100,12 +116,16 @@ export function BalanceCurve({
         <div>
           <h2 className="text-title-medium">
             {personName
-              ? interpolate(gettext('Andamento dei soldi di %(name)s'), { name: personName }, true)
-              : gettext('Andamento dei soldi, tutti insieme')}
+              ? interpolate(
+                  gettext('Andamento del patrimonio di %(name)s'),
+                  { name: personName },
+                  true,
+                )
+              : gettext('Andamento del patrimonio, tutti insieme')}
           </h2>
           <p className="mt-1 text-body-small text-on-surface-variant">
             {gettext(
-              'Saldo iniziale + entrate − uscite, giorno per giorno. Contano i soldi che passano dai conti, come nella riconciliazione.',
+              'Saldo iniziale + entrate − la propria quota delle spese, giorno per giorno. Quello che si anticipa per gli altri resta un credito finché non torna.',
             )}
             {categoryActive && ' ' + gettext('Il filtro categoria qui non si applica.')}
           </p>
@@ -148,10 +168,10 @@ export function BalanceCurve({
           <div
             className="h-[280px]"
             role="img"
-            aria-label={gettext('Andamento del saldo nel periodo')}
+            aria-label={gettext('Andamento del patrimonio nel periodo')}
           >
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
+              <ComposedChart data={points} margin={{ left: 0, right: 12, top: 8 }}>
                 <defs>
                   <linearGradient id="balance-fill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.22} />
@@ -189,6 +209,18 @@ export function BalanceCurve({
                   isAnimationActive={false}
                   activeDot={{ r: 5, stroke: 'var(--surface)', strokeWidth: 2 }}
                 />
+                {showsCash && (
+                  <Line
+                    type="monotone"
+                    dataKey="cash"
+                    stroke="var(--outline)"
+                    strokeWidth={1.5}
+                    strokeDasharray="4 4"
+                    dot={false}
+                    activeDot={false}
+                    isAnimationActive={false}
+                  />
+                )}
                 {realToday !== null && (
                   <ReferenceDot
                     x={today}
@@ -199,19 +231,25 @@ export function BalanceCurve({
                     strokeWidth={2}
                   />
                 )}
-              </AreaChart>
+              </ComposedChart>
             </ResponsiveContainer>
           </div>
           <div className="mt-2 flex flex-wrap gap-4 text-body-small text-on-surface-variant">
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-0.5 w-4 rounded bg-primary" />
-              {gettext('Saldo dai movimenti')}
+              {gettext('Patrimonio')}
             </span>
+            {showsCash && (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block w-4 border-t-2 border-dashed border-outline" />
+                {gettext('Sui conti, senza i crediti')}
+              </span>
+            )}
             {realToday !== null && (
               <span className="inline-flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-tertiary" />
                 {interpolate(
-                  gettext('Oggi sui conti: %(amount)s'),
+                  gettext('Oggi, conti + crediti: %(amount)s'),
                   { amount: formatMoney(realToday, tracker.currency) },
                   true,
                 )}
@@ -250,9 +288,15 @@ function CurveTooltip({
     <div className="rounded-row bg-surface px-3 py-2 text-body-small shadow-fab">
       <p className="mb-1 font-medium">{formatDate(point.date)}</p>
       <p className="flex justify-between gap-4">
-        <span className="text-on-surface-variant">{gettext('Saldo')}</span>
+        <span className="text-on-surface-variant">{gettext('Patrimonio')}</span>
         <span className="amount font-medium">{formatMoney(point.balance, currency)}</span>
       </p>
+      {point.cash !== point.balance && (
+        <p className="flex justify-between gap-4">
+          <span className="text-on-surface-variant">{gettext('Sui conti')}</span>
+          <span className="amount">{formatMoney(point.cash, currency)}</span>
+        </p>
+      )}
       {point.income > 0 && (
         <p className="flex justify-between gap-4">
           <span className="text-on-surface-variant">{gettext('Entrate del giorno')}</span>
@@ -261,7 +305,7 @@ function CurveTooltip({
       )}
       {point.expense > 0 && (
         <p className="flex justify-between gap-4">
-          <span className="text-on-surface-variant">{gettext('Uscite del giorno')}</span>
+          <span className="text-on-surface-variant">{gettext('Tua quota delle uscite')}</span>
           <span className="amount text-error">−{formatMoney(point.expense, currency)}</span>
         </p>
       )}
@@ -286,8 +330,8 @@ function MovementDays({ points, currency }: { points: Point[]; currency: string 
           <tr>
             <th className="py-2 font-medium">{gettext('Giorno')}</th>
             <th className="py-2 text-right font-medium">{gettext('Entrate')}</th>
-            <th className="py-2 text-right font-medium">{gettext('Uscite')}</th>
-            <th className="py-2 text-right font-medium">{gettext('Saldo')}</th>
+            <th className="py-2 text-right font-medium">{gettext('Uscite (quota)')}</th>
+            <th className="py-2 text-right font-medium">{gettext('Patrimonio')}</th>
           </tr>
         </thead>
         <tbody>

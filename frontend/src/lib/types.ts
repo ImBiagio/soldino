@@ -334,7 +334,8 @@ export interface BankSyncResult {
 export interface BalanceHistory {
   start_balance: Money
   end_balance: Money
-  points: { date: string; balance: Money; income: Money; expense: Money }[]
+  /** balance e' il patrimonio (quote delle spese), cash quello che passa dai conti. */
+  points: { date: string; balance: Money; cash: Money; income: Money; expense: Money }[]
 }
 
 export interface Reconciliation extends ReconciliationFigures {
