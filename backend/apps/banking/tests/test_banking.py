@@ -351,6 +351,71 @@ def test_registrazione_automatica_lascia_in_bozza_i_doppioni(
     assert draft.lines.get().duplicate_of is not None
 
 
+def test_righe_in_attesa_con_categoria_suggerita(
+    user, tracker, linked, fake, make_expense, django_capture_on_commit_callbacks
+):
+    """Come l'estratto conto: prima lo storico, poi Gemini per le righe scoperte."""
+    from apps.conftest import CategoryFactory
+    from apps.ingestion.models import StatementLine
+
+    food = CategoryFactory(tracker=tracker, name="Spesa", description="supermercati")
+    fun = CategoryFactory(tracker=tracker, name="Svago", description="streaming, cinema")
+    # Esselunga e' gia' stata messa in Svago a mano: lo storico vince sul modello.
+    make_expense(
+        tracker, paid_by=user, amount="3.00", tx_date=date(2026, 9, 1),
+        title="Esselunga", category=fun,
+    )
+
+    fake.transactions_data = [
+        tx("r1", "12.50", creditor={"name": "ESSELUNGA"}),
+        tx("r2", "9.99", creditor={"name": "NETFLIX"}),
+        tx("r3", "1500.00", "CRDT", debtor={"name": "ACME"}),
+    ]
+    asked = []
+
+    def suggest(lines, categories):
+        asked.extend(line["description"] for line in lines)
+        by_title = {"NETFLIX": str(fun.pk), "ACME": str(food.pk)}  # ACME: tipo sbagliato
+        return {line["index"]: by_title[line["description"]] for line in lines}
+
+    with (
+        mock.patch("apps.ingestion.services.scan.suggest_categories", side_effect=suggest),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        sync_service.sync_account(linked)
+
+    lines = {line.title: line for line in StatementImport.objects.get(source="bank").lines.all()}
+    assert sorted(asked) == ["ACME", "NETFLIX"]
+    assert (lines["ESSELUNGA"].category, lines["ESSELUNGA"].category_source) == (
+        fun, StatementLine.CategorySource.HISTORY
+    )
+    assert (lines["NETFLIX"].category, lines["NETFLIX"].category_source) == (
+        fun, StatementLine.CategorySource.AI
+    )
+    # Una categoria di spesa su un'entrata non si accetta.
+    assert lines["ACME"].category is None
+
+
+def test_senza_gemini_le_righe_restano_senza_categoria(
+    user, tracker, linked, fake, django_capture_on_commit_callbacks
+):
+    from apps.conftest import CategoryFactory
+    from apps.ingestion.services.gemini import ExtractionError
+
+    CategoryFactory(tracker=tracker, name="Spesa")
+    fake.transactions_data = [tx("r1", "12.50", creditor={"name": "ESSELUNGA"})]
+    with (
+        mock.patch(
+            "apps.ingestion.services.scan.suggest_categories",
+            side_effect=ExtractionError("giu'"),
+        ),
+        django_capture_on_commit_callbacks(execute=True),
+    ):
+        result = sync_service.sync_account(linked)
+    assert result["drafted"] == 1
+    assert StatementImport.objects.get(source="bank").lines.get().category is None
+
+
 def test_consenso_scaduto_ferma_la_sync(user, linked, fake):
     connection = linked.connection
     connection.valid_until = timezone.now() - timedelta(days=1)

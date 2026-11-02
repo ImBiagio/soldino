@@ -493,7 +493,10 @@ tabella: data, titolo, importo, tipo, categoria, chi paga, divisione; si
 eliminano e aggiungono righe. Solo "Registra" le scrive nei movimenti
 (`source=scan`). La categoria viene prima dallo storico dell'esercente, poi da
 Gemini che legge le **descrizioni** delle categorie. I possibili doppioni sono
-segnalati. Il PDF si cancella appena letto.
+segnalati. Il PDF si cancella appena letto. Le righe in attesa che arrivano
+dalla banca seguono la stessa regola: storico subito, poi il task
+`suggest_statement_categories` chiede a Gemini la categoria delle righe scoperte
+(solo il testo, senza PDF; se Gemini non risponde restano senza).
 
 **Modello Gemini scelto in base alla disponibilità**: `GEMINI_MODEL` è il
 principale, `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) le

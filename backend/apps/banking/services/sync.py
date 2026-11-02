@@ -18,6 +18,7 @@ from django.utils.translation import gettext as _
 from apps.core.money import quantize
 from apps.ingestion.models import StatementImport, StatementLine
 from apps.ingestion.services.scan import commit_statement, draft_line, history_categories
+from apps.ingestion.tasks import suggest_statement_categories
 from apps.trackers.models import Tracker
 
 from ..models import BankAccount, BankConnection, BankingApp, SeenBankTransaction
@@ -385,10 +386,18 @@ def _store(bank_account: BankAccount, *, balance, raw: list[dict], date_from: da
     if fresh:
         history = history_categories(account.tracker)
         if bank_account.auto_commit:
-            committed, drafted = _auto_commit(bank_account, fresh, history)
+            committed, drafted, draft = _auto_commit(bank_account, fresh, history)
         else:
-            _append(_open_draft(bank_account), fresh, history)
+            draft = _open_draft(bank_account)
+            _append(draft, fresh, history)
             drafted = len(fresh)
+        if draft is not None:
+            # Le righe in attesa: dove lo storico non basta la categoria la propone
+            # Gemini, come nella lettura dell'estratto conto. Dopo il commit e
+            # fuori dalla richiesta: "Sincronizza ora" non aspetta il modello.
+            db_transaction.on_commit(
+                lambda: suggest_statement_categories.delay(str(draft.pk))
+            )
 
     if rows:
         bank_account.synced_until = max(row["date"] for row in rows)
@@ -404,11 +413,17 @@ def _store(bank_account: BankAccount, *, balance, raw: list[dict], date_from: da
     }
 
 
-def _auto_commit(bank_account: BankAccount, rows: list[dict], history) -> tuple[int, int]:
-    """Registra subito le righe; i possibili doppioni restano in bozza da rivedere."""
+def _auto_commit(
+    bank_account: BankAccount, rows: list[dict], history
+) -> tuple[int, int, StatementImport | None]:
+    """Registra subito le righe; i possibili doppioni restano in bozza da rivedere.
+
+    Restituisce registrate, in bozza e la bozza (se ne e' rimasta una).
+    """
     statement = _new_import(bank_account)
     _append(statement, rows, history)
     doubtful = list(statement.lines.filter(duplicate_of__isnull=False))
+    draft = None
     if doubtful:
         draft = _open_draft_excluding(bank_account, statement)
         start = (draft.lines.order_by("-position").values_list("position", flat=True).first()
@@ -425,7 +440,7 @@ def _auto_commit(bank_account: BankAccount, rows: list[dict], history) -> tuple[
         commit_statement(statement, SimpleNamespace(user=bank_account.connection.user))
     else:
         statement.delete(hard=True)
-    return len(rows) - len(doubtful), len(doubtful)
+    return len(rows) - len(doubtful), len(doubtful), draft
 
 
 def _open_draft_excluding(bank_account: BankAccount, current: StatementImport) -> StatementImport:

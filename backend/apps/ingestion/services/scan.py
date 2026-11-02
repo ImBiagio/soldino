@@ -30,6 +30,7 @@ from .gemini import (
     extract_receipt,
     extract_statement,
     extract_voice,
+    suggest_categories,
 )
 
 logger = logging.getLogger(__name__)
@@ -216,6 +217,53 @@ def build_lines(statement: StatementImport, extracted: ExtractedStatement) -> in
     statement.period_start = _parse_date(extracted.period_start)
     statement.period_end = _parse_date(extracted.period_end)
     return len(lines)
+
+
+def suggest_missing_categories(statement: StatementImport, suggest=None) -> int:
+    """Righe in bozza senza categoria (la banca): la propone il modello.
+
+    Come nella lettura dell'estratto conto lo storico vince, quindi si chiede
+    solo per le righe che lo storico non copre. E' un aiuto: se Gemini non
+    risponde le righe restano senza categoria. ``suggest`` e' sostituibile nei test.
+    """
+    lines = list(
+        statement.lines.filter(
+            category_source=StatementLine.CategorySource.NONE,
+            transaction__isnull=True,
+            settlement__isnull=True,
+        ).exclude(type=StatementLine.Type.TRANSFER)
+    )
+    catalog = category_catalog(statement.tracker)
+    if not lines or not catalog:
+        return 0
+    try:
+        picks = (suggest or suggest_categories)(
+            [
+                {"index": i, "description": line.title, "amount": str(line.amount),
+                 "type": line.type}
+                for i, line in enumerate(lines)
+            ],
+            catalog,
+        )
+    except ExtractionError as exc:
+        logger.info("Categorie non suggerite per %s: %s", statement.pk, exc)
+        return 0
+
+    valid = {c["id"]: c["type"] for c in catalog}
+    updated = 0
+    for i, line in enumerate(lines):
+        category_id = picks.get(i)
+        if not category_id or valid.get(category_id) != line.type:
+            continue
+        # Nel frattempo l'utente puo' averla scelta a mano: quella non si tocca.
+        updated += StatementLine.objects.filter(
+            pk=line.pk, category_source=StatementLine.CategorySource.NONE
+        ).update(
+            category_id=category_id,
+            category_source=StatementLine.CategorySource.AI,
+            updated_at=timezone.now(),
+        )
+    return updated
 
 
 def voice_context(statement: StatementImport) -> dict:
