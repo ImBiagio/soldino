@@ -1,0 +1,52 @@
+# Copia fuori dal server dei backup di cinemino, soldino e regalino: ogni
+# notte alle 01:30 UTC (dopo i pg_dump di mezzanotte e le foto di regalino
+# delle 23:30 UTC) e a ogni avvio, rclone manda ~/<progetto>/backups su Google
+# Drive, cifrati (remote "gdrive-crypt" in ./rclone/rclone.conf, chiavi nel
+# vault). Sul server sta in ~/offsite, accanto a ~/edge.
+#
+# "sync" rispecchia le cartelle del server, ma cio' che sul server sparisce
+# (rotazione o cancellazione per sbaglio) non si perde: finisce in
+# _eliminati/<data> e si toglie solo dopo 60 giorni. I symlink "*-latest"
+# del backup Postgres si saltano: il file a cui puntano c'e' gia'.
+name: offsite
+
+services:
+  rclone:
+    image: rclone/rclone:1.68.2
+    restart: unless-stopped
+    # biagio: legge i backup e scrive la sua config (il token si rinnova).
+    user: "1000:1000"
+    volumes:
+      - ./rclone:/config/rclone
+      - ../cinemino/backups:/backups/cinemino:ro
+      - ../soldino/backups:/backups/soldino:ro
+      - ../regalino/backups:/backups/regalino:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -u
+        copy() {
+          day=$$(date +%F)
+          status=ok
+          for project in cinemino soldino regalino; do
+            if ! rclone sync "/backups/$$project" "gdrive-crypt:$$project" \
+                --backup-dir "gdrive-crypt:_eliminati/$$day/$$project" \
+                --skip-links --log-level NOTICE --stats-one-line --stats 0; then
+              status=ERRORE
+            fi
+          done
+          # _eliminati nasce solo la prima volta che qualcosa sparisce dal server.
+          if rclone lsf gdrive-crypt: --dirs-only | grep -qx '_eliminati/'; then
+            rclone delete gdrive-crypt:_eliminati --min-age 60d --rmdirs \
+              --log-level NOTICE || status=ERRORE
+          fi
+          echo "copia offsite $$(date '+%F %T') UTC: $$status"
+        }
+        copy
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "$$(date +%F) 01:30:00" +%s)
+          [ "$$next" -gt "$$now" ] || next=$$((next + 86400))
+          sleep $$((next - now))
+          copy
+        done
