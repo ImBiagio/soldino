@@ -8,6 +8,12 @@
 # (rotazione o cancellazione per sbaglio) non si perde: finisce in
 # _eliminati/<data> e si toglie solo dopo 60 giorni. I symlink "*-latest"
 # del backup Postgres si saltano: il file a cui puntano c'e' gia'.
+#
+# "notify" fa da interruttore di sicurezza: ogni mattina alle 05:00 UTC
+# controlla che la copia su Drive sia riuscita nelle ultime 26 ore e che i
+# backup locali di ogni progetto siano freschi; se qualcosa manca manda una
+# mail (SMTP Brevo delle app, credenziali in ./.env). Cosi' l'avviso arriva
+# anche quando la copia non parte proprio, non solo quando fallisce.
 name: offsite
 
 services:
@@ -18,6 +24,7 @@ services:
     user: "1000:1000"
     volumes:
       - ./rclone:/config/rclone
+      - ./status:/status
       - ../cinemino/backups:/backups/cinemino:ro
       - ../soldino/backups:/backups/soldino:ro
       - ../regalino/backups:/backups/regalino:ro
@@ -28,18 +35,24 @@ services:
         copy() {
           day=$$(date +%F)
           status=ok
+          log=/status/ultima-copia.log
+          : > "$$log"
           for project in cinemino soldino regalino; do
             if ! rclone sync "/backups/$$project" "gdrive-crypt:$$project" \
                 --backup-dir "gdrive-crypt:_eliminati/$$day/$$project" \
-                --skip-links --log-level NOTICE --stats-one-line --stats 0; then
+                --skip-links --log-level NOTICE --stats-one-line --stats 0 2>>"$$log"; then
               status=ERRORE
+              echo "-> $$project non copiato" >> "$$log"
             fi
           done
           # _eliminati nasce solo la prima volta che qualcosa sparisce dal server.
-          if rclone lsf gdrive-crypt: --dirs-only | grep -qx '_eliminati/'; then
+          if rclone lsf gdrive-crypt: --dirs-only 2>>"$$log" | grep -qx '_eliminati/'; then
             rclone delete gdrive-crypt:_eliminati --min-age 60d --rmdirs \
-              --log-level NOTICE || status=ERRORE
+              --log-level NOTICE 2>>"$$log" || status=ERRORE
           fi
+          # Letto da "notify": epoca ed esito dell'ultima copia.
+          echo "$$(date +%s) $$status" > /status/stato
+          cat "$$log"
           echo "copia offsite $$(date '+%F %T') UTC: $$status"
         }
         copy
@@ -49,4 +62,70 @@ services:
           [ "$$next" -gt "$$now" ] || next=$$((next + 86400))
           sleep $$((next - now))
           copy
+        done
+
+  notify:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file: .env
+    volumes:
+      - ./status:/status:ro
+      - ../cinemino/backups:/backups/cinemino:ro
+      - ../soldino/backups:/backups/soldino:ro
+      - ../regalino/backups:/backups/regalino:ro
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        set -u
+        MAX_ORE=26
+        # Il file piu' recente di una cartella, in ore fa (9999 se vuota).
+        ore_fa() {
+          newest=$$(find "$$1" -type f -name "$$2" -exec stat -c %Y {} + 2>/dev/null | sort -n | tail -1)
+          [ -n "$$newest" ] || { echo 9999; return; }
+          echo $$(( ($$(date +%s) - newest) / 3600 ))
+        }
+        problemi() {
+          if [ -f /status/stato ]; then read -r ts esito < /status/stato; else ts=0; esito=MAI; fi
+          ore=$$(( ($$(date +%s) - ts) / 3600 ))
+          if [ "$$esito" != ok ]; then echo "- copia su Google Drive: esito $$esito"; fi
+          if [ "$$ore" -ge "$$MAX_ORE" ]; then echo "- copia su Google Drive: ultima riuscita o tentata $$ore ore fa"; fi
+          for p in cinemino soldino regalino; do
+            o=$$(ore_fa "/backups/$$p/daily" "*.sql.gz")
+            [ "$$o" -lt "$$MAX_ORE" ] || echo "- $$p: ultimo backup Postgres $$o ore fa"
+          done
+          o=$$(ore_fa /backups/regalino/media/daily "media-*.tar.gz")
+          [ "$$o" -lt "$$MAX_ORE" ] || echo "- regalino: ultimo backup delle foto $$o ore fa"
+        }
+        manda() {
+          oggetto="$$1"; corpo="$$2"
+          {
+            printf 'From: Homeserver <%s>\r\nTo: %s\r\nSubject: %s\r\n' "$$ALERT_FROM" "$$ALERT_TO" "$$oggetto"
+            printf 'Date: %s\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n' "$$(date -R)"
+            printf '%s\n' "$$corpo"
+          } > /tmp/mail.txt
+          curl -sS --ssl-reqd --url "smtp://$$EMAIL_HOST:$$EMAIL_PORT" \
+            --user "$$EMAIL_HOST_USER:$$EMAIL_HOST_PASSWORD" \
+            --mail-from "$$ALERT_FROM" --mail-rcpt "$$ALERT_TO" -T /tmp/mail.txt \
+            && echo "mail mandata: $$oggetto"
+        }
+        controlla() {
+          elenco=$$(problemi)
+          if [ -z "$$elenco" ]; then echo "controllo backup $$(date '+%F %T') UTC: ok"; return; fi
+          echo "controllo backup $$(date '+%F %T') UTC: PROBLEMI"; echo "$$elenco"
+          log=$$(tail -n 30 /status/ultima-copia.log 2>/dev/null)
+          manda "Backup del homeserver: qualcosa non va" "$$(printf '%s\n\n%s\n\nUltima copia su Drive (log):\n%s\n\nCome rimediare: vault, nota "Backup offsite".' \
+            'Il controllo del mattino ha trovato:' "$$elenco" "$${log:-(vuoto)}")"
+        }
+        # "prova" manda subito una mail di prova, "ora" controlla subito.
+        case "$${MODE:-}" in
+          prova) manda "Backup del homeserver: mail di prova" "Se leggi questa mail, gli avvisi sui backup arrivano."; exit ;;
+          ora) controlla; exit ;;
+        esac
+        while true; do
+          now=$$(date +%s)
+          next=$$(date -d "$$(date +%F) 05:00:00" +%s)
+          [ "$$next" -gt "$$now" ] || next=$$((next + 86400))
+          sleep $$((next - now))
+          controlla
         done
