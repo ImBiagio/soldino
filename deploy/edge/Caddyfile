@@ -12,3 +12,7 @@ cinem.inoo.it {
 sold.inoo.it {
 	reverse_proxy soldino-web:80
 }
+
+regal.inoo.it {
+	reverse_proxy regalino-web:80
+}

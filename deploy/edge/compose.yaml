@@ -1,5 +1,5 @@
 # Proxy "edge" del homeserver: l'unico container con le porte 80/443. Smista
-# per hostname verso i Caddy interni delle app (cinemino, soldino) sulla rete
+# per hostname verso i Caddy interni delle app (cinemino, soldino, regalino) sulla rete
 # Docker "edge" e gestisce i certificati Let's Encrypt di tutti i domini.
 # Sul server sta in ~/edge con il Caddyfile accanto.
 name: edge
