@@ -95,6 +95,13 @@ class BankAccount(BaseModel):
         related_name="bank_links",
     )
     auto_commit = models.BooleanField(default=False)
+    # Il saldo letto dalla banca va sul conto di Soldino solo con questo acceso.
+    # Si spegne da solo quando qualcuno corregge il saldo a mano: la banca puo'
+    # dare un saldo parziale (es. senza il deposito) e la sincronizzazione
+    # cancellava l'allineamento. ``bank_balance`` resta come riferimento.
+    sync_balance = models.BooleanField(default=True)
+    bank_balance = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    bank_balance_at = models.DateTimeField(null=True, blank=True)
     sync_from = models.DateField(null=True, blank=True)
     last_synced_at = models.DateTimeField(null=True, blank=True)
     # Ultima data di contabilizzazione letta: il giro successivo riparte da li'.

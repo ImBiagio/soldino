@@ -67,6 +67,9 @@ class BankAccountSerializer(serializers.ModelSerializer):
             "account",
             "account_name",
             "auto_commit",
+            "sync_balance",
+            "bank_balance",
+            "bank_balance_at",
             "sync_from",
             "last_synced_at",
             "synced_until",
@@ -75,7 +78,7 @@ class BankAccountSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id", "name", "iban", "currency", "account_name", "last_synced_at",
-            "synced_until", "last_error", "draft",
+            "synced_until", "last_error", "draft", "bank_balance", "bank_balance_at",
         ]
 
     def get_draft(self, obj) -> dict | None:

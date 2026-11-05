@@ -596,3 +596,71 @@ def test_cambiare_la_data_di_partenza_rilegge_da_li(api, user, tracker, linked, 
     result = sync_service.sync_account(linked)
     assert fake.calls[-1] == ("transactions", "2026-09-01")
     assert (result["drafted"], result["already_seen"]) == (1, 1)
+
+
+# ------------------------------------------------------------ saldo a mano --
+
+
+def test_saldo_corretto_a_mano_non_si_sovrascrive(api, user, tracker, linked, fake):
+    """Caso reale: la banca da' il conto senza il deposito e cancellava l'allineamento."""
+    sync_service.sync_account(linked)
+    account = linked.account
+    response = api(user).patch(
+        reverse("account-detail", args=[tracker.pk, account.pk]),
+        {"current_balance": "84700.09"},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    linked.refresh_from_db()
+    assert linked.sync_balance is False
+
+    fake.balances_data = [
+        {"balance_type": "CLBD", "balance_amount": {"amount": "19977.65", "currency": "EUR"}}
+    ]
+    sync_service.sync_account(linked)
+    account.refresh_from_db()
+    linked.refresh_from_db()
+    assert account.current_balance == D("84700.09")
+    assert linked.bank_balance == D("19977.65")
+    assert linked.bank_balance_at is not None
+
+
+def test_altre_modifiche_al_conto_non_spengono_il_saldo_dalla_banca(
+    api, user, tracker, linked, fake
+):
+    api(user).patch(
+        reverse("account-detail", args=[tracker.pk, linked.account.pk]),
+        {"name": "BBVA principale"},
+        format="json",
+    )
+    linked.refresh_from_db()
+    assert linked.sync_balance is True
+
+
+def test_riaccendere_il_saldo_dalla_banca_lo_applica_subito(api, user, tracker, linked, fake):
+    sync_service.sync_account(linked)
+    account = linked.account
+    account.current_balance = D("10.00")
+    account.save()
+    linked.sync_balance = False
+    linked.save()
+
+    response = api(user).patch(
+        reverse("bankaccount-detail", args=[tracker.pk, linked.pk]),
+        {"sync_balance": True},
+        format="json",
+    )
+    assert response.status_code == 200, response.data
+    assert response.data["bank_balance"] == "1234.56"
+    account.refresh_from_db()
+    assert account.current_balance == D("1234.56")
+
+
+def test_rinnovo_conserva_il_saldo_a_mano(user, tracker, linked, fake):
+    linked.sync_balance = False
+    linked.save()
+    new = BankConnection.objects.create(
+        user=user, tracker=tracker, aspsp_name="BBVA", aspsp_country="IT", state="nuovo"
+    )
+    sync_service.complete_connection(user, code="c", state="nuovo")
+    assert new.accounts.get().sync_balance is False

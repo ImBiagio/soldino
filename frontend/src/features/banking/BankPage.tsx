@@ -264,6 +264,8 @@ function AccountRow({
   }
 
   const result = sync.data
+  // PayPal ha conti multivaluta ("XXX"): il saldo e' nella valuta del tracker.
+  const balanceCurrency = link.currency === 'XXX' ? tracker.currency : link.currency
   return (
     <div className="grid gap-3 rounded-card bg-surface px-4 py-3">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -336,6 +338,33 @@ function AccountRow({
         </div>
       </div>
 
+      {link.account && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Switch
+            checked={link.sync_balance}
+            label={gettext('Saldo dalla banca')}
+            disabled={disabled || update.isPending}
+            onChange={(checked) => update.mutate({ id: link.id, sync_balance: checked })}
+          />
+          <span className="text-body-medium">{gettext('Saldo dalla banca')}</span>
+          <span className="flex-1 text-body-small text-on-surface-variant">
+            {link.sync_balance
+              ? gettext(
+                  'Ogni lettura aggiorna il saldo del conto. Se lo correggi a mano si spegne.',
+                )
+              : link.bank_balance != null
+                ? interpolate(
+                    gettext(
+                      'Saldo tenuto a mano: la banca dice %(amount)s, il conto resta come l’hai scritto.',
+                    ),
+                    { amount: formatMoney(link.bank_balance, balanceCurrency) },
+                    true,
+                  )
+                : gettext('Saldo tenuto a mano: la sincronizzazione non lo cambia.')}
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-body-small text-on-surface-variant">
         <span className="flex-1">
           {link.auto_commit
@@ -381,15 +410,11 @@ function AccountRow({
       {result && !sync.isPending && (
         <p className="text-body-medium text-primary">
           {result.balance != null &&
-            // PayPal ha conti multivaluta ("XXX"): il saldo e' nella valuta del tracker.
             interpolate(
-              gettext('Saldo %(amount)s.'),
-              {
-                amount: formatMoney(
-                  result.balance,
-                  link.currency === 'XXX' ? tracker.currency : link.currency,
-                ),
-              },
+              link.sync_balance
+                ? gettext('Saldo %(amount)s.')
+                : gettext('La banca dice %(amount)s; il saldo resta il tuo.'),
+              { amount: formatMoney(result.balance, balanceCurrency) },
               true,
             ) + ' '}
           {result.committed

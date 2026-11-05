@@ -28,6 +28,7 @@ from .serializers import (
 from .services.crypto import PrivateKeyError
 from .services.enablebanking import BankingError
 from .services.sync import (
+    apply_bank_balance,
     client_for,
     complete_connection,
     disconnect,
@@ -204,7 +205,11 @@ class BankAccountViewSet(
 
     def perform_update(self, serializer):
         before = (serializer.instance.account_id, serializer.instance.sync_from)
+        was_syncing_balance = serializer.instance.sync_balance
         bank_account = serializer.save()
+        if bank_account.sync_balance and not was_syncing_balance:
+            # Riacceso: il conto torna subito al saldo della banca, senza aspettare il giro.
+            apply_bank_balance(bank_account)
         if (bank_account.account_id, bank_account.sync_from) != before:
             # Un altro conto di Soldino o un'altra data di partenza: il giro dopo
             # riparte da sync_from, non da dove era arrivato. I movimenti gia'

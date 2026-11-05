@@ -176,7 +176,7 @@ def _carry_over(account: BankAccount) -> None:
     )
     if previous is None:
         return
-    for field in ("account_id", "auto_commit", "sync_from", "synced_until"):
+    for field in ("account_id", "auto_commit", "sync_balance", "sync_from", "synced_until"):
         setattr(account, field, getattr(previous, field))
     account.save()
     previous.account = None
@@ -353,14 +353,27 @@ def sync_account(bank_account: BankAccount, *, today: date | None = None) -> dic
     return _store(bank_account, balance=balance, raw=raw, date_from=date_from)
 
 
+def apply_bank_balance(bank_account: BankAccount) -> None:
+    """Porta sul conto di Soldino l'ultimo saldo letto dalla banca."""
+    account = bank_account.account
+    if account is None or bank_account.bank_balance is None:
+        return
+    account.current_balance = bank_account.bank_balance
+    account.balance_updated_at = bank_account.bank_balance_at or timezone.now()
+    account.save(update_fields=["current_balance", "balance_updated_at", "updated_at"])
+
+
 @db_transaction.atomic
 def _store(bank_account: BankAccount, *, balance, raw: list[dict], date_from: date) -> dict:
     account = bank_account.account
     now = timezone.now()
     if balance is not None:
-        account.current_balance = balance
-        account.balance_updated_at = now
-        account.save(update_fields=["current_balance", "balance_updated_at", "updated_at"])
+        bank_account.bank_balance = balance
+        bank_account.bank_balance_at = now
+        bank_account.save(update_fields=["bank_balance", "bank_balance_at", "updated_at"])
+        # Un saldo tenuto a mano non si tocca: la banca resta solo come riferimento.
+        if bank_account.sync_balance:
+            apply_bank_balance(bank_account)
 
     rows = [row for tx in raw if (row := parse_transaction(tx))]
     # Prima di sync_from non si importa nulla, anche se la banca lo restituisce.

@@ -68,6 +68,9 @@ class AccountSerializer(serializers.ModelSerializer):
         if changed:
             self._touch_balance(instance, validated_data)
             instance.save(update_fields=["balance_updated_at"])
+            if "current_balance" in validated_data:
+                # Allineato a mano: la sincronizzazione non lo deve sovrascrivere.
+                instance.bank_links.filter(sync_balance=True).update(sync_balance=False)
         return instance
 
 

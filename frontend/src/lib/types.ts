@@ -299,6 +299,11 @@ export interface BankAccountLink {
   account: UUID | null
   account_name: string | null
   auto_commit: boolean
+  /** Spento quando il saldo e' corretto a mano: la sincronizzazione non lo tocca. */
+  sync_balance: boolean
+  /** L'ultimo saldo letto dalla banca, anche quando non va sul conto. */
+  bank_balance: Money | null
+  bank_balance_at: string | null
   sync_from: string | null
   last_synced_at: string | null
   synced_until: string | null

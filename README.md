@@ -498,6 +498,14 @@ dalla banca seguono la stessa regola: storico subito, poi il task
 `suggest_statement_categories` chiede a Gemini la categoria delle righe scoperte
 (solo il testo, senza PDF; se Gemini non risponde restano senza).
 
+**Saldo dalla banca** ([ADR 0019](docs/decisions/0019-saldo-a-mano-sui-conti-collegati.md)).
+Ogni lettura della banca aggiorna il saldo del conto abbinato finché
+`BankAccount.sync_balance` è acceso. Correggere a mano il saldo di un conto
+collegato lo spegne: la banca può dare un saldo parziale (Illimity senza il
+deposito) e il giro successivo cancellava l'allineamento. Il saldo letto resta
+in `bank_balance`, mostrato nella pagina Banca accanto all'interruttore;
+riaccenderlo riporta subito il conto a quel valore.
+
 **Modello Gemini scelto in base alla disponibilità**: `GEMINI_MODEL` è il
 principale, `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) le
 riserve. Se un modello è sovraccarico o non risponde lo scan passa subito al
