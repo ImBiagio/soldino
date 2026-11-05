@@ -46,8 +46,15 @@ services:
             fi
           done
           # _eliminati nasce solo la prima volta che qualcosa sparisce dal server.
+          # Cancellare e togliere le cartelle vuote sono due passi: con
+          # --min-age, "delete --rmdirs" non vede i file piu' giovani, crede
+          # vuote le cartelle che li contengono e Drive rifiuta ("directory
+          # not empty"), segnando ERRORE ogni notte. "rmdirs" senza filtri
+          # toglie solo le cartelle davvero vuote.
           if rclone lsf gdrive-crypt: --dirs-only 2>>"$$log" | grep -qx '_eliminati/'; then
-            rclone delete gdrive-crypt:_eliminati --min-age 60d --rmdirs \
+            rclone delete gdrive-crypt:_eliminati --min-age 60d \
+              --log-level NOTICE 2>>"$$log" || status=ERRORE
+            rclone rmdirs gdrive-crypt:_eliminati --leave-root \
               --log-level NOTICE 2>>"$$log" || status=ERRORE
           fi
           # Letto da "notify": epoca ed esito dell'ultima copia.
