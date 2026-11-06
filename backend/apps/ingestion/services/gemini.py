@@ -29,6 +29,7 @@ class ExtractionError(Exception):
 
 # 429 limite di frequenza, 500/503 sovraccarico, 504 timeout lato Google: passano da soli.
 TRANSIENT_CODES = {429, 500, 503, 504}
+API_VERSION = "v1beta"
 RETRY_PAUSES = (4, 12)
 # Per tentativo: un estratto conto lungo puo' metterci un minuto buono, uno
 # scontrino pochi secondi. Oltre, il modello e' "giu'" e si passa alla riserva.
@@ -241,9 +242,12 @@ def _generate(contents, schema, *, timeout_ms: int):
     from google.genai import errors, types
 
     # Senza timeout una chiamata appesa lasciava l'import "in lettura" per sempre.
+    # API v1beta esplicita: e' l'unica con gli alias "gemini-flash-latest" e lo
+    # schema di risposta; google-genai 3.0 passava di default a v1 e ogni
+    # modello rispondeva 404 (prod, 2026-11-06).
     client = genai.Client(
         api_key=settings.GEMINI_API_KEY,
-        http_options=types.HttpOptions(timeout=timeout_ms),
+        http_options=types.HttpOptions(timeout=timeout_ms, api_version=API_VERSION),
     )
     config = types.GenerateContentConfig(
         response_mime_type="application/json",

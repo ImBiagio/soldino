@@ -264,6 +264,18 @@ def test_gemini_sempre_sovraccarico_messaggio_leggibile(settings):
         assert client.return_value.models.generate_content.call_count == 3
 
 
+def test_il_client_usa_l_api_v1beta(settings):
+    # Gli alias "-latest" esistono solo in v1beta: con v1 ogni modello da' 404.
+    from apps.ingestion.services import gemini
+
+    settings.GEMINI_API_KEY = "chiave-finta"
+    ok = mock.Mock(parsed=ExtractedStatement(lines=[]))
+    with mock.patch("google.genai.Client") as client:
+        client.return_value.models.generate_content.return_value = ok
+        gemini.extract_statement(PDF, [])
+    assert client.call_args.kwargs["http_options"].api_version == "v1beta"
+
+
 def test_chiave_rifiutata_non_si_riprova(settings):
     from apps.ingestion.services import gemini
 

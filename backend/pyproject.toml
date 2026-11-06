@@ -12,7 +12,9 @@ dependencies = [
     "django-simple-history>=3.7",
     "django-celery-beat>=2.6",
     "celery[redis]>=5.4",
-    "google-genai>=1.0",
+    # La 3.0 passa di default all'API v1, dove gli alias "-latest" danno 404:
+    # il client fissa comunque v1beta, il tetto evita altre sorprese di una major.
+    "google-genai>=1.0,<3",
     "redis>=5.0",
     "psycopg[binary]>=3.1",
     "gunicorn>=22.0",
