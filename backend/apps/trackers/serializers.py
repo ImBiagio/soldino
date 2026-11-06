@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db import transaction as db_transaction
+from django.utils import translation
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from rest_framework import serializers
@@ -12,6 +13,7 @@ from apps.core.methods import validate_date_range
 from apps.users.serializers import UserBriefSerializer
 
 from .models import Category, Membership, Tracker
+from .translate import default_translations, name_written, schedule_translation
 
 User = get_user_model()
 
@@ -134,6 +136,7 @@ def _seed_default_categories(tracker: Tracker) -> None:
             Category(
                 tracker=tracker,
                 name=name,
+                name_translations=default_translations(name),
                 type=type_,
                 description=str(description),
                 color=color,
@@ -159,12 +162,35 @@ class CategorySerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def to_representation(self, instance):
+        # Il nome nella lingua di chi legge (ADR 0016 per l'interfaccia, i dati
+        # dell'utente con il traduttore di apps/trackers/translate.py).
+        data = super().to_representation(instance)
+        data["name"] = instance.localized_name()
+        return data
+
     def create(self, validated_data):
         # Senza un colore scelto, quello del tipo: rosso uscite, verde entrate.
         if not validated_data.get("color"):
             kind = validated_data.get("type", Category.Type.EXPENSE)
             validated_data["color"] = Category.DEFAULT_COLORS[kind]
-        return super().create(validated_data)
+        category = Category(**validated_data)
+        name_written(category, category.name, translation.get_language())
+        category.save()
+        schedule_translation(category)
+        return category
+
+    def update(self, instance, validated_data):
+        name = validated_data.get("name")
+        # Il form rimanda il nome che ha mostrato, cioe' quello tradotto: se non
+        # e' cambiato, nome scritto e traduzioni restano come sono.
+        if name is None or name == instance.localized_name():
+            validated_data.pop("name", None)
+            return super().update(instance, validated_data)
+        name_written(instance, name, translation.get_language())
+        category = super().update(instance, validated_data)
+        schedule_translation(category)
+        return category
 
 
 class TrackerDuplicateSerializer(serializers.Serializer):

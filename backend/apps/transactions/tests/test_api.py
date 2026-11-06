@@ -127,6 +127,23 @@ def test_filtri(api, user, tracker, partner, make_expense):
     assert client.get(url, {"split_user": str(partner.pk)}).data["count"] == 1
 
 
+def test_filtro_categoria_anche_senza(api, user, tracker, make_expense):
+    from ...conftest import CategoryFactory
+
+    food = CategoryFactory(tracker=tracker, name="Spesa")
+    make_expense(tracker, paid_by=user, amount="30.00", category=food)
+    make_expense(tracker, paid_by=user, amount="20.00")
+    client = api(user)
+    url = reverse("transaction-list", args=[tracker.pk])
+
+    assert client.get(url, {"category": str(food.pk)}).data["count"] == 1
+    # "none" e' il valore dei grafici per "Senza categoria".
+    none = client.get(url, {"category": "none"}).data
+    assert none["count"] == 1 and none["results"][0]["amount"] == "20.00"
+    # Un id malformato non e' un 500: semplicemente non trova nulla.
+    assert client.get(url, {"category": "x"}).data["count"] == 0
+
+
 def test_bulk(api, user, tracker):
     response = api(user).post(
         reverse("transaction-bulk", args=[tracker.pk]),

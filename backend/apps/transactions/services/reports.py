@@ -15,6 +15,7 @@ from django.utils.translation import gettext as _
 from apps.accounts.models import Account, PendingItem
 from apps.core.methods import sum_amount
 from apps.core.money import ZERO, money_str, quantize
+from apps.trackers.models import localized_category_name
 from apps.transactions.models import Settlement, Transaction, TransactionSplit
 
 
@@ -197,7 +198,13 @@ def summary(
     by_category = [
         {
             "category_id": str(row[field("category_id")]) if row[field("category_id")] else None,
-            "category_name": row[field("category__name")] or _("Senza categoria"),
+            "category_name": (
+                localized_category_name(
+                    row[field("category__name")], row[field("category__name_translations")]
+                )
+                if row[field("category__name")]
+                else _("Senza categoria")
+            ),
             "color": row[field("category__color")] or "#94a3b8",
             "icon": row[field("category__icon")] or "",
             "type": row[field("type")],
@@ -207,6 +214,7 @@ def summary(
         for row in rows.values(
             field("category_id"),
             field("category__name"),
+            field("category__name_translations"),
             field("category__color"),
             field("category__icon"),
             field("type"),

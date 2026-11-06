@@ -218,6 +218,12 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.banking.tasks.sync_all_bank_accounts",
         "schedule": crontab(hour=6, minute=15),
     },
+    # Il nome delle categorie in ogni lingua: le nuove si traducono subito, qui
+    # quelle rimaste indietro (Gemini giu' o senza chiave). Senza lavoro non chiama nulla.
+    "translate-categories": {
+        "task": "apps.trackers.tasks.translate_categories",
+        "schedule": crontab(minute=20),
+    },
     "flush-expired-tokens": {
         "task": "apps.users.tasks.flush_expired_tokens",
         "schedule": crontab(hour=4, minute=0),

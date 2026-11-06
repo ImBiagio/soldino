@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-05 10:15+0100\n"
+"POT-Creation-Date: 2026-11-06 09:58+0100\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -106,6 +106,15 @@ msgstr "Saving…"
 msgid "Salva"
 msgstr "Save"
 
+msgid "Cerca…"
+msgstr "Search…"
+
+msgid "Svuota la ricerca"
+msgstr "Clear search"
+
+msgid "Nessun risultato"
+msgstr "No results"
+
 msgid "%(shares)s di default"
 msgstr "%(shares)s default"
 
@@ -154,6 +163,9 @@ msgid ""
 "esattamente il totale."
 msgstr ""
 "The odd cent goes to %(name)s: the shares always add up to exactly the total."
+
+msgid "Tutti"
+msgstr "Everyone"
 
 msgid "Senza categoria"
 msgstr "Uncategorised"
@@ -988,6 +1000,21 @@ msgstr "net"
 msgid "Tocca di nuovo la persona per tornare a tutto il tracker."
 msgstr "Tap the person again to go back to the whole tracker."
 
+msgid "Movimenti in %(name)s"
+msgstr "Transactions in %(name)s"
+
+msgid "la quota di %(name)s"
+msgstr "%(name)s's share"
+
+msgid "Apri in Movimenti"
+msgstr "Open in Transactions"
+
+msgid "pagato da %(name)s"
+msgstr "paid by %(name)s"
+
+msgid "Qui i primi %(count)s: tutti gli altri in Movimenti."
+msgstr "Showing the first %(count)s: all the others are in Transactions."
+
 msgid "Ciao %(name)s"
 msgstr "Hi %(name)s"
 
@@ -996,9 +1023,6 @@ msgstr "Me"
 
 msgid "Di chi è la dashboard"
 msgstr "Whose dashboard"
-
-msgid "Tutti"
-msgstr "Everyone"
 
 msgid "Conti e movimenti quadrano"
 msgstr "Accounts and transactions balance"
@@ -1798,6 +1822,9 @@ msgstr "Every week"
 msgid "Ogni mese"
 msgstr "Every month"
 
+msgid "Mai"
+msgstr "Never"
+
 msgid "Ogni mattina saldo e movimenti del giorno prima."
 msgstr "Every morning: balance and the previous day's transactions."
 
@@ -1810,6 +1837,11 @@ msgid ""
 msgstr ""
 "On the first of the month: balance and transactions for the month just "
 "ended, like a bank statement."
+
+msgid ""
+"Nessuna lettura programmata: la banca non viene chiamata finché non lo "
+"chiedi tu."
+msgstr "No scheduled reading: the bank is never called until you ask."
 
 msgid "Lettura dei conti in banca"
 msgstr "Reading your bank accounts"
@@ -2081,6 +2113,12 @@ msgstr "Expenses only"
 
 msgid "Solo entrate"
 msgstr "Income only"
+
+msgid "Tutti i conti"
+msgstr "All accounts"
+
+msgid "Quota di %(name)s"
+msgstr "%(name)s's share"
 
 msgid "Altri filtri"
 msgstr "More filters"

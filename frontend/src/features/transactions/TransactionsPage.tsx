@@ -10,6 +10,8 @@ import {
   useTransactions,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { Picker } from '../../components/Picker'
+import { accountOptions, CategoryDot, categoryOptions, ChipSelect } from '../../components/selects'
 import {
   Avatar,
   Chip,
@@ -24,6 +26,7 @@ import {
 } from '../../components/ui'
 import { formatDate, monthKey, monthKeyLabel } from '../../lib/format'
 import { useClickOutside } from '../../lib/hooks'
+import { TYPE_LABEL } from '../../lib/labels'
 import { gettext, interpolate, ngettext } from '../../lib/i18n'
 import { categoryColor, memberColor } from '../../lib/colors'
 import { categoryIcon } from '../../lib/icons'
@@ -97,6 +100,7 @@ export function TransactionsPage() {
   }, [data])
 
   const members = activeMembers(tracker)
+  const splitMember = members.find((m) => m.user!.id === params.get('split_user'))
   const categoryList = categories.data?.results ?? []
   const accountList = accounts.data?.results ?? []
   // Ogni membro ha un colore stabile per posizione: lo stesso della barra di split.
@@ -122,7 +126,7 @@ export function TransactionsPage() {
               { count: data?.count ?? 0 },
               true,
             )}
-            defaultValue={params.get('q') ?? ''}
+            value={params.get('q') ?? ''}
             onChange={(event) => setFilter('q', event.target.value)}
           />
         </div>
@@ -169,24 +173,52 @@ export function TransactionsPage() {
           label={gettext('Solo entrate')}
           onClick={() => setFilter('type', params.get('type') === 'income' ? '' : 'income')}
         />
-        <SelectChip
+        <ChipSelect
           label={gettext('Categoria')}
-          value={params.get('category')}
-          options={categoryList.map((c) => ({ value: c.id, label: c.name }))}
+          allLabel={gettext('Tutte le categorie')}
+          value={params.get('category') ?? ''}
+          options={[
+            { value: 'none', label: gettext('Senza categoria'), leading: <CategoryDot /> },
+            ...categoryOptions(categoryList, {
+              type: (params.get('type') as Transaction['type'] | null) ?? undefined,
+            }).map((option) => {
+              // Con entrambi i tipi si distinguono "Altro" spesa e "Altro" entrata.
+              const category = categoryList.find((c) => c.id === option.value)
+              return params.get('type') || !category
+                ? option
+                : { ...option, hint: TYPE_LABEL[category.type] }
+            }),
+          ]}
           onChange={(value) => setFilter('category', value)}
+          searchable
         />
-        <SelectChip
+        <ChipSelect
           label={gettext('Conto')}
-          value={params.get('account')}
-          options={accountList.map((a) => ({ value: a.id, label: a.name }))}
+          allLabel={gettext('Tutti i conti')}
+          value={params.get('account') ?? ''}
+          options={accountOptions(accountList)}
           onChange={(value) => setFilter('account', value)}
         />
-        <SelectChip
+        <ChipSelect
           label={gettext('Chi ha pagato')}
-          value={params.get('paid_by')}
+          allLabel={gettext('Tutti')}
+          value={params.get('paid_by') ?? ''}
           options={members.map((m) => ({ value: m.user!.id, label: m.display_name }))}
           onChange={(value) => setFilter('paid_by', value)}
         />
+        {splitMember && (
+          <Chip
+            selected
+            icon="check"
+            trailingIcon="close"
+            label={interpolate(
+              gettext('Quota di %(name)s'),
+              { name: splitMember.display_name },
+              true,
+            )}
+            onClick={() => setFilter('split_user', '')}
+          />
+        )}
         <Chip
           icon="filter_list"
           label={gettext('Altri filtri')}
@@ -288,67 +320,7 @@ function withParam(params: URLSearchParams, key: string, value: string) {
   return next
 }
 
-/* ------------------------------------------------------------ chip menu -- */
-
-function SelectChip({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  label: string
-  value: string | null
-  options: { value: string; label: string }[]
-  onChange: (value: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const selected = options.find((option) => option.value === value)
-
-  useClickOutside(ref, open, () => setOpen(false))
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <Chip
-        selected={Boolean(selected)}
-        icon={selected ? 'check' : undefined}
-        trailingIcon="arrow_drop_down"
-        label={selected?.label ?? label}
-        onClick={() => setOpen((value) => !value)}
-      />
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-2 max-h-72 w-56 overflow-y-auto rounded-card bg-surface-container p-2 shadow-sheet">
-          <button
-            type="button"
-            className="state w-full rounded-nested px-3 py-2 text-left text-body-medium"
-            onClick={() => {
-              onChange('')
-              setOpen(false)
-            }}
-          >
-            {gettext('Tutti')}
-          </button>
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={clsx(
-                'state w-full rounded-nested px-3 py-2 text-left text-body-medium',
-                option.value === value && 'bg-secondary-container text-on-secondary-container',
-              )}
-              onClick={() => {
-                onChange(option.value)
-                setOpen(false)
-              }}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+/* -------------------------------------------------------- altri filtri -- */
 
 function MoreFiltersSheet({
   open,
@@ -386,7 +358,7 @@ function MoreFiltersSheet({
               className="field-input amount"
               inputMode="decimal"
               value={params.get('min_amount') ?? ''}
-              onChange={(event) => onChange('min_amount', event.target.value)}
+              onChange={(event) => onChange('min_amount', normalizeDecimal(event.target.value))}
             />
           </Field>
           <Field label={gettext('Importo massimo')}>
@@ -394,7 +366,7 @@ function MoreFiltersSheet({
               className="field-input amount"
               inputMode="decimal"
               value={params.get('max_amount') ?? ''}
-              onChange={(event) => onChange('max_amount', event.target.value)}
+              onChange={(event) => onChange('max_amount', normalizeDecimal(event.target.value))}
             />
           </Field>
         </div>
@@ -430,7 +402,6 @@ function TransactionRow({
   const [editingAmount, setEditingAmount] = useState(false)
   const [amount, setAmount] = useState(tx.amount)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [categoryOpen, setCategoryOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
   const category = categories.find((c) => c.id === tx.category)
@@ -438,10 +409,7 @@ function TransactionRow({
   const isGroup = tx.splits.length > 1
   const isIncome = tx.type === 'income'
 
-  useClickOutside(menuRef, menuOpen || categoryOpen, () => {
-    setMenuOpen(false)
-    setCategoryOpen(false)
-  })
+  useClickOutside(menuRef, menuOpen, () => setMenuOpen(false))
 
   const splitLabel = isGroup
     ? tx.splits.map((split) => Math.round(Number(split.share_pct))).join('/')
@@ -473,44 +441,21 @@ function TransactionRow({
           <span>{formatDate(tx.date).slice(0, 5)}</span>
           <span>·</span>
           {/* La categoria si riassegna sul posto: e' il campo che si sbaglia di piu'. */}
-          <span className="relative" ref={categoryOpen ? menuRef : undefined}>
-            <button
-              type="button"
-              onClick={() => setCategoryOpen((open) => !open)}
-              className="underline decoration-dotted underline-offset-2"
-            >
-              {category?.name ?? gettext('Senza categoria')}
-            </button>
-            {categoryOpen && (
-              <span className="absolute left-0 top-full z-20 mt-1 block max-h-64 w-52 overflow-y-auto rounded-card bg-surface-container p-2 shadow-sheet">
-                <button
-                  type="button"
-                  className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium"
-                  onClick={() => {
-                    onInlineSave({ category: null })
-                    setCategoryOpen(false)
-                  }}
-                >
-                  {gettext('Senza categoria')}
-                </button>
-                {categories
-                  .filter((option) => option.type === tx.type)
-                  .map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      className="state block w-full rounded-nested px-3 py-2 text-left text-body-medium"
-                      onClick={() => {
-                        onInlineSave({ category: option.id })
-                        setCategoryOpen(false)
-                      }}
-                    >
-                      {option.name}
-                    </button>
-                  ))}
-              </span>
+          <Picker
+            value={tx.category ?? ''}
+            options={[
+              { value: '', label: gettext('Senza categoria'), leading: <CategoryDot /> },
+              ...categoryOptions(categories, { type: tx.type, hideArchived: true }),
+            ]}
+            onChange={(value) => onInlineSave({ category: value || null })}
+            searchable
+            ariaLabel={gettext('Categoria')}
+            renderTrigger={({ props }) => (
+              <button {...props} className="underline decoration-dotted underline-offset-2">
+                {category?.name ?? gettext('Senza categoria')}
+              </button>
             )}
-          </span>
+          />
           {account && (
             <>
               <span>·</span>
@@ -588,7 +533,7 @@ function TransactionRow({
         </button>
       )}
 
-      <div className="relative" ref={menuOpen ? menuRef : undefined}>
+      <div className="relative" ref={menuRef}>
         <IconButton
           icon="more_vert"
           label={gettext('Azioni')}

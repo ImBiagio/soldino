@@ -268,7 +268,7 @@ function PendingItemModal({
           />
         </Field>
         <Field label={gettext('Di chi')}>
-          <MemberSelect members={members} name="owner" required defaultValue={item?.owner} />
+          <MemberSelect members={members} name="owner" defaultValue={item?.owner} />
         </Field>
         <Field label={gettext('Data attesa')}>
           <input

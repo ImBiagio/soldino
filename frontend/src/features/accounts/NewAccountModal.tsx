@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { useSaveAccount } from '../../api/hooks'
+import { SelectField } from '../../components/selects'
 import { ErrorBanner, Field, Modal } from '../../components/ui'
 import { gettext, interpolate } from '../../lib/i18n'
 import { ACCOUNT_KIND_LABEL } from '../../lib/labels'
@@ -63,13 +64,14 @@ export function NewAccountModal({
           />
         </Field>
         <Field label={gettext('Tipo')}>
-          <select className="field-input" name="kind" defaultValue="bank">
-            {Object.entries(ACCOUNT_KIND_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
+          <SelectField
+            name="kind"
+            defaultValue="bank"
+            options={Object.entries(ACCOUNT_KIND_LABEL).map(([value, label]) => ({
+              value,
+              label,
+            }))}
+          />
         </Field>
         <Field
           label={gettext('Saldo attuale')}

@@ -38,7 +38,10 @@ ogni chiamata fatta per conto di quell'utente. Il wizard nella sezione
 
 **Sincronizzazione.** Programmata secondo `Tracker.bank_sync_frequency`, scelta
 nel Setup: ogni giorno, ogni settimana (il lunedì) o **ogni mese (default)**, il
-1° del mese con tutto il mese appena chiuso, come un estratto conto. Il task di
+1° del mese con tutto il mese appena chiuso, come un estratto conto. Dal
+2026-11-06 anche **"Mai"** (`manual`): nessun giro programmato, nemmeno la
+prima lettura di un conto appena abbinato; la banca si chiama solo con
+"Sincronizza ora". Il task di
 Celery beat gira ogni mattina alle 6:15 e legge solo i conti a cui tocca;
 "Sincronizza ora" resta sempre disponibile e conta come lettura. Le banche
 limitano a circa 4 accessi al giorno senza l'utente presente e ogni giro fa

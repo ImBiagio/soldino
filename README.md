@@ -97,10 +97,14 @@ questo servono due processi distinti).
 **Lo Scan dell'estratto conto** gira nel `worker` (`scan_statement`): la lettura
 con Gemini richiede 10–30 secondi e non può stare dentro una richiesta.
 
-**Il beat ha due job**: `materialize_due_rules` alle 3:00, che
-scrive le occorrenze scadute delle ricorrenze con `auto_commit`, e
-`flush_expired_tokens` alle 4:00, che pulisce la blacklist dei refresh token. Le altre
-restano proposte finché qualcuno non le approva o le salta dalla UI. Sono qui da subito perché
+**Il beat ha quattro job**: `materialize_due_rules` alle 3:00, che
+scrive le occorrenze scadute delle ricorrenze con `auto_commit` (le altre
+restano proposte finché qualcuno non le approva o le salta dalla UI);
+`flush_expired_tokens` alle 4:00, che pulisce la blacklist dei refresh token;
+`sync_all_bank_accounts` alle 6:15, che legge i conti in banca secondo la
+frequenza del tracker (mai, se nel Setup è "Mai"); `translate_categories` ogni
+ora al minuto 20, che traduce i nomi delle categorie rimasti senza traduzione
+(ADR 0020). Sono qui da subito perché
 il piano li vuole in compose dall'inizio (§1.2) e perché la fase 3 li rende
 indispensabili: lo Scan di un estratto conto (estrazione testo → OCR → chiamata
 LLM) è decine di secondi e non può stare dentro una view.
@@ -190,7 +194,20 @@ nel menu e in Account; la scelta va nel cookie `django_language` e su
 `User.language`, che decide anche la lingua delle mail.
 
 I colori e le icone delle categorie sono **dati** (`Category.color`,
-`Category.icon`), non scelte del client: la UI li legge dall'API.
+`Category.icon`), non scelte del client: la UI li legge dall'API. Anche il
+**nome** arriva già nella lingua di chi legge: `Category.name_translations`,
+riempito per le categorie di default da un dizionario e per le altre da Gemini
+nel worker, appena create o rinominate e ogni ora per quelle rimaste indietro
+([ADR 0020](docs/decisions/0020-nomi-delle-categorie-tradotti.md)).
+
+**Ogni menu a tendina è lo stesso `Picker`** (`components/Picker.tsx`): si
+apre in un portal sopra la pagina (dentro la riga dei filtri, che scorre in
+orizzontale, un menu `absolute` veniva tagliato e i filtri sembravano non
+funzionare), con la ricerca sempre attiva sulle categorie e oltre le 7 voci per
+il resto, frecce/Invio/Esc da tastiera. `components/selects.tsx` lo veste da
+campo di un form (`SelectField`, con un input nascosto per `FormData`) o da
+chip di filtro (`ChipSelect`). I conti si mostrano come "Conto - Persona"
+(`accountLabel`).
 
 > I font arrivano da Google Fonts via `<link>`. In produzione conviene
 > self-hostarli e servire un subset del font delle icone.
@@ -287,7 +304,8 @@ ricorrenze). La logica di dominio resta nei `services/`. Nel frontend lo stesso
 ruolo lo fanno `lib/money.ts` (`normalizeDecimal`, `formatCents`), gli helper
 `useSaveResource` / `useDeleteResource` di `api/hooks.ts`, `lib/hooks.ts`
 (click fuori, Esc), `lib/labels.ts` (etichette degli enum), `lib/colors.ts`
-(palette di membri e categorie), `components/selects.tsx` e le primitive di
+(palette di membri e categorie), `components/Picker.tsx` e `components/selects.tsx`
+(ogni menu a tendina) e le primitive di
 `components/ui.tsx` (`IconButton`, `StatusPill`, `MemberChips`).
 
 ```
@@ -537,6 +555,11 @@ nell'URL. Con una persona selezionata ogni totale è la sua **quota** dagli spli
 non l'importo pieno: `GET /trackers/{id}/summary?user_id=…&date_from=…&date_to=…&category=…`.
 Entrate e uscite usano solo `primary` ed `error`, con legenda e tabella: la
 coppia verde/rosso regge ai daltonici solo con un secondo indizio.
+Un click su una categoria filtra i grafici e apre sotto **i movimenti di quella
+categoria con gli stessi filtri** (periodo, persona come `split_user`, con la sua
+quota), più "Apri in Movimenti" con gli stessi parametri nell'URL.
+`category=none` vale sia nel summary sia in `GET …/transactions` per "Senza
+categoria".
 
 **Fase 2 — parziale.** `RecurringRule` con costo mensilizzato e annualizzato,
 task beat giornaliero, vista Ricorrenze con divisione fra i membri. Con

@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils import translation
 from simple_history.models import HistoricalRecords
 
 from apps.core.models import BaseModel
@@ -35,9 +36,11 @@ class Tracker(BaseModel):
         DAILY = "daily", "Ogni giorno"
         WEEKLY = "weekly", "Ogni settimana"
         MONTHLY = "monthly", "Ogni mese"
+        MANUAL = "manual", "Mai, solo a mano"
 
     # Ogni quanto la sincronizzazione programmata legge i conti in banca dei
     # membri (ADR 0013): mensile = un "estratto conto" del mese appena chiuso.
+    # "manual" spegne il giro programmato: si legge solo con "Sincronizza ora".
     bank_sync_frequency = models.CharField(
         max_length=8, choices=BankSync.choices, default=BankSync.MONTHLY
     )
@@ -154,6 +157,10 @@ class Category(BaseModel):
     color = models.CharField(max_length=9, default="#1b6c2f")
     icon = models.CharField(max_length=40, blank=True)
     archived = models.BooleanField(default=False)
+    # Il nome in ogni lingua dell'interfaccia, {"it": ..., "en": ...}. `name`
+    # resta il nome com'e' stato scritto (e quello del vincolo di unicita');
+    # le lingue mancanti le riempie il traduttore (apps/trackers/translate.py).
+    name_translations = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["type", "name"]
@@ -168,3 +175,15 @@ class Category(BaseModel):
 
     def __str__(self) -> str:
         return self.name
+
+    def localized_name(self, language: str | None = None) -> str:
+        """Il nome nella lingua attiva; finche' manca la traduzione, quello scritto."""
+        return localized_category_name(self.name, self.name_translations, language)
+
+
+def localized_category_name(
+    name: str, translations: dict | None, language: str | None = None
+) -> str:
+    """Come ``Category.localized_name``, per i report che leggono ``values()``."""
+    code = (language or translation.get_language() or settings.LANGUAGE_CODE)[:2]
+    return (translations or {}).get(code) or name

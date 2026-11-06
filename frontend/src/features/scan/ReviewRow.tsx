@@ -2,6 +2,8 @@ import clsx from 'clsx'
 import type { ReactNode } from 'react'
 
 import { activeMembers } from '../../components/Layout'
+import { Picker, type PickerOption } from '../../components/Picker'
+import { CategoryDot, categoryOptions } from '../../components/selects'
 import { Avatar, Icon, IconButton } from '../../components/ui'
 import { monthLabel } from '../../lib/format'
 import { gettext, interpolate } from '../../lib/i18n'
@@ -28,8 +30,8 @@ const CHIP =
   'state relative inline-flex h-8 max-w-full shrink-0 items-center gap-1.5 rounded-pill border border-outline-variant px-3 text-[13px] font-medium text-on-surface-variant'
 
 /**
- * Chip M3 che apre una scelta. Sotto c'e' un <select> nativo invisibile: su
- * telefono apre il picker di sistema, da tastiera si usa con frecce e lettere.
+ * Chip M3 che apre una scelta: lo stesso menu (con ricerca) di tutte le
+ * altre select dell'app.
  */
 export function SelectChip({
   value,
@@ -41,9 +43,10 @@ export function SelectChip({
   tone = 'outlined',
   ariaLabel,
   title,
+  searchable,
 }: {
   value: string
-  options: { value: string; label: string }[]
+  options: PickerOption[]
   onChange: (value: string) => void
   label: ReactNode
   leading?: ReactNode
@@ -51,34 +54,35 @@ export function SelectChip({
   tone?: 'outlined' | 'tonal' | 'warning'
   ariaLabel: string
   title?: string
+  searchable?: boolean
 }) {
   return (
-    <label
+    <Picker
+      value={value}
+      options={options}
+      onChange={onChange}
+      searchable={searchable}
+      ariaLabel={ariaLabel}
       title={title}
-      className={clsx(
-        CHIP,
-        'cursor-pointer focus-within:ring-2 focus-within:ring-primary',
-        tone === 'tonal' && 'border-transparent bg-secondary-container text-on-secondary-container',
-        tone === 'warning' && 'border-transparent bg-warning-container text-on-warning-container',
+      renderTrigger={({ props }) => (
+        <button
+          {...props}
+          className={clsx(
+            CHIP,
+            'focus-visible:ring-2 focus-visible:ring-primary',
+            tone === 'tonal' &&
+              'border-transparent bg-secondary-container text-on-secondary-container',
+            tone === 'warning' &&
+              'border-transparent bg-warning-container text-on-warning-container',
+          )}
+        >
+          {leading}
+          <span className="truncate">{label}</span>
+          {trailing}
+          <Icon name="arrow_drop_down" size={18} className="-mr-1.5" />
+        </button>
       )}
-    >
-      {leading}
-      <span className="truncate">{label}</span>
-      {trailing}
-      <Icon name="arrow_drop_down" size={18} className="-mr-1.5" />
-      <select
-        className="absolute inset-0 cursor-pointer opacity-0"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-label={ariaLabel}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    />
   )
 }
 
@@ -236,9 +240,10 @@ export function ReviewRow({
               value={row.category ?? ''}
               onChange={(value) => onChange({ category: value || null, category_source: 'manual' })}
               options={[
-                { value: '', label: gettext('Senza categoria') },
-                ...options.map((c) => ({ value: c.id, label: c.name })),
+                { value: '', label: gettext('Senza categoria'), leading: <CategoryDot /> },
+                ...categoryOptions(options),
               ]}
+              searchable
               tone={category ? 'tonal' : 'outlined'}
               leading={
                 <span

@@ -164,16 +164,12 @@ export function TransactionForm({ tracker, open, onClose, editing }: Props) {
               type={type}
               hideArchived
               value={category ?? ''}
-              onChange={(event) => setCategory(event.target.value)}
+              onChange={setCategory}
             />
           </Field>
           {accountField && (
             <Field label={gettext('Conto')}>
-              <AccountSelect
-                trackerId={tracker.id}
-                value={account ?? ''}
-                onChange={(event) => setAccount(event.target.value)}
-              />
+              <AccountSelect trackerId={tracker.id} value={account ?? ''} onChange={setAccount} />
             </Field>
           )}
         </div>

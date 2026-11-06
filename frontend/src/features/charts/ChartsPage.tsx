@@ -1,25 +1,34 @@
 import clsx from 'clsx'
-import { useState } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { useCategories, useSummary } from '../../api/hooks'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { useCategories, useSummary, useTransactions } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { CategoryDot, categoryOptions, ChipSelect } from '../../components/selects'
 import { BalanceCurve } from './BalanceCurve'
 import {
   Avatar,
   ErrorBanner,
+  Icon,
   IconButton,
   IconCircle,
   Segmented,
   Skeleton,
   Stat,
 } from '../../components/ui'
-import { todayIso } from '../../lib/format'
+import { formatDate, todayIso } from '../../lib/format'
 import { categoryColor, memberColor } from '../../lib/colors'
 import { categoryIcon } from '../../lib/icons'
 import { PERIOD_LABEL } from '../../lib/labels'
 import { formatCents, formatMoney, formatSigned, formatSignedCents, toCents } from '../../lib/money'
 import { rangeFor, rangeLabel, shiftRange, type DateRange, type PeriodKind } from '../../lib/period'
-import type { Summary, SummaryParams, Tracker, TransactionType, UUID } from '../../lib/types'
+import type {
+  Summary,
+  SummaryParams,
+  Tracker,
+  Transaction,
+  TransactionType,
+  UUID,
+} from '../../lib/types'
 import { gettext, interpolate, ngettext } from '../../lib/i18n'
 
 // Due serie sole, sempre gli stessi colori: entrate = primary, uscite = error.
@@ -167,6 +176,20 @@ export function ChartsPage() {
           onSelect={filters.setPerson}
         />
       </div>
+
+      {filters.category && (
+        <CategoryTransactions
+          tracker={tracker}
+          filters={filters}
+          type={categoryType}
+          categoryName={
+            filters.category === 'none'
+              ? gettext('Senza categoria')
+              : (categories.data?.results.find((c) => c.id === filters.category)?.name ?? '')
+          }
+          personName={personName}
+        />
+      )}
     </div>
   )
 }
@@ -246,33 +269,31 @@ function FilterBar({
       )}
 
       <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
-        <select
-          className="field-input w-auto py-2"
+        <ChipSelect
+          label={gettext('Persona')}
+          allLabel={gettext('Tutte le persone')}
           value={filters.person}
-          onChange={(event) => filters.setPerson(event.target.value)}
-          aria-label={gettext('Persona')}
-        >
-          <option value="">{gettext('Tutte le persone')}</option>
-          {members.map((member) => (
-            <option key={member.id} value={member.user!.id}>
-              {member.display_name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="field-input w-auto py-2"
+          onChange={filters.setPerson}
+          options={members.map((member, index) => ({
+            value: member.user!.id,
+            label: member.display_name,
+            leading: <Avatar name={member.display_name} size={22} color={memberColor(index)} />,
+          }))}
+        />
+        <ChipSelect
+          label={gettext('Categoria')}
+          allLabel={gettext('Tutte le categorie')}
           value={filters.category}
-          onChange={(event) => filters.setCategory(event.target.value)}
-          aria-label={gettext('Categoria')}
-        >
-          <option value="">{gettext('Tutte le categorie')}</option>
-          <option value="none">{gettext('Senza categoria')}</option>
-          {(categories.data?.results ?? []).map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+          onChange={filters.setCategory}
+          searchable
+          options={[
+            { value: 'none', label: gettext('Senza categoria'), leading: <CategoryDot /> },
+            ...categoryOptions(categories.data?.results ?? []).map((option) => {
+              const category = categories.data?.results.find((c) => c.id === option.value)
+              return { ...option, hint: category ? SERIES[category.type].label : undefined }
+            }),
+          ]}
+        />
       </div>
     </div>
   )
@@ -499,6 +520,139 @@ function PeopleCard({
       {selected && (
         <p className="mt-3 text-body-small text-on-surface-variant">
           {gettext('Tocca di nuovo la persona per tornare a tutto il tracker.')}
+        </p>
+      )}
+    </section>
+  )
+}
+
+/* ------------------------------------------- movimenti della categoria -- */
+
+/**
+ * I movimenti dietro una barra del grafico, con gli stessi filtri: periodo,
+ * persona (chi partecipa alla spesa, come nei grafici) e categoria. Con una
+ * persona l'importo e' la sua quota, come nei totali sopra.
+ */
+function CategoryTransactions({
+  tracker,
+  filters,
+  type,
+  categoryName,
+  personName,
+}: {
+  tracker: Tracker
+  filters: ReturnType<typeof useChartFilters>
+  type: TransactionType
+  categoryName: string
+  personName: string | undefined
+}) {
+  const ref = useRef<HTMLElement>(null)
+  const query: Record<string, string> = {
+    category: filters.category,
+    date_from: filters.range.from,
+    date_to: filters.range.to,
+  }
+  // "Senza categoria" esiste sia fra le uscite sia fra le entrate.
+  if (filters.category === 'none') query.type = type
+  if (filters.person) query.split_user = filters.person
+  const transactions = useTransactions(tracker.id, { ...query, page_size: 100 })
+  const rows: Transaction[] = transactions.data?.results ?? []
+  const total = transactions.data?.count ?? 0
+
+  // Si arriva qui con un click sulla categoria, piu' su nella pagina.
+  useEffect(() => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [filters.category])
+
+  const amountOf = (tx: Transaction) =>
+    filters.person
+      ? (tx.splits.find((split) => split.user === filters.person)?.share_amount ?? tx.amount)
+      : tx.amount
+
+  return (
+    <section ref={ref} className="card-m3 scroll-mt-4 p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-title-medium">
+            {interpolate(gettext('Movimenti in %(name)s'), { name: categoryName }, true)}
+          </h2>
+          <p className="mt-1 text-body-small text-on-surface-variant">
+            {rangeLabel(filters.kind, filters.range)}
+            {personName &&
+              ' · ' + interpolate(gettext('la quota di %(name)s'), { name: personName }, true)}
+            {' · '}
+            {interpolate(
+              ngettext('%(count)s movimento', '%(count)s movimenti', total),
+              { count: total },
+              true,
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Link
+            to={`../movimenti?${new URLSearchParams(query).toString()}`}
+            relative="path"
+            className="btn-text btn-sm"
+          >
+            {gettext('Apri in Movimenti')}
+            <Icon name="arrow_forward" size={18} />
+          </Link>
+          <IconButton
+            icon="close"
+            label={gettext('Chiudi')}
+            onClick={() => filters.setCategory('')}
+          />
+        </div>
+      </div>
+
+      <ErrorBanner error={transactions.error} />
+      {transactions.isLoading ? (
+        <Skeleton className="h-[160px] rounded-card" />
+      ) : rows.length === 0 ? (
+        <p className="py-4 text-body-medium text-on-surface-variant">
+          {gettext('Nessun movimento nel periodo.')}
+        </p>
+      ) : (
+        <ul className={clsx('grid gap-1', transactions.isFetching && 'opacity-70')}>
+          {rows.map((tx) => (
+            <li
+              key={tx.id}
+              className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-row bg-surface px-4 py-2.5"
+            >
+              <span className="amount w-12 text-body-small text-on-surface-variant">
+                {formatDate(tx.date).slice(0, 5)}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-body-medium font-medium">{tx.title}</span>
+                <span className="block truncate text-body-small text-on-surface-variant">
+                  {interpolate(
+                    gettext('pagato da %(name)s'),
+                    { name: tx.paid_by_detail.display_name },
+                    true,
+                  )}
+                  {tx.account_name ? ` · ${tx.account_name}` : ''}
+                </span>
+              </span>
+              <span
+                className={clsx(
+                  'amount text-body-medium font-semibold',
+                  tx.type === 'income' ? 'text-primary' : 'text-error',
+                )}
+              >
+                {tx.type === 'income' ? '+' : '−'}
+                {formatMoney(amountOf(tx), tracker.currency)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {total > rows.length && (
+        <p className="mt-3 text-body-small text-on-surface-variant">
+          {interpolate(
+            gettext('Qui i primi %(count)s: tutti gli altri in Movimenti.'),
+            { count: rows.length },
+            true,
+          )}
         </p>
       )}
     </section>

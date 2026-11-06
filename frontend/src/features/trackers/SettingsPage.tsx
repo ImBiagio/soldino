@@ -15,6 +15,7 @@ import {
   useUpdateTracker,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
+import { SelectField } from '../../components/selects'
 import { defaultPercentages, formatPct } from '../../components/SplitWidget'
 import {
   Avatar,
@@ -29,7 +30,7 @@ import {
   Switch,
 } from '../../components/ui'
 import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/colors'
-import { gettext, interpolate, ngettext } from '../../lib/i18n'
+import { gettext, interpolate, intlLocale, ngettext } from '../../lib/i18n'
 import { categoryIcon } from '../../lib/icons'
 import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
@@ -126,6 +127,7 @@ const BANK_SYNC_OPTIONS: { value: Tracker['bank_sync_frequency']; label: string 
   { value: 'daily', label: gettext('Ogni giorno') },
   { value: 'weekly', label: gettext('Ogni settimana') },
   { value: 'monthly', label: gettext('Ogni mese') },
+  { value: 'manual', label: gettext('Mai') },
 ]
 
 const BANK_SYNC_HINT: Record<Tracker['bank_sync_frequency'], string> = {
@@ -133,6 +135,9 @@ const BANK_SYNC_HINT: Record<Tracker['bank_sync_frequency'], string> = {
   weekly: gettext('Il lunedì mattina saldo e movimenti della settimana passata.'),
   monthly: gettext(
     'Il primo del mese saldo e movimenti del mese appena chiuso, come un estratto conto.',
+  ),
+  manual: gettext(
+    'Nessuna lettura programmata: la banca non viene chiamata finché non lo chiedi tu.',
   ),
 }
 
@@ -483,20 +488,17 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
 
                 {isOwner && member.role !== 'owner' && (
                   <>
-                    <select
-                      className="field-input w-auto"
+                    <SelectField
+                      className="w-auto rounded-nested bg-surface-container px-3 py-2 text-body-medium"
                       value={member.role}
-                      onChange={(event) =>
-                        update.mutate({ id: member.id, role: event.target.value as never })
-                      }
-                      aria-label={interpolate(
+                      options={ROLE_OPTIONS}
+                      onChange={(role) => update.mutate({ id: member.id, role: role as never })}
+                      ariaLabel={interpolate(
                         gettext('Ruolo di %(name)s'),
                         { name: member.display_name },
                         true,
                       )}
-                    >
-                      <RoleOptions />
-                    </select>
+                    />
                     <IconButton
                       icon="close"
                       label={gettext('Rimuovi')}
@@ -557,9 +559,7 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
               <input className="field-input" type="email" name="email" required autoFocus />
             </Field>
             <Field label={gettext('Ruolo')}>
-              <select className="field-input" name="role" defaultValue="editor">
-                <RoleOptions />
-              </select>
+              <SelectField name="role" defaultValue="editor" options={ROLE_OPTIONS} />
             </Field>
             <Field label={gettext('Peso di default')}>
               <input className="field-input amount text-right" name="pct" defaultValue="50.00" />
@@ -574,18 +574,6 @@ function MembersSection({ tracker, isOwner }: { tracker: Tracker; isOwner: boole
   )
 }
 
-function RoleOptions() {
-  return (
-    <>
-      {ROLE_OPTIONS.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </>
-  )
-}
-
 /* ----------------------------------------------------------- categorie -- */
 
 function CategoriesSection({ tracker }: { tracker: Tracker }) {
@@ -597,7 +585,10 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
   const [formType, setFormType] = useState<TransactionType>('expense')
   const [formColor, setFormColor] = useState(DEFAULT_CATEGORY_COLOR.expense)
 
-  const categories = data?.results ?? []
+  // Per nome tradotto: l'API ordina per il nome scritto.
+  const categories = [...(data?.results ?? [])].sort((a, b) =>
+    a.name.localeCompare(b.name, intlLocale()),
+  )
 
   const openForm = (category: Category | null, type: TransactionType) => {
     setEditing(category)
@@ -715,25 +706,19 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={gettext('Tipo')}>
-                <select
-                  className="field-input"
+                <SelectField
                   name="type"
                   value={formType}
-                  onChange={(event) => {
-                    const next = event.target.value as TransactionType
+                  options={TYPE_OPTIONS}
+                  onChange={(value) => {
+                    const next = value as TransactionType
                     // Se il colore e' ancora quello di default, segue il tipo.
                     if (formColor === DEFAULT_CATEGORY_COLOR[formType]) {
                       setFormColor(DEFAULT_CATEGORY_COLOR[next])
                     }
                     setFormType(next)
                   }}
-                >
-                  {TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                />
               </Field>
               <Field label={gettext('Colore')}>
                 <input

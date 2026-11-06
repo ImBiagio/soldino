@@ -60,3 +60,12 @@ export function deltaText(delta: string, currency: string): string {
     ? gettext('Quadra')
     : interpolate(gettext('Scarto %s'), [formatSigned(delta, currency)])
 }
+
+/**
+ * Il conto con la persona a cui appartiene: due persone hanno spesso un conto
+ * con lo stesso nome ("Contanti", "Revolut") e nei menu non si distinguevano.
+ */
+export function accountLabel(account: Pick<Account, 'name' | 'owner_detail'>): string {
+  const owner = account.owner_detail?.display_name
+  return owner ? `${account.name} - ${owner}` : account.name
+}

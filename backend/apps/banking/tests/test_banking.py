@@ -512,6 +512,7 @@ def test_collegamento_con_identificativi_lunghi(user, tracker, app, fake):
         ("weekly", date(2026, 10, 12), date(2026, 10, 19), True),
         ("daily", date(2026, 10, 15), date(2026, 10, 15), False),
         ("daily", date(2026, 10, 15), date(2026, 10, 16), True),
+        ("manual", date(2026, 10, 15), date(2026, 11, 1), False),
     ],
 )
 def test_frequenza_della_sincronizzazione(linked, frequency, last, today, due):
@@ -526,6 +527,20 @@ def test_frequenza_della_sincronizzazione(linked, frequency, last, today, due):
     linked.save()
     linked.refresh_from_db()
     assert is_due(linked, today) is due
+
+
+def test_manuale_non_legge_mai_nemmeno_la_prima_volta(linked):
+    from apps.banking.services.sync import is_due
+    from apps.banking.tasks import sync_all_bank_accounts
+
+    tracker = linked.account.tracker
+    tracker.bank_sync_frequency = "manual"
+    tracker.save()
+    linked.last_synced_at = None
+    linked.save()
+    linked.refresh_from_db()
+    assert is_due(linked, date(2026, 11, 1)) is False
+    assert sync_all_bank_accounts(today=date(2026, 11, 1)) == {"queued": 0}
 
 
 def test_default_mensile_e_modificabile_dal_setup(api, user, tracker):

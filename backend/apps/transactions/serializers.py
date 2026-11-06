@@ -52,7 +52,7 @@ class TransactionSerializer(serializers.ModelSerializer):
         choices=[MODE_PERSONAL, MODE_DEFAULT], write_only=True, required=False
     )
     paid_by_detail = UserBriefSerializer(source="paid_by", read_only=True)
-    category_name = serializers.CharField(source="category.name", read_only=True)
+    category_name = serializers.CharField(source="category.localized_name", read_only=True)
     category_color = serializers.CharField(source="category.color", read_only=True)
     account_name = serializers.CharField(source="account.name", read_only=True)
     possible_duplicates = serializers.SerializerMethodField()

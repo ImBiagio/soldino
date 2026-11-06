@@ -13,6 +13,7 @@ import {
   useSyncBankAccount,
   useUpdateBankAccount,
 } from '../../api/hooks'
+import { accountOptions, SelectField } from '../../components/selects'
 import { ErrorBanner, Icon, Modal, RowsSkeleton, Skeleton, Switch } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
 import { formatDate } from '../../lib/format'
@@ -295,22 +296,19 @@ function AccountRow({
       <div className="grid gap-3 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_auto] md:items-stretch">
         <label className="field block h-full">
           <span className="field-label">{gettext('Conto in Soldino')}</span>
-          <select
-            className="field-input"
+          <SelectField
             value={link.account ?? ''}
             disabled={disabled || update.isPending}
-            onChange={(event) => assign(event.target.value)}
-          >
-            <option value="">{gettext('Non abbinato (non si sincronizza)')}</option>
-            {mine.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-            <option value={NEW_ACCOUNT}>
-              {interpolate(gettext('+ Nuovo conto “%(name)s”'), { name: label }, true)}
-            </option>
-          </select>
+            onChange={assign}
+            options={[
+              { value: '', label: gettext('Non abbinato (non si sincronizza)') },
+              ...accountOptions(mine),
+              {
+                value: NEW_ACCOUNT,
+                label: interpolate(gettext('+ Nuovo conto “%(name)s”'), { name: label }, true),
+              },
+            ]}
+          />
         </label>
         <label className="field block h-full">
           <span className="field-label">{gettext('Importa movimenti dal')}</span>

@@ -47,7 +47,7 @@ export interface Tracker {
   /** Debiti chiusi col minor numero di bonifici; spento = ognuno restituisce a chi ha pagato. */
   simplify_debts: boolean
   /** Ogni quanto si leggono i conti in banca (ADR 0013), default mensile. */
-  bank_sync_frequency: 'daily' | 'weekly' | 'monthly'
+  bank_sync_frequency: 'daily' | 'weekly' | 'monthly' | 'manual'
   members: Membership[]
   my_role: MemberRole | null
   created_at: string

@@ -63,6 +63,7 @@ def duplicate_tracker(
         category_map[category.pk] = Category.objects.create(
             tracker=copy,
             name=category.name,
+            name_translations=category.name_translations,
             description=category.description,
             type=category.type,
             color=category.color,

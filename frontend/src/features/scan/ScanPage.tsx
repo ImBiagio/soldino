@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 
 import { useAccounts, useStatements, useUploadStatement } from '../../api/hooks'
+import { accountOptions, SelectField } from '../../components/selects'
 import { EmptyState, ErrorBanner, Field, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
 import { gettext, interpolate, ngettext } from '../../lib/i18n'
@@ -90,18 +91,14 @@ export function ScanPage() {
               label={gettext("Conto dell'estratto")}
               hint={gettext('Decide chi ha pagato: si può cambiare riga per riga.')}
             >
-              <select
-                className="field-input"
+              <SelectField
                 value={account}
-                onChange={(event) => setAccount(event.target.value)}
-              >
-                <option value="">{gettext('Nessun conto (pago io)')}</option>
-                {(accounts.data?.results ?? []).map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} · {a.owner_detail.display_name}
-                  </option>
-                ))}
-              </select>
+                onChange={setAccount}
+                options={[
+                  { value: '', label: gettext('Nessun conto (pago io)') },
+                  ...accountOptions(accounts.data?.results ?? []),
+                ]}
+              />
             </Field>
             <button className="btn-filled" disabled={!file || upload.isPending}>
               <Icon name="document_scanner" size={20} />

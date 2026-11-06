@@ -483,13 +483,16 @@ def is_due(bank_account: BankAccount, today: date) -> bool:
     - ogni giorno: se oggi non si e' ancora letto;
     - ogni settimana: se non si e' letto da lunedi';
     - ogni mese: se non si e' letto dal primo del mese: il giro del 1° porta
-      tutto il mese appena chiuso, come un estratto conto.
+      tutto il mese appena chiuso, come un estratto conto;
+    - mai ("manual"): mai, nemmeno la prima volta. Si legge solo a mano.
     "Sincronizza ora" conta come lettura: sposta il giro successivo.
     """
+    frequency = bank_account.account.tracker.bank_sync_frequency
+    if frequency == Tracker.BankSync.MANUAL:
+        return False
     if bank_account.last_synced_at is None:
         return True
     last = timezone.localdate(bank_account.last_synced_at)
-    frequency = bank_account.account.tracker.bank_sync_frequency
     if frequency == Tracker.BankSync.DAILY:
         start = today
     elif frequency == Tracker.BankSync.WEEKLY:

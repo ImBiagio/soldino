@@ -10,7 +10,7 @@ import {
   useSaveRecurringRule,
 } from '../../api/hooks'
 import { activeMembers } from '../../components/Layout'
-import { AccountSelect, CategorySelect, MemberSelect } from '../../components/selects'
+import { AccountSelect, CategorySelect, MemberSelect, SelectField } from '../../components/selects'
 import {
   SplitWidget,
   initialSplitState,
@@ -277,22 +277,10 @@ function RuleForm({
             />
           </Field>
           <Field label={gettext('Tipo')}>
-            <select className="field-input" name="type" defaultValue="expense">
-              {TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <SelectField name="type" defaultValue="expense" options={TYPE_OPTIONS} />
           </Field>
           <Field label={gettext('Frequenza')}>
-            <select className="field-input" name="frequency" defaultValue="monthly">
-              {FREQUENCY_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <SelectField name="frequency" defaultValue="monthly" options={FREQUENCY_OPTIONS} />
           </Field>
           <Field label={gettext('Prossima occorrenza')}>
             <input className="field-input" type="date" name="next_run" defaultValue={todayIso()} />
@@ -302,13 +290,12 @@ function RuleForm({
               members={members}
               name="paid_by"
               value={paidBy}
-              onChange={(event) => {
-                setPaidBy(event.target.value)
+              onChange={(next) => {
+                setPaidBy(next)
                 if (split.mode === 'personal') {
-                  setSplit({ ...split, personalUser: event.target.value })
+                  setSplit({ ...split, personalUser: next })
                 }
               }}
-              required
             />
           </Field>
           <Field label={gettext('Categoria')}>

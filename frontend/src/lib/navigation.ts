@@ -21,11 +21,11 @@ export const DESTINATIONS: Destination[] = [
   { key: 'oggi', to: '', label: gettext('Oggi'), icon: 'dashboard', end: true },
   { key: 'movimenti', to: 'movimenti', label: gettext('Movimenti'), icon: 'receipt_long' },
   { key: 'da-rivedere', to: 'da-rivedere', label: gettext('Da rivedere'), icon: 'inbox' },
-  { key: 'conti', to: 'conti', label: gettext('Conti'), icon: 'account_balance' },
+  { key: 'conti', to: 'conti', label: gettext('Conti'), icon: 'account_balance_wallet' },
   { key: 'attese', to: 'attese', label: gettext('In attesa'), icon: 'hourglass_top' },
   { key: 'grafici', to: 'grafici', label: gettext('Grafici'), icon: 'bar_chart' },
   { key: 'abbonamenti', to: 'abbonamenti', label: gettext('Ricorrenze'), icon: 'autorenew' },
-  { key: 'banca', to: 'banca', label: gettext('Banca'), icon: 'sync_alt' },
+  { key: 'banca', to: 'banca', label: gettext('Banca'), icon: 'account_balance' },
   { key: 'impostazioni', to: 'impostazioni', label: gettext('Setup'), icon: 'tune' },
 ]
 

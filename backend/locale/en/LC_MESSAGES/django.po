@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 17:15+0200\n"
+"POT-Creation-Date: 2026-11-06 09:57+0100\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -17,7 +17,7 @@ msgstr ""
 msgid "Questa persona ha gia' un conto con questo nome."
 msgstr "This person already has an account with this name."
 
-#: apps/accounts/serializers.py:112 apps/recurring/serializers.py:51
+#: apps/accounts/serializers.py:115 apps/recurring/serializers.py:51
 #: apps/transactions/serializers.py:112
 msgid "Chi paga deve essere un membro attivo del tracker."
 msgstr "Whoever pays must be an active member of the tracker."
@@ -34,16 +34,16 @@ msgstr "This item has already been closed."
 msgid "Il file e' troppo grande per essere una chiave."
 msgstr "The file is too large to be a key."
 
-#: apps/banking/serializers.py:99 apps/ingestion/serializers.py:168
+#: apps/banking/serializers.py:102 apps/ingestion/serializers.py:168
 #: apps/transactions/models.py:124
 msgid "Il conto appartiene a un altro tracker."
 msgstr "The account belongs to another tracker."
 
-#: apps/banking/serializers.py:102
+#: apps/banking/serializers.py:105
 msgid "Puoi abbinare solo un conto intestato a te."
 msgstr "You can only link an account in your name."
 
-#: apps/banking/serializers.py:112
+#: apps/banking/serializers.py:115
 msgid "Questo conto e' gia' abbinato a un altro conto in banca."
 msgstr "This account is already linked to another bank account."
 
@@ -101,11 +101,11 @@ msgstr "Enable Banking responded with an error (%(code)s): %(detail)s"
 msgid "Enable Banking non risponde: %(error)s"
 msgstr "Enable Banking isn't responding: %(error)s"
 
-#: apps/banking/services/sync.py:50
+#: apps/banking/services/sync.py:51
 msgid "Prima configura la tua applicazione Enable Banking."
 msgstr "Set up your Enable Banking application first."
 
-#: apps/banking/services/sync.py:65
+#: apps/banking/services/sync.py:66
 #, python-format
 msgid ""
 "L'applicazione non ha %(url)s tra gli URL di ritorno (Redirect URLs): "
@@ -114,23 +114,23 @@ msgstr ""
 "The application doesn't have %(url)s among its return URLs (Redirect URLs): "
 "add it in the Enable Banking dashboard and try again."
 
-#: apps/banking/services/sync.py:136
+#: apps/banking/services/sync.py:137
 msgid "Collegamento non trovato: riparti dalla sezione Banca."
 msgstr "Connection not found: start again from the Bank section."
 
-#: apps/banking/services/sync.py:320
+#: apps/banking/services/sync.py:321
 msgid "non abbinato"
 msgstr "not linked"
 
-#: apps/banking/services/sync.py:324
+#: apps/banking/services/sync.py:325
 msgid "Il consenso della banca e' scaduto: rinnova il collegamento."
 msgstr "The bank consent has expired: renew the connection."
 
-#: apps/banking/services/sync.py:330
+#: apps/banking/services/sync.py:331
 msgid "consenso scaduto"
 msgstr "consent expired"
 
-#: apps/banking/views.py:222
+#: apps/banking/views.py:227
 msgid "Abbina prima il conto a un conto di Soldino."
 msgstr "Link the account to a Soldino account first."
 
@@ -195,19 +195,19 @@ msgstr "Gemini rejected the key: check GEMINI_API_KEY."
 msgid "Gemini ha risposto con un errore (%(code)s): %(message)s"
 msgstr "Gemini responded with an error (%(code)s): %(message)s"
 
-#: apps/ingestion/services/gemini.py:211
+#: apps/ingestion/services/gemini.py:237
 msgid ""
 "Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e "
 "riavvia."
 msgstr ""
 "Gemini key not configured: set GEMINI_API_KEY in the .env file and restart."
 
-#: apps/ingestion/services/gemini.py:245
+#: apps/ingestion/services/gemini.py:271
 #, python-format
 msgid "errore %(code)s"
 msgstr "error %(code)s"
 
-#: apps/ingestion/services/gemini.py:263
+#: apps/ingestion/services/gemini.py:289
 #, python-format
 msgid ""
 "Gemini e' sovraccarico in questo momento: nessun modello ha risposto "
@@ -216,11 +216,11 @@ msgstr ""
 "Gemini is overloaded right now: no model responded (%(models)s; last: "
 "%(error)s). Try again in a few minutes."
 
-#: apps/ingestion/services/gemini.py:277
+#: apps/ingestion/services/gemini.py:303
 msgid "La risposta di Gemini non e' nel formato atteso."
 msgstr "Gemini's response isn't in the expected format."
 
-#: apps/ingestion/services/gemini.py:309
+#: apps/ingestion/services/gemini.py:335
 msgid ""
 "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
 "dritto e ben illuminato."
@@ -228,7 +228,7 @@ msgstr ""
 "I can't read the total: retake the photo with the whole receipt, straight "
 "and well lit."
 
-#: apps/ingestion/services/gemini.py:354
+#: apps/ingestion/services/gemini.py:380
 msgid ""
 "Non ho trovato nessun importo in quello che hai detto: riprova dicendo "
 "quanto, per cosa e chi ha pagato."
@@ -236,7 +236,7 @@ msgstr ""
 "I couldn't find any amount in what you said: try again saying how much, what "
 "for and who paid."
 
-#: apps/ingestion/services/scan.py:273
+#: apps/ingestion/services/scan.py:321
 msgid "Errore imprevisto nella lettura."
 msgstr "Unexpected error while reading."
 
@@ -306,67 +306,67 @@ msgstr ""
 msgid "Deve essere un membro attivo del tracker."
 msgstr "Must be an active member of the tracker."
 
-#: apps/trackers/serializers.py:42
+#: apps/trackers/serializers.py:44
 msgid "Il proprietario non si assegna."
 msgstr "The owner role can't be assigned."
 
-#: apps/trackers/serializers.py:98
+#: apps/trackers/serializers.py:100
 msgid "Spesa alimentare, discount, alimentari"
 msgstr "Groceries, discount stores, food shopping"
 
-#: apps/trackers/serializers.py:101
+#: apps/trackers/serializers.py:103
 msgid "Casa: affitto, mutuo, utenze, manutenzione, arredamento"
 msgstr "Home: rent, mortgage, utilities, maintenance, furniture"
 
-#: apps/trackers/serializers.py:104
+#: apps/trackers/serializers.py:106
 msgid "Carburante, mezzi pubblici, treni, pedaggi, manutenzione auto"
 msgstr "Fuel, public transport, trains, tolls, car maintenance"
 
-#: apps/trackers/serializers.py:107
+#: apps/trackers/serializers.py:109
 msgid "Ristoranti, bar, caffe', asporto, delivery"
 msgstr "Restaurants, bars, coffee, takeaway, delivery"
 
-#: apps/trackers/serializers.py:110
+#: apps/trackers/serializers.py:112
 msgid "Farmacia, visite mediche, esami, dentista"
 msgstr "Pharmacy, doctor visits, tests, dentist"
 
-#: apps/trackers/serializers.py:113
+#: apps/trackers/serializers.py:115
 msgid "Abbigliamento, elettronica, oggetti per la persona"
 msgstr "Clothing, electronics, personal items"
 
-#: apps/trackers/serializers.py:116
+#: apps/trackers/serializers.py:118
 msgid "Abbonamenti ricorrenti: streaming, cloud, software"
 msgstr "Recurring subscriptions: streaming, cloud, software"
 
-#: apps/trackers/serializers.py:119
+#: apps/trackers/serializers.py:121
 msgid "Cinema, viaggi, eventi, sport, hobby"
 msgstr "Cinema, travel, events, sport, hobbies"
 
-#: apps/trackers/serializers.py:121
+#: apps/trackers/serializers.py:123
 msgid "Regali e donazioni"
 msgstr "Gifts and donations"
 
-#: apps/trackers/serializers.py:123
+#: apps/trackers/serializers.py:125
 msgid "Tutto cio' che non rientra altrove"
 msgstr "Anything that doesn't fit elsewhere"
 
-#: apps/trackers/serializers.py:125
+#: apps/trackers/serializers.py:127
 msgid "Stipendio e compensi da lavoro"
 msgstr "Salary and work income"
 
-#: apps/trackers/serializers.py:126
+#: apps/trackers/serializers.py:128
 msgid "Rimborsi e storni"
 msgstr "Refunds and reversals"
 
-#: apps/trackers/serializers.py:127
+#: apps/trackers/serializers.py:129
 msgid "Altre entrate"
 msgstr "Other income"
 
-#: apps/trackers/serializers.py:205
+#: apps/trackers/serializers.py:231
 msgid "Categoria non valida."
 msgstr "Invalid category."
 
-#: apps/trackers/serializers.py:220
+#: apps/trackers/serializers.py:246
 msgid "Al massimo tre anni per volta."
 msgstr "At most three years at a time."
 
@@ -449,7 +449,7 @@ msgstr "A settlement needs two different users."
 msgid "Entrambi gli utenti devono essere membri attivi."
 msgstr "Both users must be active members."
 
-#: apps/transactions/services/reports.py:200
+#: apps/transactions/services/reports.py:206
 msgid "Senza categoria"
 msgstr "Uncategorised"
 
