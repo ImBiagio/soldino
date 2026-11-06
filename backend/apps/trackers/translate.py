@@ -58,11 +58,34 @@ def missing_translations():
 
 
 def name_written(category: Category, name: str, language: str | None) -> None:
-    """Il nome e' stato scritto (o cambiato) in ``language``: le altre lingue si rifanno."""
-    code = (language or settings.LANGUAGE_CODE)[:2]
+    """Il nome e' stato scritto (o cambiato) in ``language``: le altre lingue si rifanno.
+
+    ``language=None``: lingua non nota (il nome originale cambiato a mano), si
+    rifanno tutte.
+    """
+    category.name = name
+    if language is None:
+        category.name_translations = default_translations(name)
+        return
+    code = language[:2]
     category.name_translations = default_translations(name) or (
         {code: name} if code in LANGUAGE_CODES else {}
     )
+
+
+def apply_manual_translations(category: Category, names: dict[str, str]) -> None:
+    """Correzioni a mano di una lingua: vincono sul traduttore e non toccano ``name``.
+
+    Un valore vuoto toglie la lingua, che il traduttore rifara'.
+    """
+    merged = dict(category.name_translations or {})
+    for code, value in names.items():
+        value = value.strip()
+        if value:
+            merged[code] = value
+        else:
+            merged.pop(code, None)
+    category.name_translations = merged
 
 
 def schedule_translation(category: Category) -> None:

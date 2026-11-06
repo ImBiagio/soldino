@@ -30,7 +30,7 @@ import {
   Switch,
 } from '../../components/ui'
 import { DEFAULT_CATEGORY_COLOR, categoryColor, memberColor } from '../../lib/colors'
-import { gettext, interpolate, intlLocale, ngettext } from '../../lib/i18n'
+import { getLanguages, gettext, interpolate, intlLocale, ngettext } from '../../lib/i18n'
 import { categoryIcon } from '../../lib/icons'
 import { ROLE_LABEL, ROLE_OPTIONS, TYPE_OPTIONS } from '../../lib/labels'
 import { normalizeDecimal } from '../../lib/money'
@@ -591,6 +591,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
   )
 
   const openForm = (category: Category | null, type: TransactionType) => {
+    save.reset()
     setEditing(category)
     setCreating(category ? null : type)
     setFormType(category?.type ?? type)
@@ -683,27 +684,77 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
             onSubmit={async (event) => {
               event.preventDefault()
               const form = new FormData(event.currentTarget)
-              await save.mutateAsync({
-                id: editing?.id,
-                name: String(form.get('name')),
-                type: formType,
-                description: String(form.get('description') ?? ''),
-                color: formColor,
-                icon: String(form.get('icon') ?? ''),
-              })
+              // Si manda solo quello che e' cambiato: un nome originale nuovo
+              // rifa' tutte le lingue, una traduzione corretta tocca solo la sua.
+              const names: Partial<Category> = {}
+              if (editing) {
+                const original = String(form.get('original_name') ?? '').trim()
+                if (original && original !== editing.original_name) {
+                  names.original_name = original
+                }
+                const changed: Record<string, string> = {}
+                for (const { code } of getLanguages()) {
+                  const value = String(form.get(`name_${code}`) ?? '').trim()
+                  if (value !== (editing.name_translations[code] ?? '')) changed[code] = value
+                }
+                if (Object.keys(changed).length) names.name_translations = changed
+              } else {
+                names.name = String(form.get('name'))
+              }
+              try {
+                await save.mutateAsync({
+                  id: editing?.id,
+                  ...names,
+                  type: formType,
+                  description: String(form.get('description') ?? ''),
+                  color: formColor,
+                  icon: String(form.get('icon') ?? ''),
+                })
+              } catch {
+                return // l'errore lo mostra il banner nel dialog
+              }
               setEditing(null)
               setCreating(null)
             }}
           >
-            <Field label={gettext('Nome')}>
-              <input
-                className="field-input"
-                name="name"
-                required
-                autoFocus
-                defaultValue={editing?.name}
-              />
-            </Field>
+            {/* Dentro il dialog: fuori resterebbe coperto (es. un nome gia' usato). */}
+            <ErrorBanner error={save.error} />
+            {editing ? (
+              <>
+                <Field
+                  label={gettext('Nome originale')}
+                  hint={gettext(
+                    'Il nome com’è stato scritto (anche quello del foglio da importare). Cambiandolo si rifanno tutte le traduzioni.',
+                  )}
+                >
+                  <input
+                    className="field-input"
+                    name="original_name"
+                    required
+                    defaultValue={editing.original_name}
+                  />
+                </Field>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {getLanguages().map(({ code, name }) => (
+                    <Field key={code} label={name}>
+                      <input
+                        className="field-input"
+                        name={`name_${code}`}
+                        defaultValue={editing.name_translations[code] ?? ''}
+                        placeholder={gettext('Vuoto: la traduce Gemini')}
+                      />
+                    </Field>
+                  ))}
+                </div>
+                <p className="-mt-1 px-4 text-body-small text-on-surface-variant">
+                  {gettext('Correggi solo come si legge nell’app: il nome originale resta com’è.')}
+                </p>
+              </>
+            ) : (
+              <Field label={gettext('Nome')}>
+                <input className="field-input" name="name" required autoFocus />
+              </Field>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field label={gettext('Tipo')}>
                 <SelectField

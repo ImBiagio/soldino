@@ -13,7 +13,13 @@ from apps.core.methods import validate_date_range
 from apps.users.serializers import UserBriefSerializer
 
 from .models import Category, Membership, Tracker
-from .translate import default_translations, name_written, schedule_translation
+from .translate import (
+    LANGUAGE_CODES,
+    apply_manual_translations,
+    default_translations,
+    name_written,
+    schedule_translation,
+)
 
 User = get_user_model()
 
@@ -148,11 +154,32 @@ def _seed_default_categories(tracker: Tracker) -> None:
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    """``name`` e' il nome nella lingua di chi legge (ADR 0020).
+
+    In scrittura ci sono tre modi di toccare il nome:
+
+    - ``name``: il nome come lo mostra l'app; se cambia vale per la lingua
+      attiva e le altre si rifanno (il form di creazione);
+    - ``original_name``: il nome scritto, quello del foglio e del vincolo di
+      unicita'; se cambia si rifanno tutte le lingue;
+    - ``name_translations``: correzioni a mano di singole lingue, che non
+      toccano il nome scritto (vuoto = la rifa' il traduttore).
+    """
+
+    original_name = serializers.CharField(max_length=80, required=False, write_only=True)
+    name_translations = serializers.DictField(
+        child=serializers.CharField(max_length=80, allow_blank=True),
+        required=False,
+        write_only=True,
+    )
+
     class Meta:
         model = Category
         fields = [
             "id",
             "name",
+            "original_name",
+            "name_translations",
             "description",
             "type",
             "color",
@@ -167,27 +194,74 @@ class CategorySerializer(serializers.ModelSerializer):
         # dell'utente con il traduttore di apps/trackers/translate.py).
         data = super().to_representation(instance)
         data["name"] = instance.localized_name()
+        data["original_name"] = instance.name
+        data["name_translations"] = {
+            code: instance.name_translations.get(code, "") for code in LANGUAGE_CODES
+        }
         return data
+
+    def validate_name_translations(self, value):
+        unknown = sorted(set(value) - set(LANGUAGE_CODES))
+        if unknown:
+            raise serializers.ValidationError(
+                _("Lingua sconosciuta: %(codes)s.") % {"codes": ", ".join(unknown)}
+            )
+        return value
+
+    def _renamed(self, instance, attrs) -> tuple[str, str | None] | None:
+        """Il nome scritto nuovo e la sua lingua (None = non nota), o None se resta."""
+        original = (attrs.get("original_name") or "").strip()
+        if original and (instance is None or original != instance.name):
+            return original, None
+        name = (attrs.get("name") or "").strip()
+        # Il form rimanda il nome che ha mostrato, cioe' quello tradotto: se non
+        # e' cambiato, nome scritto e traduzioni restano come sono.
+        if name and (instance is None or name != instance.localized_name()):
+            return name, translation.get_language()
+        return None
+
+    def validate(self, attrs):
+        renamed = self._renamed(self.instance, attrs)
+        if self.instance is None and renamed is None:
+            raise serializers.ValidationError({"name": _("Il nome e' obbligatorio.")})
+        name = renamed[0] if renamed else self.instance.name
+        kind = attrs.get("type", getattr(self.instance, "type", Category.Type.EXPENSE))
+        # Il vincolo del DB, ma con un 400 leggibile invece di un errore di integrita'.
+        clash = Category.objects.filter(tracker=self.context["tracker"], name=name, type=kind)
+        if self.instance is not None:
+            clash = clash.exclude(pk=self.instance.pk)
+        if clash.exists():
+            raise serializers.ValidationError(
+                {"name": _("Esiste gia' una categoria con questo nome.")}
+            )
+        attrs["_renamed"] = renamed
+        return attrs
+
+    def _apply_names(self, category, validated_data) -> None:
+        renamed = validated_data.pop("_renamed", None)
+        manual = validated_data.pop("name_translations", None)
+        validated_data.pop("original_name", None)
+        validated_data.pop("name", None)
+        if renamed:
+            name_written(category, *renamed)
+        if manual:
+            apply_manual_translations(category, manual)
 
     def create(self, validated_data):
         # Senza un colore scelto, quello del tipo: rosso uscite, verde entrate.
         if not validated_data.get("color"):
             kind = validated_data.get("type", Category.Type.EXPENSE)
             validated_data["color"] = Category.DEFAULT_COLORS[kind]
-        category = Category(**validated_data)
-        name_written(category, category.name, translation.get_language())
+        category = Category()
+        self._apply_names(category, validated_data)
+        for field, value in validated_data.items():
+            setattr(category, field, value)
         category.save()
         schedule_translation(category)
         return category
 
     def update(self, instance, validated_data):
-        name = validated_data.get("name")
-        # Il form rimanda il nome che ha mostrato, cioe' quello tradotto: se non
-        # e' cambiato, nome scritto e traduzioni restano come sono.
-        if name is None or name == instance.localized_name():
-            validated_data.pop("name", None)
-            return super().update(instance, validated_data)
-        name_written(instance, name, translation.get_language())
+        self._apply_names(instance, validated_data)
         category = super().update(instance, validated_data)
         schedule_translation(category)
         return category

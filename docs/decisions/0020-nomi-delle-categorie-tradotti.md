@@ -36,6 +36,21 @@ uguale a quello mostrato, nome e traduzioni non cambiano (si e' toccato solo
 il colore, l'icona, ...). Se cambia, il nuovo nome vale per la lingua di chi
 scrive e le altre si rifanno.
 
+**Correzioni a mano** (dal 2026-11-06, dopo il primo giro in produzione:
+"Utilities" era diventato "Articoli per la casa"). Il form di modifica nel
+Setup mostra il **nome originale** (`original_name`) e un campo per lingua
+(`name_translations`):
+
+- correggere una lingua cambia solo quella, non tocca il nome scritto (che
+  deve restare uguale al foglio per l'import) e vince sul traduttore;
+  svuotarla la fa rifare;
+- cambiare il nome originale rifa' tutte le lingue: la lingua in cui e'
+  scritto non e' nota.
+
+Il form manda solo i campi cambiati. Un nome gia' usato nello stesso tipo e'
+un 400 leggibile ("Esiste gia' una categoria con questo nome."), non piu' un
+errore di integrita'.
+
 ## Alternative scartate
 
 - **Tradurre al volo a ogni lettura**: una chiamata a Gemini per pagina, lenta

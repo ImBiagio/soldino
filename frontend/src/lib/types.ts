@@ -55,7 +55,12 @@ export interface Tracker {
 
 export interface Category {
   id: UUID
+  /** Il nome nella lingua dell'interfaccia (ADR 0020). */
   name: string
+  /** Il nome com'e' stato scritto: unicita', import del foglio, prompt. */
+  original_name: string
+  /** Il nome per lingua; vuoto finche' il traduttore non l'ha fatto. */
+  name_translations: Record<string, string>
   description: string
   type: TransactionType
   color: string

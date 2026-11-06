@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 09:58+0100\n"
+"POT-Creation-Date: 2026-11-06 11:27+0100\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -2017,6 +2017,20 @@ msgstr "New income category"
 
 msgid "Nuova categoria di uscita"
 msgstr "New expense category"
+
+msgid "Nome originale"
+msgstr "Original name"
+
+msgid ""
+"Il nome com’è stato scritto (anche quello del foglio da importare). "
+"Cambiandolo si rifanno tutte le traduzioni."
+msgstr "The name as it was written (also the one in the sheet to import). Changing it redoes every translation."
+
+msgid "Vuoto: la traduce Gemini"
+msgstr "Empty: Gemini translates it"
+
+msgid "Correggi solo come si legge nell’app: il nome originale resta com’è."
+msgstr "Only fixes how it reads in the app: the original name stays as it is."
 
 msgid "Colore"
 msgstr "Colour"

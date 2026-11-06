@@ -198,7 +198,9 @@ I colori e le icone delle categorie sono **dati** (`Category.color`,
 **nome** arriva già nella lingua di chi legge: `Category.name_translations`,
 riempito per le categorie di default da un dizionario e per le altre da Gemini
 nel worker, appena create o rinominate e ogni ora per quelle rimaste indietro
-([ADR 0020](docs/decisions/0020-nomi-delle-categorie-tradotti.md)).
+([ADR 0020](docs/decisions/0020-nomi-delle-categorie-tradotti.md)). Dal Setup
+una traduzione si corregge a mano, lingua per lingua, senza toccare il nome
+originale (quello del foglio).
 
 **Ogni menu a tendina è lo stesso `Picker`** (`components/Picker.tsx`): si
 apre in un portal sopra la pagina (dentro la riga dei filtri, che scorre in

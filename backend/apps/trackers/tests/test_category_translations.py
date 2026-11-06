@@ -139,3 +139,79 @@ def test_grafici_e_movimenti_usano_il_nome_tradotto(api, user, tracker, make_exp
     assert summary["by_category"][0]["category_name"] == "Gym"
     transactions = client.get(reverse("transaction-list", args=[tracker.pk]), **EN).data
     assert transactions["results"][0]["category_name"] == "Gym"
+
+
+def test_correggere_una_traduzione_non_tocca_il_nome_scritto(
+    api, user, tracker, gemini, django_capture_on_commit_callbacks
+):
+    category = Category.objects.create(
+        tracker=tracker,
+        name="Utilities",
+        name_translations={"it": "Articoli per la casa", "en": "Utilities"},
+    )
+    url = reverse("category-detail", args=[tracker.pk, category.pk])
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api(user).patch(
+            url, {"name_translations": {"it": "Utenze"}}, format="json", **IT
+        )
+    assert response.status_code == 200, response.data
+    assert response.data["name"] == "Utenze"
+    assert response.data["original_name"] == "Utilities"
+    assert response.data["name_translations"] == {"it": "Utenze", "en": "Utilities"}
+
+    category.refresh_from_db()
+    assert category.name == "Utilities"
+    assert category.name_translations == {"it": "Utenze", "en": "Utilities"}
+    assert gemini == []
+
+
+def test_svuotare_una_traduzione_la_fa_rifare(
+    api, user, tracker, gemini, django_capture_on_commit_callbacks
+):
+    category = Category.objects.create(
+        tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Sport"}
+    )
+    url = reverse("category-detail", args=[tracker.pk, category.pk])
+    with django_capture_on_commit_callbacks(execute=True):
+        api(user).patch(url, {"name_translations": {"en": ""}}, format="json", **IT)
+    category.refresh_from_db()
+    assert category.name_translations == {"it": "Palestra", "en": "Gym"}
+
+
+def test_cambiare_il_nome_originale_rifa_tutte_le_lingue(
+    api, user, tracker, gemini, django_capture_on_commit_callbacks
+):
+    category = Category.objects.create(
+        tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Gym"}
+    )
+    url = reverse("category-detail", args=[tracker.pk, category.pk])
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api(user).patch(url, {"original_name": "Gym"}, format="json", **IT)
+    assert response.status_code == 200, response.data
+    category.refresh_from_db()
+    # La lingua del nome originale non e' nota: le fa tutte il traduttore.
+    assert category.name == "Gym"
+    assert category.name_translations == {"it": "Palestra", "en": "Gym"}
+    assert [item["name"] for item in gemini[0]] == ["Gym"]
+
+
+def test_lingua_sconosciuta_e_nome_doppio_sono_400(api, user, tracker):
+    Category.objects.create(tracker=tracker, name="Casa")
+    gym = Category.objects.create(tracker=tracker, name="Palestra")
+    client = api(user)
+    url = reverse("category-detail", args=[tracker.pk, gym.pk])
+
+    response = client.patch(url, {"name_translations": {"fr": "Gym"}}, format="json")
+    assert response.status_code == 400
+    assert "name_translations" in response.data
+
+    response = client.patch(url, {"original_name": "Casa"}, format="json")
+    assert response.status_code == 400
+    assert "name" in response.data
+
+    response = client.post(
+        reverse("category-list", args=[tracker.pk]),
+        {"name": "Casa", "type": "expense"},
+        format="json",
+    )
+    assert response.status_code == 400
