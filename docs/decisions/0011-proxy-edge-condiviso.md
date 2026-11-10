@@ -39,3 +39,7 @@ che aggiorna tutti i container etichettati del server.
   proxy, quindi serviva toccare i Caddyfile lo stesso, con più pezzi in gioco.
 - **Edge che conosce i path delle app**: l'edge diventerebbe da aggiornare a
   ogni cambio di routing di una delle app.
+
+**Aggiornamento 2026-11-10:** i sorgenti dell'edge (e della copia offsite dei
+backup) non stanno più in `deploy/` di questo repo ma nel repo `homeserver`,
+condiviso da tutte le app, con uno `deploy.sh` che valida prima di applicare.

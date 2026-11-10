@@ -416,8 +416,10 @@ internet ─────┤     cinem.inoo.it ──► cinemino-web:80
 
 - `deploy/compose.prod.yaml` e un `.env` (modello `deploy/.env.prod.example`)
   stanno in `~/soldino`; nessuna porta pubblicata.
-- `deploy/edge/` è il proxy condiviso: va copiato in `~/edge` quando cambia
-  (`docker compose up -d` lì). Un dominio nuovo è un blocco nel suo Caddyfile.
+- Il proxy condiviso `edge` e la copia offsite dei backup stanno nel repo
+  [homeserver](https://github.com/ImBiagio/homeserver) (`edge/`, `offsite/`) e
+  si aggiornano con il suo `./deploy.sh`. Un dominio nuovo è un blocco nel
+  Caddyfile di quel repo.
 - I Caddy delle app si fidano delle `X-Forwarded-*` dell'edge
   (`trusted_proxies private_ranges`): Django vede l'HTTPS e l'admin, che si
   apre solo dalla LAN di casa, guarda il `client_ip` vero e non l'IP dell'edge.
@@ -435,9 +437,9 @@ gunzip -c backups/last/soldino-latest.sql.gz | docker compose -f compose.prod.ya
 Primo avvio (già fatto il 2026-10-15):
 
 ```bash
-docker network create edge
+docker network create edge                 # una volta, vedi repo homeserver
 cd ~/soldino && docker compose -f compose.prod.yaml up -d
-cd ~/edge && docker compose up -d
+cd ~/edge && docker compose up -d          # file dal repo homeserver
 docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py createsuperuser
 ```
 
