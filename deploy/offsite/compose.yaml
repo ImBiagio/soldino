@@ -1,8 +1,8 @@
-# Copia fuori dal server dei backup di cinemino, soldino e regalino: ogni
-# notte alle 01:30 UTC (dopo i pg_dump di mezzanotte e le foto di regalino
-# delle 23:30 UTC) e a ogni avvio, rclone manda ~/<progetto>/backups su Google
-# Drive, cifrati (remote "gdrive-crypt" in ./rclone/rclone.conf, chiavi nel
-# vault). Sul server sta in ~/offsite, accanto a ~/edge.
+# Copia fuori dal server dei backup di cinemino, soldino, regalino e
+# languorino: ogni notte alle 01:30 UTC (dopo i pg_dump di mezzanotte e le foto
+# di regalino e languorino delle 23:30 UTC) e a ogni avvio, rclone manda
+# ~/<progetto>/backups su Google Drive, cifrati (remote "gdrive-crypt" in
+# ./rclone/rclone.conf, chiavi nel vault). Sul server sta in ~/offsite, accanto a ~/edge.
 #
 # "sync" rispecchia le cartelle del server, ma cio' che sul server sparisce
 # (rotazione o cancellazione per sbaglio) non si perde: finisce in
@@ -28,6 +28,7 @@ services:
       - ../cinemino/backups:/backups/cinemino:ro
       - ../soldino/backups:/backups/soldino:ro
       - ../regalino/backups:/backups/regalino:ro
+      - ../languorino/backups:/backups/languorino:ro
     entrypoint: ["sh", "-c"]
     command:
       - |
@@ -37,7 +38,7 @@ services:
           status=ok
           log=/status/ultima-copia.log
           : > "$$log"
-          for project in cinemino soldino regalino; do
+          for project in cinemino soldino regalino languorino; do
             if ! rclone sync "/backups/$$project" "gdrive-crypt:$$project" \
                 --backup-dir "gdrive-crypt:_eliminati/$$day/$$project" \
                 --skip-links --log-level NOTICE --stats-one-line --stats 0 2>>"$$log"; then
@@ -81,6 +82,7 @@ services:
       - ../cinemino/backups:/backups/cinemino:ro
       - ../soldino/backups:/backups/soldino:ro
       - ../regalino/backups:/backups/regalino:ro
+      - ../languorino/backups:/backups/languorino:ro
     entrypoint: ["sh", "-c"]
     command:
       - |
@@ -97,12 +99,14 @@ services:
           ore=$$(( ($$(date +%s) - ts) / 3600 ))
           if [ "$$esito" != ok ]; then echo "- copia su Google Drive: esito $$esito"; fi
           if [ "$$ore" -ge "$$MAX_ORE" ]; then echo "- copia su Google Drive: ultima riuscita o tentata $$ore ore fa"; fi
-          for p in cinemino soldino regalino; do
+          for p in cinemino soldino regalino languorino; do
             o=$$(ore_fa "/backups/$$p/daily" "*.sql.gz")
             [ "$$o" -lt "$$MAX_ORE" ] || echo "- $$p: ultimo backup Postgres $$o ore fa"
           done
-          o=$$(ore_fa /backups/regalino/media/daily "media-*.tar.gz")
-          [ "$$o" -lt "$$MAX_ORE" ] || echo "- regalino: ultimo backup delle foto $$o ore fa"
+          for p in regalino languorino; do
+            o=$$(ore_fa "/backups/$$p/media/daily" "media-*.tar.gz")
+            [ "$$o" -lt "$$MAX_ORE" ] || echo "- $$p: ultimo backup delle foto $$o ore fa"
+          done
         }
         manda() {
           oggetto="$$1"; corpo="$$2"
