@@ -14,11 +14,16 @@ x-backend: &backend
     CELERY_BROKER_URL: redis://redis:6379/1
   labels:
     - com.centurylinklabs.watchtower.enable=true
+  # Immagine nostra, utente non root: nessuna capability e nessuna escalation.
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
 
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 512m
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-soldino}
       POSTGRES_USER: ${POSTGRES_USER:-soldino}
@@ -34,6 +39,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -42,6 +49,7 @@ services:
 
   backend:
     <<: *backend
+    mem_limit: 768m
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +65,7 @@ services:
 
   worker:
     <<: *backend
+    mem_limit: 512m
     command: celery -A config worker -l info --concurrency 2
     depends_on:
       backend:
@@ -64,6 +73,7 @@ services:
 
   beat:
     <<: *backend
+    mem_limit: 256m
     command: >
       celery -A config beat -l info
       --scheduler django_celery_beat.schedulers:DatabaseScheduler
@@ -74,6 +84,8 @@ services:
   web:
     image: ghcr.io/imbiagio/soldino-web:prod
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 128m
     depends_on:
       - backend
     networks:
@@ -89,6 +101,8 @@ services:
     # Restore e prova in README (Deploy) e nel vault.
     image: prodrigestivill/postgres-backup-local:16
     restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 256m
     # biagio: i dump restano leggibili solo dal proprietario della cartella.
     user: "1000:1000"
     environment:
