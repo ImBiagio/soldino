@@ -195,6 +195,9 @@ REFRESH_COOKIE_SAMESITE = env("REFRESH_COOKIE_SAMESITE", "Lax")
 REFRESH_COOKIE_PATH = "/api/auth"
 
 REQUIRE_EMAIL_VERIFICATION = env_bool("REQUIRE_EMAIL_VERIFICATION", True)
+# Codice di invito: se impostato ci si registra solo conoscendolo. Vuoto =
+# registrazione aperta. Vale anche per chi arriva da un invito a un tracker.
+SIGNUP_CODE = env("SIGNUP_CODE", "")
 
 # --- Celery ---
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", "redis://redis:6379/1")

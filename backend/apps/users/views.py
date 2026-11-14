@@ -18,6 +18,7 @@ from apps.core.methods import normalize_email
 
 from .emails import send_password_reset_email, send_verification_email
 from .serializers import (
+    AuthConfigSerializer,
     EmailSerializer,
     LoginSerializer,
     PasswordChangeSerializer,
@@ -56,6 +57,17 @@ def revoke_all_refresh_tokens(user) -> None:
         [BlacklistedToken(token=token) for token in OutstandingToken.objects.filter(user=user)],
         ignore_conflicts=True,
     )
+
+
+class AuthConfigView(APIView):
+    """Pubblico: dice al form di registrazione se chiedere il codice di invito."""
+
+    permission_classes = [AllowAny]
+    authentication_classes: list = []
+
+    @extend_schema(responses={200: AuthConfigSerializer})
+    def get(self, request):
+        return Response({"signup_code_required": bool(settings.SIGNUP_CODE)})
 
 
 class RegisterView(APIView):

@@ -145,6 +145,14 @@ in testo e HTML con un solo layout (`backend/templates/emails/`). In sviluppo
 finiscono nei log del worker: `docker compose logs -f worker`. In produzione
 SMTP di Brevo, lo stesso account di cinemino.
 
+**Registrazione su invito** (facoltativa): con `SIGNUP_CODE` nel `.env` ci si
+registra solo conoscendo il codice (`invite_code` in `POST auth/register`,
+confronto a tempo costante). Il form lo chiede solo quando serve: lo sa da
+`GET auth/config` (`{"signup_code_required": true}`, pubblico, non rivela il
+codice). Vuoto o assente, la registrazione resta aperta. Vale anche per chi
+arriva da un invito a un tracker e non ha ancora un account: il codice va
+dato insieme all'invito.
+
 **Account** (`/account`, dalla lista tracker o dal menu): nome, stato
 dell'email con reinvio della conferma, cambio password e "mandami il link di
 reset" per chi non ricorda quella attuale.
@@ -445,7 +453,7 @@ docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py crea
 
 ## Invarianti verificate dai test
 
-151 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+281 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in

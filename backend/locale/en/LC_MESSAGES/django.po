@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-06 11:27+0100\n"
+"POT-Creation-Date: 2026-11-14 14:58+0100\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -542,63 +542,67 @@ msgstr ""
 "The link is valid for 2 hours and can be used once. If you didn't request "
 "it, just ignore this email: your password stays the same."
 
-#: apps/users/serializers.py:38
+#: apps/users/serializers.py:39
 msgid "Deve essere una lista di sezioni."
 msgstr "Must be a list of sections."
 
-#: apps/users/serializers.py:40
+#: apps/users/serializers.py:41
 msgid "Sezione non valida."
 msgstr "Invalid section."
 
-#: apps/users/serializers.py:42
+#: apps/users/serializers.py:43
 msgid "Sezione ripetuta."
 msgstr "Duplicate section."
 
-#: apps/users/serializers.py:63
+#: apps/users/serializers.py:68
+msgid "Codice di invito non valido."
+msgstr "Invalid invite code."
+
+#: apps/users/serializers.py:74
 msgid "Esiste gia' un account con questa email."
 msgstr "An account with this email already exists."
 
-#: apps/users/views.py:74
+#: apps/users/views.py:86
 msgid "Registrazione completata. Controlla la mail per confermare."
 msgstr "Sign-up complete. Check your email to confirm."
 
-#: apps/users/views.py:100
+#: apps/users/views.py:112
 msgid "Credenziali non valide."
 msgstr "Invalid credentials."
 
-#: apps/users/views.py:105
+#: apps/users/views.py:117
 msgid "Email non ancora confermata."
 msgstr "Email not confirmed yet."
 
-#: apps/users/views.py:121
+#: apps/users/views.py:133
 msgid "Refresh token assente."
 msgstr "Refresh token missing."
 
-#: apps/users/views.py:127
+#: apps/users/views.py:139
 msgid "Refresh token non valido."
 msgstr "Invalid refresh token."
 
-#: apps/users/views.py:133
+#: apps/users/views.py:145
 msgid "Utente non valido."
 msgstr "Invalid user."
 
-#: apps/users/views.py:170
+#: apps/users/views.py:182
 msgid "Link non valido o scaduto."
 msgstr "Invalid or expired link."
 
-#: apps/users/views.py:175
+#: apps/users/views.py:187
 msgid "Utente inesistente."
 msgstr "User doesn't exist."
 
-#: apps/users/views.py:180
+#: apps/users/views.py:192
 msgid "Email gia' confermata: accedi con la tua password."
 msgstr "Email already confirmed: sign in with your password."
 
-#: apps/users/views.py:212
+#: apps/users/views.py:224
 msgid "Password attuale errata."
 msgstr "Current password is incorrect."
 
-#: apps/users/views.py:274
+#: apps/users/views.py:286
 msgid "Link non valido, gia' usato o scaduto: chiedine uno nuovo."
 msgstr "Invalid, already used or expired link: request a new one."
 

@@ -159,11 +159,24 @@ export function RegisterPage() {
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
+  // Con SIGNUP_CODE impostato sul server la registrazione chiede il codice di invito.
+  const [codeRequired, setCodeRequired] = useState(false)
   const [error, setError] = useState<unknown>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
+  useEffect(() => {
+    api
+      .get<{ signup_code_required: boolean }>('/api/auth/config')
+      .then((config) => setCodeRequired(config.signup_code_required))
+      .catch(() => undefined)
+  }, [])
+
   if (user) return <Navigate to="/" replace />
+
+  // Se la config non e' arrivata il campo compare comunque al primo rifiuto.
+  const inviteError = error instanceof ApiError ? error.fieldErrors().invite_code : undefined
 
   return (
     <Shell
@@ -192,7 +205,7 @@ export function RegisterPage() {
             setBusy(true)
             setError(null)
             try {
-              setMessage(await register(email, password, displayName))
+              setMessage(await register(email, password, displayName, inviteCode))
             } catch (err) {
               setError(err)
             } finally {
@@ -231,6 +244,23 @@ export function RegisterPage() {
               required
             />
           </Field>
+          {(codeRequired || inviteError) && (
+            <Field
+              label={gettext('Codice di invito')}
+              error={inviteError}
+              hint={gettext('Te lo dà chi ti ha invitato su Soldino.')}
+            >
+              <input
+                className="field-input"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={inviteCode}
+                onChange={(event) => setInviteCode(event.target.value)}
+                required
+              />
+            </Field>
+          )}
           <button className="btn-filled mt-1 w-full" disabled={busy}>
             {busy ? gettext('Creazione…') : gettext('Crea account')}
           </button>

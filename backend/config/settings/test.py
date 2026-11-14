@@ -4,6 +4,8 @@ from .base import REST_FRAMEWORK, env
 DEBUG = False
 CELERY_TASK_ALWAYS_EAGER = True
 REQUIRE_EMAIL_VERIFICATION = False
+# I test non dipendono dal .env di chi li lancia: il codice ha i suoi test.
+SIGNUP_CODE = ""
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

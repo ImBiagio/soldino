@@ -5,6 +5,7 @@ import re
 from django.conf import settings
 from django.contrib.auth import get_user_model, password_validation
 from django.utils import translation
+from django.utils.crypto import constant_time_compare
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 
@@ -56,6 +57,16 @@ class RegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     display_name = serializers.CharField(required=False, allow_blank=True)
+    # Con SIGNUP_CODE impostato la registrazione e' chiusa a chi non lo conosce.
+    invite_code = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, default="", max_length=200
+    )
+
+    def validate_invite_code(self, value: str) -> str:
+        # Confronto a tempo costante: i tempi di risposta non rivelano il codice.
+        if settings.SIGNUP_CODE and not constant_time_compare(value, settings.SIGNUP_CODE):
+            raise serializers.ValidationError(_("Codice di invito non valido."))
+        return value
 
     def validate_email(self, value: str) -> str:
         value = normalize_email(value)
@@ -75,6 +86,12 @@ class RegisterSerializer(serializers.Serializer):
             # La lingua in cui si sta registrando: anche la mail di conferma.
             language=translation.get_language() or settings.LANGUAGE_CODE,
         )
+
+
+class AuthConfigSerializer(serializers.Serializer):
+    """Quello che il frontend deve sapere prima del login."""
+
+    signup_code_required = serializers.BooleanField(read_only=True)
 
 
 class LoginSerializer(serializers.Serializer):
