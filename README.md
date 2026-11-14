@@ -433,6 +433,13 @@ internet ─────┤     cinem.inoo.it ──► cinemino-web:80
   apre solo dalla LAN di casa, guarda il `client_ip` vero e non l'IP dell'edge.
 - `GET /api/health` serve all'healthcheck del container (esente dal redirect HTTPS).
 
+**Segnalazione errori.** Con `SENTRY_DSN` nel `.env` del server le eccezioni
+non gestite di backend, worker e beat arrivano a GlitchTip (compatibile Sentry,
+`sentry-sdk` con le integrazioni Django e Celery). Si accende solo in
+`config.settings.prod` e solo se la variabile non è vuota; `SENTRY_ENVIRONMENT`
+vale `production` se manca. Niente dati personali (`send_default_pii=False`),
+niente tracing, nessun SDK nel frontend.
+
 **Backup.** Il servizio `backup` del compose fa un `pg_dump` compresso ogni
 notte a mezzanotte e a ogni avvio, in `~/soldino/backups/` (`daily/` 7 giorni,
 `weekly/` 4 settimane, `monthly/` 6 mesi, `last/` l'ultimo). Lo stesso servizio
@@ -453,7 +460,7 @@ docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py crea
 
 ## Invarianti verificate dai test
 
-281 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+282 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in

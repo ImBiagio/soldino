@@ -25,6 +25,8 @@ dependencies = [
     "python-dateutil>=2.9",
     "PyJWT[crypto]>=2.8",
     "httpx>=0.27",
+    # Segnalazione errori verso GlitchTip (compatibile Sentry): attiva solo con SENTRY_DSN.
+    "sentry-sdk>=2.0",
 ]
 
 [project.optional-dependencies]
