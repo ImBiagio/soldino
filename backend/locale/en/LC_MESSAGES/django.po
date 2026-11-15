@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Soldino\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-14 14:58+0100\n"
+"POT-Creation-Date: 2026-11-15 12:42+0100\n"
 "PO-Revision-Date: 2026-10-16 10:30+0200\n"
 "Last-Translator: Soldino\n"
 "Language-Team: English\n"
@@ -34,7 +34,7 @@ msgstr "This item has already been closed."
 msgid "Il file e' troppo grande per essere una chiave."
 msgstr "The file is too large to be a key."
 
-#: apps/banking/serializers.py:102 apps/ingestion/serializers.py:168
+#: apps/banking/serializers.py:102 apps/ingestion/serializers.py:169
 #: apps/transactions/models.py:124
 msgid "Il conto appartiene a un altro tracker."
 msgstr "The account belongs to another tracker."
@@ -174,53 +174,19 @@ msgstr "The settlement goes to another member of the tracker."
 msgid "Chi da' e chi riceve devono essere diversi."
 msgstr "The payer and the recipient must be different."
 
-#: apps/ingestion/serializers.py:150
+#: apps/ingestion/serializers.py:151
 msgid "Il file e' troppo grande (max 15 MB)."
 msgstr "The file is too large (max 15 MB)."
 
-#: apps/ingestion/serializers.py:157
+#: apps/ingestion/serializers.py:158
 msgid "Serve una foto (JPEG, PNG, WebP o HEIC)."
 msgstr "A photo is required (JPEG, PNG, WebP or HEIC)."
 
-#: apps/ingestion/serializers.py:162
+#: apps/ingestion/serializers.py:163
 msgid "Serve un file PDF."
 msgstr "A PDF file is required."
 
-#: apps/ingestion/services/gemini.py:42
-msgid "Gemini ha rifiutato la chiave: controlla GEMINI_API_KEY."
-msgstr "Gemini rejected the key: check GEMINI_API_KEY."
-
-#: apps/ingestion/services/gemini.py:43
-#, python-format
-msgid "Gemini ha risposto con un errore (%(code)s): %(message)s"
-msgstr "Gemini responded with an error (%(code)s): %(message)s"
-
-#: apps/ingestion/services/gemini.py:238
-msgid ""
-"Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e "
-"riavvia."
-msgstr ""
-"Gemini key not configured: set GEMINI_API_KEY in the .env file and restart."
-
-#: apps/ingestion/services/gemini.py:275
-#, python-format
-msgid "errore %(code)s"
-msgstr "error %(code)s"
-
-#: apps/ingestion/services/gemini.py:293
-#, python-format
-msgid ""
-"Gemini e' sovraccarico in questo momento: nessun modello ha risposto "
-"(%(models)s; ultimo: %(error)s). Riprova tra qualche minuto."
-msgstr ""
-"Gemini is overloaded right now: no model responded (%(models)s; last: "
-"%(error)s). Try again in a few minutes."
-
-#: apps/ingestion/services/gemini.py:307
-msgid "La risposta di Gemini non e' nel formato atteso."
-msgstr "Gemini's response isn't in the expected format."
-
-#: apps/ingestion/services/gemini.py:339
+#: apps/ingestion/services/ai.py:260
 msgid ""
 "Non riesco a leggere il totale: rifai la foto con lo scontrino intero, "
 "dritto e ben illuminato."
@@ -228,7 +194,7 @@ msgstr ""
 "I can't read the total: retake the photo with the whole receipt, straight "
 "and well lit."
 
-#: apps/ingestion/services/gemini.py:384
+#: apps/ingestion/services/ai.py:308
 msgid ""
 "Non ho trovato nessun importo in quello che hai detto: riprova dicendo "
 "quanto, per cosa e chi ha pagato."
@@ -236,7 +202,7 @@ msgstr ""
 "I couldn't find any amount in what you said: try again saying how much, what "
 "for and who paid."
 
-#: apps/ingestion/services/scan.py:321
+#: apps/ingestion/services/scan.py:325
 msgid "Errore imprevisto nella lettura."
 msgstr "Unexpected error while reading."
 
@@ -375,11 +341,11 @@ msgstr "The name is required."
 msgid "Esiste gia' una categoria con questo nome."
 msgstr "A category with this name already exists."
 
-#: apps/trackers/serializers.py:305
+#: apps/trackers/serializers.py:310
 msgid "Categoria non valida."
 msgstr "Invalid category."
 
-#: apps/trackers/serializers.py:320
+#: apps/trackers/serializers.py:325
 msgid "Al massimo tre anni per volta."
 msgstr "At most three years at a time."
 
@@ -495,116 +461,29 @@ msgid "Una delle quote e' assegnata a un non membro del tracker."
 msgstr ""
 "One of the shares is assigned to someone who isn't a member of the tracker."
 
-#: apps/users/emails.py:21
-msgid "Conferma il tuo indirizzo email"
-msgstr "Confirm your email address"
-
-#: apps/users/emails.py:24
-msgid ""
-"Manca un passo: conferma che questo indirizzo e' tuo e il tuo account "
-"Soldino e' pronto."
-msgstr ""
-"Just one more step: confirm this address is yours and your Soldino account "
-"is ready."
-
-#: apps/users/emails.py:27
-msgid "Conferma email"
-msgstr "Confirm email"
-
-#: apps/users/emails.py:30
-msgid ""
-"Il link vale 3 giorni e una volta sola. Se non ti sei registrato tu, ignora "
-"questa mail."
-msgstr ""
-"The link is valid for 3 days and can be used once. If you didn't sign up, "
-"just ignore this email."
-
-#: apps/users/emails.py:40
-msgid "Reimposta la password di Soldino"
-msgstr "Reset your Soldino password"
-
-#: apps/users/emails.py:43
-msgid ""
-"Qualcuno (speriamo tu) ha chiesto di reimpostare la password del tuo account "
-"Soldino."
-msgstr ""
-"Someone (hopefully you) asked to reset the password for your Soldino account."
-
-#: apps/users/emails.py:46
-msgid "Scegli una nuova password"
-msgstr "Choose a new password"
-
-#: apps/users/emails.py:49
-msgid ""
-"Il link vale 2 ore e una volta sola. Se non l'hai chiesto tu, ignora questa "
-"mail: la password resta quella di prima."
-msgstr ""
-"The link is valid for 2 hours and can be used once. If you didn't request "
-"it, just ignore this email: your password stays the same."
-
-#: apps/users/serializers.py:39
+#: apps/users/serializers.py:36
 msgid "Deve essere una lista di sezioni."
 msgstr "Must be a list of sections."
 
-#: apps/users/serializers.py:41
+#: apps/users/serializers.py:38
 msgid "Sezione non valida."
 msgstr "Invalid section."
 
-#: apps/users/serializers.py:43
+#: apps/users/serializers.py:40
 msgid "Sezione ripetuta."
 msgstr "Duplicate section."
 
-#: apps/users/serializers.py:68
-msgid "Codice di invito non valido."
-msgstr "Invalid invite code."
+#: apps/users/views.py:92
+msgid "Sessione assente."
+msgstr "No session."
 
-#: apps/users/serializers.py:74
-msgid "Esiste gia' un account con questa email."
-msgstr "An account with this email already exists."
+#: apps/users/views.py:96
+msgid "Sessione scaduta."
+msgstr "Session expired."
 
-#: apps/users/views.py:86
-msgid "Registrazione completata. Controlla la mail per confermare."
-msgstr "Sign-up complete. Check your email to confirm."
-
-#: apps/users/views.py:112
-msgid "Credenziali non valide."
-msgstr "Invalid credentials."
-
-#: apps/users/views.py:117
-msgid "Email non ancora confermata."
-msgstr "Email not confirmed yet."
-
-#: apps/users/views.py:133
-msgid "Refresh token assente."
-msgstr "Refresh token missing."
-
-#: apps/users/views.py:139
-msgid "Refresh token non valido."
-msgstr "Invalid refresh token."
-
-#: apps/users/views.py:145
-msgid "Utente non valido."
-msgstr "Invalid user."
-
-#: apps/users/views.py:182
-msgid "Link non valido o scaduto."
-msgstr "Invalid or expired link."
-
-#: apps/users/views.py:187
-msgid "Utente inesistente."
-msgstr "User doesn't exist."
-
-#: apps/users/views.py:192
-msgid "Email gia' confermata: accedi con la tua password."
-msgstr "Email already confirmed: sign in with your password."
-
-#: apps/users/views.py:224
-msgid "Password attuale errata."
-msgstr "Current password is incorrect."
-
-#: apps/users/views.py:286
-msgid "Link non valido, gia' usato o scaduto: chiedine uno nuovo."
-msgstr "Invalid, already used or expired link: request a new one."
+#: apps/users/views.py:103
+msgid "Accesso non piu' valido."
+msgstr "Access no longer valid."
 
 #: templates/emails/base.html:25 templates/emails/base.txt:1
 #, python-format
