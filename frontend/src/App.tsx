@@ -1,15 +1,8 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 import { TrackerLayout } from './components/Layout'
 import { Skeleton } from './components/ui'
-import {
-  AcceptInvitePage,
-  ForgotPasswordPage,
-  LoginPage,
-  RegisterPage,
-  ResetPasswordPage,
-  VerifyEmailPage,
-} from './features/auth/AuthPages'
+import { AcceptInvitePage, LoginPage } from './features/auth/AuthPages'
 import { AccountPage } from './features/account/AccountPage'
 import { AccountsPage } from './features/accounts/AccountsPage'
 import { BankCallbackPage } from './features/banking/BankCallbackPage'
@@ -30,19 +23,23 @@ import { useAuth } from './lib/auth'
 
 function RequireAuth({ children }: { children: JSX.Element }) {
   const { user, ready } = useAuth()
+  const location = useLocation()
   if (!ready) return <Skeleton className="m-6 h-24" />
-  if (!user) return <Navigate to="/accedi" replace />
+  if (!user) {
+    // Dopo il login su cornhub si torna dove si voleva andare: un link
+    // aperto da sloggato non deve finire sulla lista dei tracker.
+    const path = `${location.pathname}${location.search}`
+    const next = path === '/' ? '' : `?next=${encodeURIComponent(path)}`
+    return <Navigate to={`/accedi${next}`} replace />
+  }
   return children
 }
 
 export default function App() {
   return (
     <Routes>
+      {/* Registrazione, password e conferma email stanno su cornhub (ADR 0021). */}
       <Route path="/accedi" element={<LoginPage />} />
-      <Route path="/registrati" element={<RegisterPage />} />
-      <Route path="/verifica-email/:token" element={<VerifyEmailPage />} />
-      <Route path="/password-dimenticata" element={<ForgotPasswordPage />} />
-      <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
       <Route
         path="/account"
         element={

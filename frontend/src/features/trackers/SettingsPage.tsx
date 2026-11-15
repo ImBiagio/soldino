@@ -741,7 +741,7 @@ function CategoriesSection({ tracker }: { tracker: Tracker }) {
                         className="field-input"
                         name={`name_${code}`}
                         defaultValue={editing.name_translations[code] ?? ''}
-                        placeholder={gettext('Vuoto: la traduce Gemini')}
+                        placeholder={gettext("Vuoto: la traduce l'AI")}
                       />
                     </Field>
                   ))}

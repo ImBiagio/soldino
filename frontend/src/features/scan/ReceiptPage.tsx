@@ -48,7 +48,7 @@ export function ReceiptPage() {
         <h1 className="text-title-large">{gettext('Scan scontrino')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
           {gettext(
-            'Fotografa lo scontrino e vai: Gemini legge esercente, data e totale in background e propone la categoria. La spesa ti aspetta in',
+            'Fotografa lo scontrino e vai: l\'intelligenza artificiale legge esercente, data e totale in background e propone la categoria. La spesa ti aspetta in',
           )}{' '}
           <Link to="../da-rivedere" relative="path" className="text-primary underline">
             {gettext('Da rivedere')}
@@ -130,7 +130,7 @@ export function ReceiptPage() {
         )}
         <p className="text-body-small text-on-surface-variant">
           {gettext(
-            'La foto viene inviata a Google Gemini per la lettura e cancellata da Soldino quando registri o scarti la spesa.',
+            'La foto viene letta da un servizio di intelligenza artificiale, tramite cornhub, e cancellata da Soldino quando registri o scarti la spesa.',
           )}
         </p>
       </section>

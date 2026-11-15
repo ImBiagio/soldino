@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 
 import { useAccounts, useStatements, useUploadStatement } from '../../api/hooks'
+import { AiCost } from '../../components/AiCost'
 import { accountOptions, SelectField } from '../../components/selects'
 import { EmptyState, ErrorBanner, Field, Icon, RowsSkeleton } from '../../components/ui'
 import { formatDate } from '../../lib/format'
@@ -31,7 +32,7 @@ export function ScanPage() {
         <h1 className="text-title-large">{gettext('Scan estratto conto')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
           {gettext(
-            'Carica il PDF della banca: lo legge Gemini e ti propone i movimenti, già con la categoria. Li rivedi riga per riga e niente viene registrato finché non confermi.',
+            'Carica il PDF della banca: lo legge l\'intelligenza artificiale e ti propone i movimenti, già con la categoria. Li rivedi riga per riga e niente viene registrato finché non confermi.',
           )}
         </p>
       </div>
@@ -104,12 +105,14 @@ export function ScanPage() {
               <Icon name="document_scanner" size={20} />
               {upload.isPending ? gettext('Carico…') : gettext("Leggi l'estratto conto")}
             </button>
+            {/* Funzione grande su cornhub: chi paga e quanto, prima di premere. */}
+            <AiCost feature="statement" />
           </div>
         </form>
         <ErrorBanner error={upload.error} />
         <p className="mt-3 text-body-small text-on-surface-variant">
           {gettext(
-            'Il PDF viene inviato a Google Gemini per la lettura e cancellato da Soldino appena letto.',
+            'Il PDF viene letto da un servizio di intelligenza artificiale, tramite cornhub, e cancellato da Soldino appena letto.',
           )}
         </p>
       </section>

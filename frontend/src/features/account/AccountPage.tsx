@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
+import { useAuthConfig } from '../../api/hooks'
 import { LanguageSwitcher } from '../../components/LanguageSwitcher'
 import { NavOrderModal } from '../../components/NavOrderModal'
-import { Avatar, ErrorBanner, Field, Icon, PasswordInput } from '../../components/ui'
-import { ApiError, api } from '../../lib/api'
+import { Avatar, Icon } from '../../components/ui'
 import { useAuth } from '../../lib/auth'
-import { gettext, interpolate } from '../../lib/i18n'
+import { gettext } from '../../lib/i18n'
 import { orderDestinations } from '../../lib/navigation'
 import type { User } from '../../lib/types'
-import { NewPasswordFields, requestEmail } from '../auth/AuthPages'
 
-/** Profilo, stato dell'email e password: tutto cio' che e' dell'utente, non di un tracker. */
+/**
+ * Cio' che e' dell'utente, non di un tracker. Nome, email, password e chiavi
+ * AI sono dell'account della suite (cornhub, ADR 0021); qui restano le
+ * impostazioni di Soldino: lingua e ordine del menu.
+ */
 export function AccountPage() {
   const { user, logout } = useAuth()
   if (!user) return null
@@ -32,8 +35,6 @@ export function AccountPage() {
         </header>
 
         <ProfileSection user={user} />
-        <EmailSection user={user} />
-        <PasswordSection user={user} />
         <LanguageSection />
         <MenuSection user={user} />
       </div>
@@ -41,190 +42,39 @@ export function AccountPage() {
   )
 }
 
+/**
+ * Nome, email e password sono dell'account della suite e si cambiano su
+ * cornhub: qui solo come sono adesso (arrivano a ogni login) e i link.
+ */
 function ProfileSection({ user }: { user: User }) {
-  const { setUser } = useAuth()
-  const [name, setName] = useState(user.display_name)
-  const [error, setError] = useState<unknown>(null)
-  const [saved, setSaved] = useState(false)
+  const { data: config } = useAuthConfig()
 
   return (
     <section className="rounded-card bg-surface-container-low p-5">
-      <div className="mb-4 flex items-center gap-3">
+      <div className="flex items-center gap-3">
         <Avatar name={user.display_name} size={44} />
-        <div className="min-w-0">
-          <h2 className="text-body-large font-medium">{gettext('Profilo')}</h2>
-          <p className="text-body-small text-on-surface-variant">
-            {gettext('Il nome con cui ti vedono gli altri membri dei tracker.')}
-          </p>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-body-large font-medium">{user.display_name}</h2>
+          <p className="truncate text-body-small text-on-surface-variant">{user.email}</p>
         </div>
       </div>
-      <form
-        className="flex flex-wrap items-end gap-3"
-        onSubmit={async (event) => {
-          event.preventDefault()
-          setError(null)
-          setSaved(false)
-          try {
-            setUser(await api.patch<User>('/api/me', { display_name: name.trim() }))
-            setSaved(true)
-          } catch (err) {
-            setError(err)
-          }
-        }}
-      >
-        <Field label={gettext('Nome')} className="min-w-[220px] flex-1">
-          <input
-            className="field-input"
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value)
-              setSaved(false)
-            }}
-            required
-          />
-        </Field>
-        <button className="btn-tonal" disabled={!name.trim() || name.trim() === user.display_name}>
-          {saved ? gettext('Salvato') : gettext('Salva')}
-        </button>
-      </form>
-      <ErrorBanner error={error} />
-    </section>
-  )
-}
-
-function EmailSection({ user }: { user: User }) {
-  const [sent, setSent] = useState(false)
-  const verified = Boolean(user.email_verified_at)
-
-  return (
-    <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">{gettext('Email')}</h2>
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <span className="min-w-0 flex-1 truncate text-body-large">{user.email}</span>
-        <span
-          className={
-            verified
-              ? 'inline-flex items-center gap-1.5 rounded-pill bg-secondary-container px-3 py-1.5 text-body-small font-medium text-on-secondary-container'
-              : 'inline-flex items-center gap-1.5 rounded-pill bg-warning-container px-3 py-1.5 text-body-small font-medium text-on-warning-container'
-          }
-        >
-          <Icon name={verified ? 'verified' : 'mark_email_unread'} size={16} />
-          {verified ? gettext('Confermata') : gettext('Da confermare')}
-        </span>
-      </div>
-      {!verified && (
-        <button
-          type="button"
-          className="btn-tonal btn-sm mt-3"
-          disabled={sent}
-          onClick={async () => {
-            await requestEmail('verify', user.email).catch(() => undefined)
-            setSent(true)
-          }}
-        >
-          <Icon name="forward_to_inbox" size={18} />
-          {sent ? gettext('Mail mandata') : gettext('Rimanda la mail di conferma')}
-        </button>
-      )}
-    </section>
-  )
-}
-
-function PasswordSection({ user }: { user: User }) {
-  const [current, setCurrent] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [error, setError] = useState<unknown>(null)
-  const [busy, setBusy] = useState(false)
-  const [changed, setChanged] = useState(false)
-  const [linkSent, setLinkSent] = useState(false)
-  const fields = error instanceof ApiError ? error.fieldErrors() : {}
-
-  return (
-    <section className="rounded-card bg-surface-container-low p-5">
-      <h2 className="text-body-large font-medium">{gettext('Password')}</h2>
-      <p className="mt-1 text-body-small text-on-surface-variant">
+      <p className="mt-4 text-body-medium text-on-surface-variant">
         {gettext(
-          'Cambiandola si chiudono le sessioni aperte sugli altri dispositivi; questa resta aperta.',
+          "Nome, email e password sono dell'account della suite ino: valgono per tutte le app e si cambiano su cornhub. Il nome è quello con cui ti vedono gli altri membri dei tracker.",
         )}
       </p>
-
-      {changed && (
-        <p className="mt-3 flex items-center gap-2 rounded-row bg-secondary-container px-4 py-3 text-body-medium text-on-secondary-container">
-          <Icon name="check_circle" size={20} />
-          {gettext('Password cambiata.')}
-        </p>
+      {config && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a className="btn-tonal btn-sm" href={config.account_url}>
+            <Icon name="manage_accounts" size={18} />
+            {gettext('Account della suite')}
+          </a>
+          <a className="btn-outlined btn-sm" href={config.ai_url}>
+            <Icon name="key" size={18} />
+            {gettext('Chiavi e limiti AI')}
+          </a>
+        </div>
       )}
-
-      <form
-        className="mt-4 grid gap-3"
-        onSubmit={async (event) => {
-          event.preventDefault()
-          if (password !== confirm) return
-          setBusy(true)
-          setError(null)
-          setChanged(false)
-          try {
-            await api.post<void>('/api/auth/password', {
-              current_password: current,
-              new_password: password,
-            })
-            setCurrent('')
-            setPassword('')
-            setConfirm('')
-            setChanged(true)
-          } catch (err) {
-            setError(err)
-          } finally {
-            setBusy(false)
-          }
-        }}
-      >
-        {!fields.current_password && !fields.new_password && <ErrorBanner error={error} />}
-        <Field label={gettext('Password attuale')} error={fields.current_password}>
-          <PasswordInput
-            autoComplete="current-password"
-            value={current}
-            onChange={setCurrent}
-            required
-          />
-        </Field>
-        <NewPasswordFields
-          password={password}
-          confirm={confirm}
-          onPassword={setPassword}
-          onConfirm={setConfirm}
-          error={fields.new_password}
-        />
-        <button className="btn-filled" disabled={busy || !current || password !== confirm}>
-          {busy ? gettext('Salvo…') : gettext('Cambia password')}
-        </button>
-      </form>
-
-      <div className="mt-5 border-t border-outline-variant pt-4">
-        <p className="text-body-medium">{gettext('Non ricordi quella attuale?')}</p>
-        <p className="text-body-small text-on-surface-variant">
-          {interpolate(
-            gettext('Ti mandiamo a %(email)s un link per reimpostarla, valido 2 ore.'),
-            { email: user.email },
-            true,
-          )}
-        </p>
-        <button
-          type="button"
-          className="btn-tonal btn-sm mt-3"
-          disabled={linkSent}
-          onClick={async () => {
-            await requestEmail('reset', user.email).catch(() => undefined)
-            setLinkSent(true)
-          }}
-        >
-          <Icon name="lock_reset" size={18} />
-          {linkSent
-            ? gettext('Link mandato, controlla la mail')
-            : gettext('Mandami il link di reset')}
-        </button>
-      </div>
     </section>
   )
 }

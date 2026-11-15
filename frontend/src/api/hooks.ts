@@ -4,7 +4,9 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import type {
   Account,
+  AiQuote,
   Aspsp,
+  AuthConfig,
   BankAccountLink,
   BankConnection,
   BankingStatus,
@@ -45,6 +47,29 @@ export const keys = {
   summary: (id: UUID, period: unknown) => ['trackers', id, 'summary', period] as const,
   reconciliation: (id: UUID) => ['trackers', id, 'reconciliation'] as const,
   recurring: (id: UUID) => ['trackers', id, 'recurring'] as const,
+  authConfig: ['auth-config'] as const,
+  aiQuote: (features: string[]) => ['ai-quote', ...features] as const,
+}
+
+// --- Account della suite e AI (cornhub, ADR 0021) ---
+
+/** Dove stanno login, account, chiavi AI e registrazione su cornhub. */
+export function useAuthConfig() {
+  return useQuery({
+    queryKey: keys.authConfig,
+    queryFn: () => api.get<AuthConfig>('/api/auth/config'),
+    staleTime: Infinity,
+  })
+}
+
+/** Chi paga e quanto costa una funzione AI, prima di premere il bottone. */
+export function useAiQuote(features: string[], enabled = true) {
+  return useQuery({
+    queryKey: keys.aiQuote(features),
+    queryFn: () => api.get<AiQuote>('/api/ai/quote', { features: features.join(',') }),
+    enabled: enabled && features.length > 0,
+    staleTime: 60_000,
+  })
 }
 
 /** Ogni scrittura invalida saldi, riepiloghi e riconciliazione: sono derivati. */

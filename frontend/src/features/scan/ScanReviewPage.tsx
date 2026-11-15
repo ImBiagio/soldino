@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
-import { useCategories, useStatement, useStatementAction, useStatementFile } from '../../api/hooks'
+import {
+  useAuthConfig,
+  useCategories,
+  useStatement,
+  useStatementAction,
+  useStatementFile,
+} from '../../api/hooks'
 import { useConfirm } from '../../components/ConfirmDialog'
 import { activeMembers } from '../../components/Layout'
 import { ErrorBanner, Icon, Skeleton } from '../../components/ui'
@@ -149,13 +155,23 @@ function Processing({ tracker, statement }: { tracker: Tracker; statement: State
   )
 }
 
+/** Errori di cornhub che si risolvono sulla pagina delle chiavi AI. */
+const KEY_ERRORS = new Set(['needs_key', 'limit', 'house_empty'])
+
 function Failed({ tracker, statement }: { tracker: Tracker; statement: StatementImport }) {
   const navigate = useNavigate()
   const { retry, discard } = useStatementAction(tracker.id, statement.id)
+  const { data: config } = useAuthConfig()
   return (
     <section className="grid gap-3 rounded-panel bg-error-container p-6 text-on-error-container">
       <p className="text-title-medium">{gettext('Lettura non riuscita')}</p>
       <p className="text-body-medium">{statement.error || gettext('Errore sconosciuto.')}</p>
+      {config && KEY_ERRORS.has(statement.error_code) && (
+        <a className="btn-tonal btn-sm justify-self-start" href={config.ai_url}>
+          <Icon name="key" size={18} />
+          {gettext('Chiavi e limiti AI')}
+        </a>
+      )}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

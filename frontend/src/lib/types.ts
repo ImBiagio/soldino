@@ -20,6 +20,38 @@ export interface User {
   language?: string
 }
 
+/** `GET /api/auth/config`: l'account della suite su cornhub (ADR 0021). */
+export interface AuthConfig {
+  login_url: string
+  account_url: string
+  ai_url: string
+  register_url: string
+}
+
+/** Stima di cornhub per una funzione AI (vedi components/AiCost.tsx). */
+export interface AiQuoteItem {
+  feature: string
+  label?: string
+  tier?: 'small' | 'large'
+  allowed: boolean
+  billed_to?: 'house' | 'user'
+  provider?: string
+  model?: string
+  code?: string
+  message?: string
+  note?: string
+  estimate_eur?: string
+  estimate_label?: string
+  estimate_pannocchie?: number
+}
+
+export interface AiQuote {
+  items: AiQuoteItem[]
+  total_label: string
+  pannocchie_left: number
+  account_url: string
+}
+
 export interface Membership {
   id: UUID
   user: User | null
@@ -257,6 +289,8 @@ export interface StatementImport {
   default_payer: UUID
   status: StatementStatus
   error: string
+  /** Codice dell'errore di cornhub: needs_key, limit, house_empty, overloaded... */
+  error_code: string
   model_name: string
   period_start: string | null
   period_end: string | null

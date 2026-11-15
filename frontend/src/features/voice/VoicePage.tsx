@@ -39,7 +39,7 @@ const EXAMPLES = [
 ]
 
 /**
- * Movimento a voce: si detta (o si scrive) e si manda. Gemini lo legge in
+ * Movimento a voce: si detta (o si scrive) e si manda. L'AI (cornhub) lo legge in
  * background e la bozza arriva in "Da rivedere", come uno scontrino.
  */
 export function VoicePage() {
@@ -102,7 +102,7 @@ export function VoicePage() {
         <h1 className="text-title-large">{gettext('A voce')}</h1>
         <p className="mt-1 max-w-2xl text-body-medium text-on-surface-variant">
           {gettext(
-            "Di' cosa hai speso, incassato o dato a chi: lo legge Gemini in background e lo ritrovi in",
+            "Di' cosa hai speso, incassato o dato a chi: lo legge l'intelligenza artificiale in background e lo ritrovi in",
           )}{' '}
           <Link to="../da-rivedere" relative="path" className="text-primary underline">
             {gettext('Da rivedere')}
@@ -186,7 +186,7 @@ export function VoicePage() {
           ))}
         </div>
         <p className="text-body-small text-on-surface-variant">
-          {gettext('Il testo viene inviato a Google Gemini per la lettura.')}
+          {gettext('Il testo viene letto da un servizio di intelligenza artificiale, tramite cornhub.')}
         </p>
       </section>
 
