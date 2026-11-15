@@ -188,6 +188,13 @@ class StatementViewSet(
         e' stato riavviato a meta' (un deploy) e il task non tornera' piu'.
         """
         statement = self.get_object()
+        # La lettura la paga chi ha caricato il file (sua chiave AI per gli
+        # estratti conto): un altro membro non puo' rilanciarla a suo nome.
+        if statement.uploaded_by_id != request.user.id:
+            return Response(
+                {"detail": _("Solo chi ha caricato il file puo' farlo rileggere.")},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         stuck = (
             statement.status == StatementImport.Status.PROCESSING
             and statement.updated_at < timezone.now() - timedelta(minutes=10)

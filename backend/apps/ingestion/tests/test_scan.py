@@ -148,6 +148,18 @@ def test_errore_di_lettura_resta_riprovabile(api, user, tracker):
     assert response.status_code == 202
 
 
+def test_solo_chi_ha_caricato_puo_far_rileggere(api, user, tracker, partner):
+    """La lettura la paga chi ha caricato (sua chiave AI): un altro membro
+    non puo' rilanciarla a suo nome."""
+    statement = _upload(api, user, tracker)
+    run_scan(statement, extractor=lambda pdf, categories: (_ for _ in ()).throw(
+        ExtractionError("giu'", "overloaded")))
+    with mock.patch("apps.ingestion.views.scan_statement.delay") as delay:
+        response = api(partner).post(reverse("statement-retry", args=[tracker.pk, statement.pk]))
+    assert response.status_code == 403
+    delay.assert_not_called()
+
+
 def test_errore_imprevisto_non_lascia_l_import_in_lettura(api, user, tracker):
     statement = _upload(api, user, tracker)
 
