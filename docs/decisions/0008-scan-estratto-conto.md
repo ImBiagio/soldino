@@ -59,3 +59,7 @@ scan era fermo. Ora `GEMINI_MODEL` è il principale e `GEMINI_FALLBACK_MODELS`
 - Timeout per chiamata: 90 s per l'estratto conto, 30 s per lo scontrino, così
   un modello appeso non fa aspettare un minuto e mezzo per una foto.
 
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): la lettura passa da cornhub (`apps/ingestion/services/ai.py`), senza chiave Gemini ne' modelli scelti dall'app.

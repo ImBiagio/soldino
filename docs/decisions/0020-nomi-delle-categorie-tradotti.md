@@ -60,3 +60,7 @@ errore di integrita'.
   `translate_category_names`).
 - **Chiedere all'utente il nome in entrambe le lingue**: piu' attrito proprio
   dove si crea una categoria al volo.
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): la lettura passa da cornhub (`apps/ingestion/services/ai.py`), senza chiave Gemini ne' modelli scelti dall'app.

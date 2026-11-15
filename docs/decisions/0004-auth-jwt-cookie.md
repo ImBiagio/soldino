@@ -69,3 +69,7 @@ Decisione: il nome del cookie diventa configurabile (`REFRESH_COOKIE_NAME`,
 default `soldino_refresh`) e ogni stack in più ne usa uno suo. Il frontend tiene
 un solo refresh in volo, così il doppio effetto di StrictMode e le query che
 prendono 401 insieme non ruotano il cookie una volta a testa.
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): login, registrazione e password stanno su cornhub; resta la sessione dell'app (access in memoria, refresh nel cookie).

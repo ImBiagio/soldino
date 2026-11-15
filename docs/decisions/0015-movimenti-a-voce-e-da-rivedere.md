@@ -52,3 +52,7 @@ pronte o da riprovare; su mobile prende il posto di "In attesa", che passa in
   spesa normale.
 - La bozza e la revisione sono una sola per tutte le fonti: ogni miglioria
   (doppioni, categorie dallo storico) vale per tutte.
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): la lettura passa da cornhub (`apps/ingestion/services/ai.py`), senza chiave Gemini ne' modelli scelti dall'app.

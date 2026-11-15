@@ -17,6 +17,12 @@ x-backend: &backend
   # Immagine nostra, utente non root: nessuna capability e nessuna escalation.
   security_opt: ["no-new-privileges:true"]
   cap_drop: [ALL]
+  # "cornhub": la rete interna da cui backend, worker e beat parlano con
+  # cornhub (token OIDC, stato degli utenti, gateway AI) senza passare da
+  # internet (ADR 0021).
+  networks:
+    - default
+    - cornhub
 
 services:
   db:
@@ -127,6 +133,9 @@ services:
 
 networks:
   edge:
+    external: true
+  # Creata dal compose di cornhub (repo cornhub, deploy/compose.yaml).
+  cornhub:
     external: true
 
 volumes:

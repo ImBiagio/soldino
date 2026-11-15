@@ -52,3 +52,7 @@ riprovare, e "Riprova" anche per un import fermo in lettura da oltre 10 minuti
   sul telefono.
 - **Tenere la foto come allegato del movimento**: non richiesto, e uno
   scontrino resta un dato personale da non conservare senza motivo.
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): la lettura passa da cornhub (`apps/ingestion/services/ai.py`), senza chiave Gemini ne' modelli scelti dall'app.

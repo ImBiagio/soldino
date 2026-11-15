@@ -21,9 +21,19 @@ cp .env.example .env && docker compose up --build
 | Docs OpenAPI | http://localhost:8000/api/docs/ |
 | Admin Django | http://localhost:8000/admin/ |
 
-Con `.env.example` la verifica email è disattivata (`REQUIRE_EMAIL_VERIFICATION=0`),
-quindi ci si registra ed entra subito. Le mail (verifica, inviti) finiscono nella
-console del backend: `docker compose logs -f backend`.
+Per entrare serve **cornhub** in locale (repo cornhub: `docker compose up`, su
+http://localhost:8095, backend sulla 8096) con l'app registrata
+([ADR 0021](docs/decisions/0021-account-e-ai-tramite-cornhub.md)):
+
+```bash
+docker compose -f ../cornhub/compose.yaml exec backend python manage.py register_app soldino --name Soldino --url http://localhost:5173 --extra-redirect http://localhost:8000/api/auth/sso/callback
+```
+
+`CORNHUB_CLIENT_ID`, `CORNHUB_CLIENT_SECRET` e `CORNHUB_APP_TOKEN` stampati
+vanno nel `.env` (con `API_PUBLIC_URL=http://localhost:8000`); l'account si
+crea su http://localhost:8095/registrati. Senza `CORNHUB_APP_TOKEN` l'AI è
+spenta. Le mail dell'app (inviti) finiscono nella console del worker:
+`docker compose logs -f worker`.
 
 Il codice è montato come volume: hot reload attivo su backend e frontend.
 
@@ -81,9 +91,9 @@ diversa, così i token di uno stack non valgono sull'altro.
 | `frontend` | Vite in dev, build statica servita da nginx in prod |
 
 **Perché Redis.** Fa due lavori, nessuno dei due sostituibile da Postgres senza
-fatica: è la **coda** da cui il `worker` prende i task (lo scan con Gemini, il
+fatica: è la **coda** da cui il `worker` prende i task (lo scan con l'AI, il
 job notturno delle ricorrenze) ed è la **cache** dove DRF tiene i contatori del
-rate limit (login, registrazione, upload dello scan), che devono essere
+rate limit (login, upload dello scan), che devono essere
 condivisi fra i processi gunicorn e veloci. Non fa da result backend: il valore
 di ritorno dei task non lo legge nessuno, lo stato dello scan sta nel DB
 (`CELERY_TASK_IGNORE_RESULT`).
@@ -95,7 +105,7 @@ task X" e risponde subito; il `worker` lo prende ed esegue per conto suo; `beat`
 questo servono due processi distinti).
 
 **Lo Scan dell'estratto conto** gira nel `worker` (`scan_statement`): la lettura
-con Gemini richiede 10–30 secondi e non può stare dentro una richiesta.
+con l'AI (tramite cornhub) richiede 10–30 secondi e non può stare dentro una richiesta.
 
 **Il beat ha quattro job**: `materialize_due_rules` alle 3:00, che
 scrive le occorrenze scadute delle ricorrenze con `auto_commit` (le altre
@@ -113,6 +123,21 @@ LLM) è decine di secondi e non può stare dentro una view.
 
 ## Autenticazione
 
+**Account unico della suite su cornhub** ([ADR 0021](docs/decisions/0021-account-e-ai-tramite-cornhub.md)):
+in Soldino non ci sono registrazione, password, conferma email né reset. Il
+login passa da cornhub.it (OpenID Connect con PKCE, `backend/apps/users/sso.py`
+e il client `backend/apps/core/cornhub.py`, identico in tutte le app):
+
+1. senza sessione il frontend va su `/accedi?next=<percorso>`, che rimanda
+   (al massimo una volta ogni 30 secondi, per non girare in tondo) a
+   `GET /api/auth/sso/start?next=...`;
+2. cornhub fa entrare (o registrare) e torna su `GET /api/auth/sso/callback`;
+   il backend verifica l'id_token (RS256, `iss`, `aud`, `nonce`), trova
+   l'utente per `cornhub_sub` o, la prima volta, per **email verificata** (così
+   gli account di prima restano con i loro dati), altrimenti lo crea senza
+   password; nome, email e lingua si aggiornano a ogni login;
+3. da lì la sessione è quella di Soldino, sotto.
+
 Custom `User` con **email come username**. Ibrido JWT:
 
 - **access token** (15 min) in memoria JS, inviato in `Authorization: Bearer`
@@ -125,49 +150,45 @@ può esfiltrare), quella che gira su ogni richiesta sta dove il CSRF non arriva
 
 Il costo accettato è che un access token **non è revocabile** prima della
 scadenza — da cui i 15 minuti. Il refresh invece sì: il **logout** mette in
-blacklist quello del cookie e il **cambio password** chiude tutte le altre
-sessioni (la corrente riceve un refresh nuovo). Il refresh si legge solo dal
+blacklist quello del cookie e risponde con il `logout_url` di cornhub, che
+chiede se uscire anche dall'account della suite. A ogni refresh si chiede a
+cornhub se l'account è ancora attivo e abilitato a Soldino (cache 2 minuti; se
+cornhub non risponde si lascia passare): se no, tutte le sessioni dell'utente
+finiscono in blacklist. Il refresh si legge solo dal
 cookie, mai dal body. La rotazione non blacklista il token vecchio: due schede
 che rinnovano insieme si butterebbero fuori a vicenda. Il frontend tiene comunque
 **un solo refresh in volo** (`frontend/src/lib/api.ts`): il doppio effetto di
 StrictMode all'avvio e le query che prendono 401 insieme aspettano la stessa
 risposta.
 
-**Mail dell'account** (ADR 0012): conferma dell'indirizzo alla registrazione
-(con `REQUIRE_EMAIL_VERIFICATION=1`), reinvio dal login se l'email non è
-confermata (`POST auth/verify-email/resend`), **password dimenticata**
-(`POST auth/password-reset` → link `/reset-password/<uid>/<token>` valido 2 ore
-e una volta sola, poi `POST auth/password-reset/confirm`, che chiude le altre
-sessioni e fa entrare) e inviti ai tracker. Reinvio e reset rispondono sempre
-204, così non rivelano chi è registrato. Le mail partono dal `worker` Celery
-dopo il commit (l'SMTP può essere lento o giù: riprova con attesa crescente),
-in testo e HTML con un solo layout (`backend/templates/emails/`). In sviluppo
-finiscono nei log del worker: `docker compose logs -f worker`. In produzione
-SMTP di Brevo, lo stesso account di cinemino.
+**Inviti ai tracker** (ADR 0012 per le mail): restano di Soldino. La mail
+porta a `/inviti/<token>`, un'anteprima pubblica; chi non è dentro entra con
+cornhub e torna lì, chi non ha un account lo crea su cornhub
+(`register_url` da `GET /api/auth/config`, in un'altra scheda: la
+registrazione di cornhub non riporta indietro) e poi torna ad accedere. Le
+mail partono dal `worker` Celery dopo il commit (l'SMTP può essere lento o giù:
+riprova con attesa crescente), in testo e HTML con un solo layout
+(`backend/templates/emails/`). In produzione SMTP di Brevo, lo stesso account
+di cinemino.
 
-**Registrazione su invito** (facoltativa): con `SIGNUP_CODE` nel `.env` ci si
-registra solo conoscendo il codice (`invite_code` in `POST auth/register`,
-confronto a tempo costante). Il form lo chiede solo quando serve: lo sa da
-`GET auth/config` (`{"signup_code_required": true}`, pubblico, non rivela il
-codice). Vuoto o assente, la registrazione resta aperta. Vale anche per chi
-arriva da un invito a un tracker e non ha ancora un account: il codice va
-dato insieme all'invito.
+**Account** (`/account`, dalla lista tracker o dal menu): nome ed email in sola
+lettura, con i link all'account della suite e alle chiavi AI su cornhub
+(`GET /api/auth/config`); qui restano lingua e ordine del menu.
 
-**Account** (`/account`, dalla lista tracker o dal menu): nome, stato
-dell'email con reinvio della conferma, cambio password e "mandami il link di
-reset" per chi non ricorda quella attuale.
+**Utenti di prima di cornhub**: `manage.py export_cornhub_users > utenti.json`
+li esporta (con l'hash della password, mai la password) per l'import su
+cornhub; al primo login si agganciano per email.
 
-Login, registrazione e verifica email hanno un **rate limit** (10/min per IP,
-`THROTTLE_AUTH`), il refresh 60/min, l'upload dello scan 20/ora
-(`THROTTLE_SCAN`, ogni upload è una chiamata a Gemini). Il link di verifica
-email fa entrare senza password, quindi vale **una volta sola**.
+Login e inviti hanno un **rate limit** (10/min per IP, `THROTTLE_AUTH`), il
+refresh 60/min, l'upload dello scan 20/ora (`THROTTLE_SCAN`, ogni upload è una
+chiamata all'AI).
 
 Ruoli: solo il proprietario modifica il tracker (nome, valuta, impostazioni),
 lo archivia o lo elimina; non si può invitare né promuovere un secondo
 proprietario. In produzione `prod.py` rifiuta di partire con la
 `DJANGO_SECRET_KEY` di default, Swagger è visibile solo allo staff loggato
 nell'admin e Postgres non espone porte (la `5433` sta solo nell'override di
-sviluppo). Verifica email e inviti usano token firmati
+sviluppo). Gli inviti usano token firmati
 stateless (`django.core.signing`), senza tabelle da mantenere.
 
 > **Nota:** cinemino usa session + CSRF, non JWT. La divergenza è deliberata,
@@ -204,8 +225,8 @@ nel menu e in Account; la scelta va nel cookie `django_language` e su
 I colori e le icone delle categorie sono **dati** (`Category.color`,
 `Category.icon`), non scelte del client: la UI li legge dall'API. Anche il
 **nome** arriva già nella lingua di chi legge: `Category.name_translations`,
-riempito per le categorie di default da un dizionario e per le altre da Gemini
-nel worker, appena create o rinominate e ogni ora per quelle rimaste indietro
+riempito per le categorie di default da un dizionario e per le altre dall'AI
+(cornhub, a nome di chi scrive il nome o del proprietario del tracker) nel worker, appena create o rinominate e ogni ora per quelle rimaste indietro
 ([ADR 0020](docs/decisions/0020-nomi-delle-categorie-tradotti.md)). Dal Setup
 una traduzione si corregge a mano, lingua per lingua, senza toccare il nome
 originale (quello del foglio).
@@ -435,10 +456,18 @@ internet ─────┤     cinem.inoo.it ──► cinemino-web:80
 
 **Segnalazione errori.** Con `SENTRY_DSN` nel `.env` del server le eccezioni
 non gestite di backend, worker e beat arrivano a GlitchTip (compatibile Sentry,
-`sentry-sdk` con le integrazioni Django e Celery). Si accende solo in
-`config.settings.prod` e solo se la variabile non è vuota; `SENTRY_ENVIRONMENT`
-vale `production` se manca. Niente dati personali (`send_default_pii=False`),
-niente tracing, nessun SDK nel frontend.
+`sentry-sdk` con le integrazioni Django e Celery, `config/sentry.py`). Parte in
+dev e prod solo se la variabile non è vuota, mai nei test; `SENTRY_ENVIRONMENT`
+vale `production` se manca. Il frontend ha `@sentry/react`
+(`src/lib/sentry.ts`) con la DSN passata alla build dell'immagine web
+(`VITE_SENTRY_DSN`, dalla variabile del repo `SENTRY_DSN_FRONTEND` su
+GitHub). Niente dati personali (`send_default_pii=False`), niente tracing.
+
+**cornhub in produzione.** Backend, worker e beat stanno anche sulla rete
+Docker esterna `cornhub` (creata dal compose di cornhub) e parlano con
+`http://cornhub-backend:8000`; il browser va su https://cornhub.it. Client e
+token: `manage.py register_app soldino --name Soldino --url https://sold.inoo.it`
+sul server di cornhub, valori nel `.env` e nel vault.
 
 **Backup.** Il servizio `backup` del compose fa un `pg_dump` compresso ogni
 notte a mezzanotte e a ogni avvio, in `~/soldino/backups/` (`daily/` 7 giorni,
@@ -460,7 +489,7 @@ docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py crea
 
 ## Invarianti verificate dai test
 
-282 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
+267 test, `pytest` + `factory-boy` + `hypothesis`. Coverage 100% su
 `apps/core/money.py`.
 
 - `Σ split.share_amount == transaction.amount`, sempre — vincolo applicativo in
@@ -468,10 +497,14 @@ docker compose -f ~/soldino/compose.prod.yaml exec backend python manage.py crea
 - `Σ net == 0` su ogni tracker — property test Hypothesis su scenari misti
 - Con i debiti semplificati o per coppia, ognuno riceve o dà esattamente il
   proprio `net` (property test a tre persone)
-- Logout e cambio password revocano il refresh, due refresh in parallelo con lo
+- Il logout revoca il refresh, due refresh in parallelo con lo
   stesso cookie passano entrambi, il nome del cookie separa due stack, il login
-  ha un rate limit, il link di verifica vale una volta, conversioni BTA e ricorrenze non puntano a
+  ha un rate limit, conversioni BTA e ricorrenze non puntano a
   persone, categorie o conti di altri tracker (`apps/core/tests/test_security.py`)
+- Login con cornhub (finto, id_token firmati nel test): firma, state, nonce,
+  redirect solo interni, aggancio per email solo se verificata, account spento
+  su cornhub = sessione chiusa (`apps/users/tests/test_sso.py`); client AI e
+  errori di cornhub (`apps/core/tests/test_cornhub_ai.py`)
 - Nessun endpoint restituisce dati di tracker altrui —
   `apps/trackers/tests/test_isolation.py` copre collezioni annidate, ruoli,
   inviti pendenti, split verso non membri, categorie di altri tracker
@@ -524,16 +557,18 @@ vista. **Conti** (`/t/:id/conti`): conti raggruppati per persona, saldo
 iniziale e confronto atteso/reale di ciascuno.
 
 **Scan estratto conto** (`/t/:id/scan`, [ADR 0008](docs/decisions/0008-scan-estratto-conto.md)).
-Si carica il PDF, un task Celery lo fa leggere a Gemini (`GEMINI_API_KEY`,
-`GEMINI_MODEL` nel `.env`) e le righe finiscono in una bozza da rivedere in
+Si carica il PDF, un task Celery lo fa leggere all'AI tramite cornhub
+(funzione **grande** `statement`: la paga la chiave AI dell'utente, e accanto
+al bottone `AiCost` dice chi paga e quanto) e le righe finiscono in una bozza da rivedere in
 tabella: data, titolo, importo, tipo, categoria, chi paga, divisione; si
 eliminano e aggiungono righe. Solo "Registra" le scrive nei movimenti
-(`source=scan`). La categoria viene prima dallo storico dell'esercente, poi da
-Gemini che legge le **descrizioni** delle categorie. I possibili doppioni sono
+(`source=scan`). La categoria viene prima dallo storico dell'esercente, poi
+dall'AI che legge le **descrizioni** delle categorie. I possibili doppioni sono
 segnalati. Il PDF si cancella appena letto. Le righe in attesa che arrivano
 dalla banca seguono la stessa regola: storico subito, poi il task
-`suggest_statement_categories` chiede a Gemini la categoria delle righe scoperte
-(solo il testo, senza PDF; se Gemini non risponde restano senza).
+`suggest_statement_categories` chiede all'AI la categoria delle righe scoperte
+(solo il testo, senza PDF, a nome di chi ha collegato la banca; se l'AI non
+risponde restano senza).
 
 **Saldo dalla banca** ([ADR 0019](docs/decisions/0019-saldo-a-mano-sui-conti-collegati.md)).
 Ogni lettura della banca aggiorna il saldo del conto abbinato finché
@@ -543,15 +578,18 @@ deposito) e il giro successivo cancellava l'allineamento. Il saldo letto resta
 in `bank_balance`, mostrato nella pagina Banca accanto all'interruttore;
 riaccenderlo riporta subito il conto a quel valore.
 
-**Modello Gemini scelto in base alla disponibilità**: `GEMINI_MODEL` è il
-principale, `GEMINI_FALLBACK_MODELS` (default `gemini-flash-lite-latest`) le
-riserve. Se un modello è sovraccarico o non risponde lo scan passa subito al
-successivo, e quello resta in fondo alla fila per 5 minuti (cache Redis):
-dettagli nell'aggiornamento di [ADR 0008](docs/decisions/0008-scan-estratto-conto.md).
+**AI tramite cornhub** ([ADR 0021](docs/decisions/0021-account-e-ai-tramite-cornhub.md)):
+nessuna chiave nell'app. Tutte le letture passano da `_generate()` in
+`backend/apps/ingestion/services/ai.py`, che chiama `cornhub.generate` con il
+nome della funzione e l'utente: `statement` (grande), `receipt`, `voice`,
+`categories`, `translate` (piccole, sulla chiave di casa). Modelli e ripieghi
+quando un provider è sovraccarico li sceglie cornhub. Un errore di cornhub
+(serve la chiave, limite raggiunto) finisce sull'import con il suo codice e la
+revisione mostra il link alle chiavi AI.
 
 **Scan scontrino** (`/t/:id/scontrino`, dal "+" → "Da scontrino",
 [ADR 0014](docs/decisions/0014-scan-scontrino.md)). "Scatta una foto" apre la
-fotocamera del telefono, "Scegli una foto" la galleria. Gemini legge
+fotocamera del telefono, "Scegli una foto" la galleria. L'AI legge
 esercente, data e totale e propone la categoria; nella revisione la foto sta
 sopra l'unica riga e si ingrandisce toccandola. "Registra spesa" scrive il
 movimento (`source=receipt`) e cancella la foto. C'è anche nei tracker per

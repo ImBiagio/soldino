@@ -34,3 +34,7 @@ spenta per non bloccare la registrazione.
   scadenza anche dopo l'uso.
 - **Un secondo provider** per soldino: un account e un dominio in più da
   autenticare per volumi minimi.
+
+## Aggiornamento (2026-11-15)
+
+Superata in parte da [ADR 0021](0021-account-e-ai-tramite-cornhub.md): conferma dell'email e reset della password li fa cornhub; qui restano le mail degli inviti.
