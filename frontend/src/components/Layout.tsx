@@ -9,6 +9,7 @@ import { gettext } from '../lib/i18n'
 import { MOBILE_SLOTS, orderDestinations } from '../lib/navigation'
 import { showsSection } from '../lib/trackerKind'
 import type { Membership, Tracker } from '../lib/types'
+import { CornCounter } from './Ai'
 import { FabMenu } from './FabMenu'
 import { LanguageSwitcher } from './LanguageSwitcher'
 import { NavOrderModal } from './NavOrderModal'
@@ -85,12 +86,22 @@ export function TrackerLayout() {
             />
           ))}
         </div>
+
+        {/* Le pannocchie del giorno, in fondo al rail. */}
+        <div className="mt-auto pt-3">
+          <CornCounter compact />
+        </div>
       </nav>
 
       {/* Su mobile lo spazio in fondo supera barra e "+", che sta a 96px + 56px. */}
       <div
         className={clsx('min-w-0 flex-1 md:pb-0', SCAN_SECTIONS.has(section) ? 'pb-28' : 'pb-44')}
       >
+        {/* Su mobile le pannocchie stanno in una striscia in alto, sopra la pagina:
+            non coprono intestazioni e bottoni (in alto a destra ci sono gli avatar). */}
+        <div className="sticky top-0 z-20 flex justify-end bg-surface px-3 pb-1 pt-2 empty:hidden md:hidden">
+          <CornCounter />
+        </div>
         {tracker.archived_at && (
           <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-surface-container-high px-4 py-3 text-body-medium md:mx-7">
             <Icon name="archive" size={20} className="text-on-surface-variant" />

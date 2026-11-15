@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext } from 'react-router-dom'
 
 import { useAccounts, useStatements, useUploadStatement } from '../../api/hooks'
+import { AiKeyIcon, useAiGate } from '../../components/Ai'
 import { AiCost } from '../../components/AiCost'
 import { accountOptions, SelectField } from '../../components/selects'
 import { EmptyState, ErrorBanner, Field, Icon, RowsSkeleton } from '../../components/ui'
@@ -17,6 +18,8 @@ export function ScanPage() {
   const statements = useStatements(tracker.id)
   const accounts = useAccounts(tracker.id)
   const upload = useUploadStatement(tracker.id)
+  // Funzione grande: senza una chiave adatta su cornhub il bottone resta spento.
+  const gate = useAiGate('statement')
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [account, setAccount] = useState('')
@@ -42,7 +45,7 @@ export function ScanPage() {
           className="grid gap-4 md:grid-cols-[1.4fr_1fr] md:items-end"
           onSubmit={async (event) => {
             event.preventDefault()
-            if (!file) return
+            if (!file || !gate.allowed) return
             const created = await upload.mutateAsync({ file, account: account || null })
             navigate(created.id)
           }}
@@ -101,8 +104,12 @@ export function ScanPage() {
                 ]}
               />
             </Field>
-            <button className="btn-filled" disabled={!file || upload.isPending}>
+            <button
+              className="btn-filled"
+              disabled={!gate.allowed || !file || upload.isPending}
+            >
               <Icon name="document_scanner" size={20} />
+              {gate.large && <AiKeyIcon />}
               {upload.isPending ? gettext('Carico…') : gettext("Leggi l'estratto conto")}
             </button>
             {/* Funzione grande su cornhub: chi paga e quanto, prima di premere. */}

@@ -3,7 +3,7 @@ from django.http import HttpResponse
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from apps.core.ai_views import AiQuoteView
+from apps.core.ai_views import AiQuoteView, AiWalletView
 from apps.core.i18n import CatalogView, LanguageView
 
 
@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/i18n/catalog", CatalogView.as_view(), name="i18n-catalog"),
     path("api/i18n/language", LanguageView.as_view(), name="i18n-language"),
     path("api/ai/quote", AiQuoteView.as_view(), name="ai-quote"),
+    path("api/ai/wallet", AiWalletView.as_view(), name="ai-wallet"),
     path("api/", include("apps.users.urls")),
     path("api/", include("apps.trackers.urls")),
     path("api/", include("apps.accounts.urls")),

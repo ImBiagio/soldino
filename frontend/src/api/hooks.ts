@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { api } from '../lib/api'
 import type {
   Account,
   AiQuote,
+  AiWallet,
   Aspsp,
   AuthConfig,
   BankAccountLink,
@@ -49,6 +50,7 @@ export const keys = {
   recurring: (id: UUID) => ['trackers', id, 'recurring'] as const,
   authConfig: ['auth-config'] as const,
   aiQuote: (features: string[], fast: boolean) => ['ai-quote', fast, ...features] as const,
+  aiWallet: ['ai-wallet'] as const,
 }
 
 // --- Account della suite e AI (cornhub, ADR 0021) ---
@@ -70,6 +72,26 @@ export function useAiQuote(features: string[], fast = false, enabled = true) {
     enabled: enabled && features.length > 0,
     staleTime: 60_000,
   })
+}
+
+/** Pannocchie rimaste oggi e chiavi dell'utente (contatore nell'intestazione). */
+export function useAiWallet() {
+  return useQuery({
+    queryKey: keys.aiWallet,
+    queryFn: () => api.get<AiWallet>('/api/ai/wallet'),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  })
+}
+
+/** Dopo una chiamata AI: contatore e stime si aggiornano subito. */
+export function useRefreshAi() {
+  const client = useQueryClient()
+  return () => {
+    void client.invalidateQueries({ queryKey: keys.aiWallet })
+    void client.invalidateQueries({ queryKey: ['ai-quote'] })
+  }
 }
 
 /** Ogni scrittura invalida saldi, riepiloghi e riconciliazione: sono derivati. */
@@ -329,9 +351,14 @@ export function useStatements(trackerId: UUID) {
   })
 }
 
-/** Bozze ancora da rivedere (in lettura, da rivedere, non riuscite): "Da rivedere". */
+/**
+ * Bozze ancora da rivedere (in lettura, da rivedere, non riuscite): "Da rivedere".
+ * Sta nel layout del tracker, quindi e' anche il punto in cui ci si accorge che
+ * una lettura AI (estratto conto, scontrino, vocale) e' finita: allora il
+ * contatore delle pannocchie e le stime si aggiornano.
+ */
 export function useOpenStatements(trackerId: UUID | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['trackers', trackerId, 'statements', 'open'] as const,
     enabled: Boolean(trackerId),
     queryFn: () =>
@@ -339,6 +366,15 @@ export function useOpenStatements(trackerId: UUID | undefined) {
     refetchInterval: (query) =>
       query.state.data?.results.some((s) => s.status === 'processing') ? 2500 : false,
   })
+  const refreshAi = useRefreshAi()
+  const reading = (query.data?.results ?? []).filter((s) => s.status === 'processing').length
+  const previous = useRef(reading)
+  useEffect(() => {
+    if (reading < previous.current) refreshAi()
+    previous.current = reading
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reading])
+  return query
 }
 
 /** Movimento a voce: il testo si legge in background, come uno scontrino. */
