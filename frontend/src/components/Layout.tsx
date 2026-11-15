@@ -97,11 +97,7 @@ export function TrackerLayout() {
       <div
         className={clsx('min-w-0 flex-1 md:pb-0', SCAN_SECTIONS.has(section) ? 'pb-28' : 'pb-44')}
       >
-        {/* Su mobile le pannocchie stanno in una striscia in alto, sopra la pagina:
-            non coprono intestazioni e bottoni (in alto a destra ci sono gli avatar). */}
-        <div className="sticky top-0 z-20 flex justify-end bg-surface px-3 pb-1 pt-2 empty:hidden md:hidden">
-          <CornCounter />
-        </div>
+        <MobileCornStrip />
         {tracker.archived_at && (
           <div className="mx-5 mt-4 flex flex-wrap items-center gap-2 rounded-card bg-surface-container-high px-4 py-3 text-body-medium md:mx-7">
             <Icon name="archive" size={20} className="text-on-surface-variant" />
@@ -178,6 +174,40 @@ export function TrackerLayout() {
           isVisible={(destination) => showsSection(tracker, destination.to)}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * Su mobile le pannocchie stanno in una striscia in alto, sopra la pagina: non
+ * coprono intestazioni e bottoni (in alto a destra ci sono gli avatar). Vuota
+ * (cornhub giu') sparisce.
+ */
+function MobileCornStrip() {
+  return (
+    <div className="sticky top-0 z-20 flex justify-end bg-surface px-3 pb-1 pt-2 empty:hidden md:hidden">
+      <CornCounter />
+    </div>
+  )
+}
+
+/**
+ * Le pagine fuori da un tracker (lista dei tracker, account, ritorno dalla
+ * banca): le pannocchie stanno dove stanno nei tracker, in fondo a una colonna
+ * larga come il rail su desktop e nella striscia in alto su mobile.
+ */
+export function PlainLayout() {
+  return (
+    <div className="flex min-h-screen">
+      <aside className="sticky top-0 hidden h-screen w-24 shrink-0 flex-col items-center py-3 md:flex">
+        <div className="mt-auto">
+          <CornCounter compact />
+        </div>
+      </aside>
+      <div className="min-w-0 flex-1">
+        <MobileCornStrip />
+        <Outlet />
+      </div>
     </div>
   )
 }

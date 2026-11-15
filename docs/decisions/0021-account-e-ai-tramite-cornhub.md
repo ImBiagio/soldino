@@ -78,7 +78,8 @@ modelli in cache di ADR 0008.
 **Pannocchie e bottoni con la chiave** (`frontend/src/components/Ai.tsx`):
 `<CornCounter />` mostra le pannocchie 🌽 rimaste oggi (quota della chiave
 di casa per le funzioni piccole) e porta alla pagina AI di cornhub; sta in
-fondo al rail su desktop e in una striscia in alto su mobile, e legge
+fondo al rail su desktop e in una striscia in alto su mobile, anche fuori
+dai tracker (lista, account: `PlainLayout`, stessa posizione), e legge
 `GET /api/ai/wallet` (`cornhub.wallet()`, `{}` se cornhub e' giu': il
 contatore sparisce). Si aggiorna ogni minuto e subito quando una lettura AI
 finisce (`useRefreshAi()` dentro `useOpenStatements`, che sta nel layout). Il

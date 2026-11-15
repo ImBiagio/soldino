@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
-import { TrackerLayout } from './components/Layout'
+import { PlainLayout, TrackerLayout } from './components/Layout'
 import { Skeleton } from './components/ui'
 import { AcceptInvitePage, LoginPage } from './features/auth/AuthPages'
 import { AccountPage } from './features/account/AccountPage'
@@ -40,31 +40,19 @@ export default function App() {
     <Routes>
       {/* Registrazione, password e conferma email stanno su cornhub (ADR 0021). */}
       <Route path="/accedi" element={<LoginPage />} />
-      <Route
-        path="/account"
-        element={
-          <RequireAuth>
-            <AccountPage />
-          </RequireAuth>
-        }
-      />
       <Route path="/inviti/:token" element={<AcceptInvitePage />} />
+      {/* Fuori dai tracker: stesse pannocchie del rail, senza le sezioni. */}
       <Route
-        path="/banca/callback"
         element={
           <RequireAuth>
-            <BankCallbackPage />
+            <PlainLayout />
           </RequireAuth>
         }
-      />
-      <Route
-        path="/"
-        element={
-          <RequireAuth>
-            <TrackerListPage />
-          </RequireAuth>
-        }
-      />
+      >
+        <Route path="/account" element={<AccountPage />} />
+        <Route path="/banca/callback" element={<BankCallbackPage />} />
+        <Route path="/" element={<TrackerListPage />} />
+      </Route>
       <Route
         path="/t/:trackerId"
         element={
