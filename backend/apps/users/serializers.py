@@ -2,14 +2,9 @@ from __future__ import annotations
 
 import re
 
-from django.conf import settings
-from django.contrib.auth import get_user_model, password_validation
-from django.utils import translation
-from django.utils.crypto import constant_time_compare
+from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from rest_framework import serializers
-
-from apps.core.methods import normalize_email
 
 User = get_user_model()
 
@@ -30,7 +25,9 @@ class UserSerializer(serializers.ModelSerializer):
             "nav_order",
             "language",
         ]
-        read_only_fields = ["id", "email", "email_verified_at"]
+        # Nome ed email si cambiano su cornhub (account unico della suite):
+        # qui restano menu e lingua, che sono dell'app.
+        read_only_fields = ["id", "email", "display_name", "email_verified_at"]
 
     def validate_nav_order(self, value):
         # Le sezioni le conosce il frontend: qui basta che sia una lista corta di
@@ -53,59 +50,13 @@ class UserBriefSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class RegisterSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    display_name = serializers.CharField(required=False, allow_blank=True)
-    # Con SIGNUP_CODE impostato la registrazione e' chiusa a chi non lo conosce.
-    invite_code = serializers.CharField(
-        write_only=True, required=False, allow_blank=True, default="", max_length=200
-    )
-
-    def validate_invite_code(self, value: str) -> str:
-        # Confronto a tempo costante: i tempi di risposta non rivelano il codice.
-        if settings.SIGNUP_CODE and not constant_time_compare(value, settings.SIGNUP_CODE):
-            raise serializers.ValidationError(_("Codice di invito non valido."))
-        return value
-
-    def validate_email(self, value: str) -> str:
-        value = normalize_email(value)
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError(_("Esiste gia' un account con questa email."))
-        return value
-
-    def validate_password(self, value: str) -> str:
-        password_validation.validate_password(value)
-        return value
-
-    def create(self, validated_data):
-        return User.objects.create_user(
-            email=validated_data["email"],
-            password=validated_data["password"],
-            display_name=validated_data.get("display_name", ""),
-            # La lingua in cui si sta registrando: anche la mail di conferma.
-            language=translation.get_language() or settings.LANGUAGE_CODE,
-        )
-
-
 class AuthConfigSerializer(serializers.Serializer):
-    """Quello che il frontend deve sapere prima del login."""
+    """Dove mandare l'utente su cornhub: login, account, chiavi AI, registrazione."""
 
-    signup_code_required = serializers.BooleanField(read_only=True)
-
-
-class LoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-
-
-class PasswordChangeSerializer(serializers.Serializer):
-    current_password = serializers.CharField(write_only=True)
-    new_password = serializers.CharField(write_only=True)
-
-    def validate_new_password(self, value: str) -> str:
-        password_validation.validate_password(value, self.context["request"].user)
-        return value
+    login_url = serializers.URLField(read_only=True)
+    account_url = serializers.URLField(read_only=True)
+    ai_url = serializers.URLField(read_only=True)
+    register_url = serializers.URLField(read_only=True)
 
 
 class TokenPairSerializer(serializers.Serializer):
@@ -113,15 +64,3 @@ class TokenPairSerializer(serializers.Serializer):
 
     access = serializers.CharField(read_only=True)
     user = UserSerializer(read_only=True)
-
-
-class EmailSerializer(serializers.Serializer):
-    """Reinvio della conferma e richiesta di reset: basta l'indirizzo."""
-
-    email = serializers.EmailField()
-
-
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    uid = serializers.CharField()
-    token = serializers.CharField()
-    new_password = serializers.CharField(write_only=True)

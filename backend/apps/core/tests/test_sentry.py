@@ -1,4 +1,4 @@
-"""La segnalazione errori (Sentry/GlitchTip) vive solo in config.settings.prod."""
+"""Segnalazione errori (Sentry/GlitchTip): in dev e prod (config/sentry.py), mai nei test."""
 
 from __future__ import annotations
 

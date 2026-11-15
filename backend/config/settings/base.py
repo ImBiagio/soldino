@@ -147,9 +147,9 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 50,
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.core.exceptions.exception_handler",
-    # Solo le view con ``throttle_scope`` sono limitate: login, registrazione,
-    # inviti e upload dello scan (che costa una chiamata a Gemini). I contatori
-    # stanno nella cache Django, cioe' Redis.
+    # Solo le view con ``throttle_scope`` sono limitate: login, inviti e
+    # upload dello scan (che costa una chiamata all'AI tramite cornhub). I
+    # contatori stanno nella cache Django, cioe' Redis.
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
     "DEFAULT_THROTTLE_RATES": {
         "auth": env("THROTTLE_AUTH", "10/min"),
@@ -194,11 +194,6 @@ REFRESH_COOKIE_SECURE = env_bool("REFRESH_COOKIE_SECURE", True)
 REFRESH_COOKIE_SAMESITE = env("REFRESH_COOKIE_SAMESITE", "Lax")
 REFRESH_COOKIE_PATH = "/api/auth"
 
-REQUIRE_EMAIL_VERIFICATION = env_bool("REQUIRE_EMAIL_VERIFICATION", True)
-# Codice di invito: se impostato ci si registra solo conoscendolo. Vuoto =
-# registrazione aperta. Vale anche per chi arriva da un invito a un tracker.
-SIGNUP_CODE = env("SIGNUP_CODE", "")
-
 # --- Celery ---
 CELERY_BROKER_URL = env("CELERY_BROKER_URL", "redis://redis:6379/1")
 # Nessuno legge il valore di ritorno dei task: lo stato (es. dello scan) sta
@@ -222,7 +217,7 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(hour=6, minute=15),
     },
     # Il nome delle categorie in ogni lingua: le nuove si traducono subito, qui
-    # quelle rimaste indietro (Gemini giu' o senza chiave). Senza lavoro non chiama nulla.
+    # quelle rimaste indietro (cornhub giu' o AI spenta). Senza lavoro non chiama nulla.
     "translate-categories": {
         "task": "apps.trackers.tasks.translate_categories",
         "schedule": crontab(minute=20),
@@ -251,18 +246,26 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
 EMAIL_TIMEOUT = 15
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "Soldino <no-reply@soldino.local>")
-# Il link di reset vale 2 ore (il default di Django sono 3 giorni).
-PASSWORD_RESET_TIMEOUT = int(env("PASSWORD_RESET_TIMEOUT", str(2 * 60 * 60)))
 FRONTEND_BASE_URL = env("FRONTEND_BASE_URL", "http://localhost:5173")
+# Dove il browser raggiunge l'API (il ritorno dal login di cornhub). In
+# produzione e' lo stesso dominio del frontend; in locale la porta dell'API.
+API_PUBLIC_URL = env("API_PUBLIC_URL", FRONTEND_BASE_URL)
 
-# --- Scan estratto conto (Gemini) ---
-# Senza chiave lo scan fallisce con un messaggio chiaro, il resto dell'app va.
-GEMINI_API_KEY = env("GEMINI_API_KEY", "")
-GEMINI_MODEL = env("GEMINI_MODEL", "gemini-flash-latest")
-# Riserve, nell'ordine, quando il principale e' sovraccarico (ADR 0008, aggiornamento).
-GEMINI_FALLBACK_MODELS = env_list("GEMINI_FALLBACK_MODELS", "gemini-flash-lite-latest")
-# Per quanti secondi un modello sovraccarico resta in fondo alla fila.
-GEMINI_MODEL_COOLDOWN = int(env("GEMINI_MODEL_COOLDOWN", "300"))
+# --- cornhub: login unico e intelligenza artificiale (ADR 0021) ---
+# Il browser va su CORNHUB_URL; il backend parla con cornhub sulla rete
+# interna Docker "cornhub" (CORNHUB_INTERNAL_URL). Client e token si creano
+# su cornhub con `manage.py register_app soldino` e vanno nel .env e nel vault.
+# Senza token l'AI e' spenta: scan, scontrino e voce falliscono con un
+# messaggio chiaro, il resto dell'app va.
+CORNHUB_URL = env("CORNHUB_URL", "https://cornhub.it")
+CORNHUB_INTERNAL_URL = env("CORNHUB_INTERNAL_URL", "http://cornhub-backend:8000")
+CORNHUB_APP_SLUG = env("CORNHUB_APP_SLUG", "soldino")
+CORNHUB_CLIENT_ID = env("CORNHUB_CLIENT_ID", "")
+CORNHUB_CLIENT_SECRET = env("CORNHUB_CLIENT_SECRET", "")
+# Token per il gateway AI e lo stato degli utenti. Vuoto: AI spenta.
+CORNHUB_APP_TOKEN = env("CORNHUB_APP_TOKEN", "")
+
+# --- Scan estratto conto ---
 STATEMENT_MAX_BYTES = int(env("STATEMENT_MAX_BYTES", str(15 * 1024 * 1024)))
 
 # --- Open banking (Enable Banking, ADR 0013) ---

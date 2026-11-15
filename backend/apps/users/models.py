@@ -45,6 +45,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     email_verified_at = models.DateTimeField(null=True, blank=True)
     date_joined = models.DateTimeField(default=timezone.now)
+    # L'account unico su cornhub (il ``sub`` dell'id_token, ADR 0021). Nome,
+    # email e password vivono li': qui sono una copia aggiornata a ogni login.
+    cornhub_sub = models.UUIDField(unique=True, null=True, blank=True, editable=False)
     # Ordine delle voci di navigazione scelto dall'utente (chiavi delle sezioni
     # del frontend). Vuoto = ordine predefinito; le voci che mancano vanno in coda.
     nav_order = models.JSONField(default=list, blank=True)

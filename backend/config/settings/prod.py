@@ -1,7 +1,9 @@
 from django.core.exceptions import ImproperlyConfigured
 
+from config.sentry import init_sentry
+
 from .base import *  # noqa: F403
-from .base import BANKING_ENCRYPTION_KEY, SECRET_KEY, env
+from .base import BANKING_ENCRYPTION_KEY, SECRET_KEY
 
 DEBUG = False
 
@@ -38,17 +40,4 @@ SPECTACULAR_SETTINGS = {
 # Solo con SENTRY_DSN nel .env: senza, l'SDK non parte e non manda nulla.
 # Questi settings li caricano anche worker e beat (config_from_object), quindi
 # arrivano sia le eccezioni delle richieste web sia quelle dei task Celery.
-# Niente dati personali (send_default_pii) e niente tracing: solo gli errori.
-SENTRY_DSN = env("SENTRY_DSN", "").strip()
-if SENTRY_DSN:
-    import sentry_sdk
-    from sentry_sdk.integrations.celery import CeleryIntegration
-    from sentry_sdk.integrations.django import DjangoIntegration
-
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        environment=env("SENTRY_ENVIRONMENT", "production") or "production",
-        integrations=[DjangoIntegration(), CeleryIntegration()],
-        send_default_pii=False,
-        traces_sample_rate=0,
-    )
+init_sentry()

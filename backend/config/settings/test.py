@@ -3,9 +3,16 @@ from .base import REST_FRAMEWORK, env
 
 DEBUG = False
 CELERY_TASK_ALWAYS_EAGER = True
-REQUIRE_EMAIL_VERIFICATION = False
-# I test non dipendono dal .env di chi li lancia: il codice ha i suoi test.
-SIGNUP_CODE = ""
+# Niente chiamate vere a cornhub nei test: si fingono con httpx finto. I
+# test non dipendono dal .env di chi li lancia.
+CORNHUB_URL = "https://cornhub.test"
+CORNHUB_INTERNAL_URL = "http://cornhub-backend:8000"
+CORNHUB_APP_SLUG = "soldino"
+CORNHUB_CLIENT_ID = "client-test"
+CORNHUB_CLIENT_SECRET = "secret-test"
+CORNHUB_APP_TOKEN = "token-test"
+API_PUBLIC_URL = "https://app.test"
+FRONTEND_BASE_URL = "https://app.test"
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

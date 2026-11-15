@@ -5,25 +5,35 @@ from __future__ import annotations
 import pytest
 from django.conf import settings
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
 from apps.conftest import CategoryFactory, PendingItemFactory, TrackerFactory, UserFactory
 from apps.trackers.models import Membership
-from apps.users.tokens import EMAIL_VERIFY_SALT, make_token
+from apps.users import views as auth_views
 
 pytestmark = pytest.mark.django_db
-PASSWORD = "password-di-prova"
+
+
+@pytest.fixture(autouse=True)
+def cornhub_allows(monkeypatch):
+    """L'account su cornhub e' attivo: qui si provano le sessioni dell'app
+    (il controllo su cornhub ha i suoi test in test_sso)."""
+    monkeypatch.setattr(auth_views, "still_allowed", lambda user: True)
 
 
 def _login(user) -> APIClient:
+    """Una sessione come la apre il ritorno da cornhub (sso.py)."""
     client = APIClient()
-    response = client.post(
-        "/api/auth/login", {"email": user.email, "password": PASSWORD}, format="json"
-    )
-    assert response.status_code == 200
-    client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
+    response = auth_views.issue_session(HttpResponse(), user)
+    client.cookies[settings.REFRESH_COOKIE_NAME] = response.cookies[
+        settings.REFRESH_COOKIE_NAME
+    ].value
+    refreshed = client.post("/api/auth/refresh")
+    assert refreshed.status_code == 200
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {refreshed.data['access']}")
     return client
 
 
@@ -42,18 +52,6 @@ def test_logout_revoca_il_refresh(user):
     thief = APIClient()
     thief.cookies[settings.REFRESH_COOKIE_NAME] = stolen
     assert _refresh(thief) == 401
-
-
-def test_cambio_password_chiude_le_altre_sessioni(user):
-    phone, laptop = _login(user), _login(user)
-    response = laptop.post(
-        "/api/auth/password",
-        {"current_password": PASSWORD, "new_password": "una-nuova-password-lunga"},
-        format="json",
-    )
-    assert response.status_code == 204
-    assert _refresh(phone) == 401
-    assert _refresh(laptop) == 200
 
 
 def test_due_refresh_in_parallelo_restano_validi(user):
@@ -78,7 +76,7 @@ def test_il_nome_del_cookie_separa_gli_stack(user, settings):
 
     response = other.post("/api/auth/refresh")
     assert response.status_code == 401
-    assert response.data["detail"] == "Refresh token assente."
+    assert response.data["detail"] == "Sessione assente."
 
 
 def test_il_refresh_non_si_accetta_dal_body(user):
@@ -87,26 +85,13 @@ def test_il_refresh_non_si_accetta_dal_body(user):
     assert response.status_code == 401
 
 
-def test_il_link_di_verifica_vale_una_volta(user):
-    user.email_verified_at = None
-    user.save()
-    url = f"/api/auth/verify-email/{make_token(user.pk, EMAIL_VERIFY_SALT)}"
-    assert APIClient().post(url).status_code == 200
-    assert APIClient().post(url).status_code == 400
-
-
-def test_login_limitato(user, monkeypatch):
+def test_login_limitato(monkeypatch):
     monkeypatch.setattr(ScopedRateThrottle, "THROTTLE_RATES", {"auth": "2/min"})
     cache.clear()
     client = APIClient()
-    codes = [
-        client.post(
-            "/api/auth/login", {"email": user.email, "password": "sbagliata"}, format="json"
-        ).status_code
-        for _ in range(3)
-    ]
+    codes = [client.get("/api/auth/sso/start").status_code for _ in range(3)]
     cache.clear()
-    assert codes == [401, 401, 429]
+    assert codes == [302, 302, 429]
 
 
 # --- ruoli ---------------------------------------------------------------------

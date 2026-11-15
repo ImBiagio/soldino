@@ -12,9 +12,6 @@ dependencies = [
     "django-simple-history>=3.7",
     "django-celery-beat>=2.6",
     "celery[redis]>=5.4",
-    # La 3.0 passa di default all'API v1, dove gli alias "-latest" danno 404:
-    # il client fissa comunque v1beta, il tetto evita altre sorprese di una major.
-    "google-genai>=1.0,<3",
     "redis>=5.0",
     "psycopg[binary]>=3.1",
     "gunicorn>=22.0",
@@ -23,8 +20,11 @@ dependencies = [
     "openpyxl>=3.1",
     "Pillow>=10.3",
     "python-dateutil>=2.9",
+    # cornhub (ADR 0021): verifica dell'id_token (RS256), chiamate al gateway
+    # AI e schemi delle risposte.
     "PyJWT[crypto]>=2.8",
     "httpx>=0.27",
+    "pydantic>=2.7",
     # Segnalazione errori verso GlitchTip (compatibile Sentry): attiva solo con SENTRY_DSN.
     "sentry-sdk>=2.0",
 ]

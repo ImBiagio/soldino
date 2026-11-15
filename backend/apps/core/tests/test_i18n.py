@@ -7,8 +7,8 @@ from django.conf import settings
 from django.core import mail
 from rest_framework.test import APIClient
 
-from apps.users.emails import send_password_reset_email
-from apps.users.models import User
+from apps.trackers.invites import send_invite_email
+from apps.trackers.models import Membership
 
 pytestmark = pytest.mark.django_db
 COOKIE = settings.LANGUAGE_COOKIE_NAME
@@ -57,18 +57,6 @@ def test_lingua_sconosciuta_rifiutata(value):
     assert COOKIE not in response.cookies
 
 
-def test_registrazione_nella_lingua_del_cookie():
-    client = APIClient()
-    client.cookies[COOKIE] = "en"
-    response = client.post(
-        "/api/auth/register",
-        {"email": "english@soldino.test", "password": "una-password-lunga"},
-        format="json",
-    )
-    assert response.status_code == 201
-    assert User.objects.get(email="english@soldino.test").language == "en"
-
-
 def test_catalogo_inglese_traduce_il_frontend():
     client = APIClient()
     client.cookies[COOKIE] = "en"
@@ -77,24 +65,25 @@ def test_catalogo_inglese_traduce_il_frontend():
     assert catalog["Riordina il menu"] == "Reorder menu"
 
 
-def test_errori_dell_api_nella_lingua_scelta(user):
-    payload = {"email": user.email, "password": "una-password-lunga"}
-    italiano = APIClient().post("/api/auth/register", payload, format="json")
+def test_errori_dell_api_nella_lingua_scelta():
+    italiano = APIClient().post("/api/auth/refresh")
     client = APIClient()
     client.cookies[COOKIE] = "en"
-    english = client.post("/api/auth/register", payload, format="json")
-    assert italiano.status_code == english.status_code == 400
-    assert "gia'" in str(italiano.data["email"][0])
-    assert "already" in str(english.data["email"][0])
+    english = client.post("/api/auth/refresh")
+    assert italiano.status_code == english.status_code == 401
+    assert italiano.data["detail"] == "Sessione assente."
+    assert english.data["detail"] == "No session."
 
 
-def test_mail_nella_lingua_dell_utente(user, django_capture_on_commit_callbacks):
-    user.language = "en"
-    user.save()
+def test_mail_nella_lingua_dell_utente(tracker, other_user, django_capture_on_commit_callbacks):
+    other_user.language = "en"
+    other_user.save()
+    membership = Membership.objects.create(
+        tracker=tracker, user=other_user, invited_email=other_user.email
+    )
     with django_capture_on_commit_callbacks(execute=True):
-        send_password_reset_email(user)
+        send_invite_email(membership, "Anna")
     [message] = mail.outbox
-    assert "password" in message.subject.lower()
-    assert "Reimposta" not in message.subject
+    assert "invited" in message.subject.lower()
     assert message.body.startswith("Hi ")
     assert 'lang="en"' in message.alternatives[0][0]
