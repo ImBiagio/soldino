@@ -95,6 +95,7 @@ class StatementImportSerializer(serializers.ModelSerializer):
             "default_payer",
             "status",
             "error",
+            "error_code",
             "model_name",
             "period_start",
             "period_end",

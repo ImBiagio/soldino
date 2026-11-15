@@ -406,7 +406,7 @@ def _store(bank_account: BankAccount, *, balance, raw: list[dict], date_from: da
             drafted = len(fresh)
         if draft is not None:
             # Le righe in attesa: dove lo storico non basta la categoria la propone
-            # Gemini, come nella lettura dell'estratto conto. Dopo il commit e
+            # l'AI (cornhub), come nella lettura dell'estratto conto. Dopo il commit e
             # fuori dalla richiesta: "Sincronizza ora" non aspetta il modello.
             db_transaction.on_commit(
                 lambda: suggest_statement_categories.delay(str(draft.pk))

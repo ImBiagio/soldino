@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from apps.conftest import CategoryFactory
 from apps.ingestion.models import StatementImport
-from apps.ingestion.services.gemini import ExtractedLine, ExtractedStatement
+from apps.ingestion.services.ai import ExtractedLine, ExtractedStatement
 from apps.ingestion.services.scan import run_scan
 from apps.trackers.models import Tracker
 from apps.transactions.models import Transaction
@@ -152,9 +152,9 @@ def test_l_import_ricorda_il_modello_che_ha_letto(api, user, tracker):
             lines=[ExtractedLine(date="2026-10-15", description="Bar", amount="2",
                                  direction="out")]
         )
-        result._model = "gemini-flash-lite-latest"
+        result._model = "gemini-3.5-flash-lite"
         return result
 
     run_scan(statement, extractor=extractor)
     statement.refresh_from_db()
-    assert statement.model_name == "gemini-flash-lite-latest"
+    assert statement.model_name == "gemini-3.5-flash-lite"

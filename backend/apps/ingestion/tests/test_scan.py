@@ -3,13 +3,12 @@ from decimal import Decimal
 from unittest import mock
 
 import pytest
-from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from apps.conftest import AccountFactory, CategoryFactory
 from apps.ingestion.models import StatementImport, StatementLine
-from apps.ingestion.services.gemini import ExtractedLine, ExtractedStatement, ExtractionError
+from apps.ingestion.services.ai import ExtractedLine, ExtractedStatement, ExtractionError
 from apps.ingestion.services.scan import run_scan
 from apps.trackers.models import Category
 from apps.transactions.models import Transaction
@@ -135,12 +134,13 @@ def test_errore_di_lettura_resta_riprovabile(api, user, tracker):
     statement = _upload(api, user, tracker)
 
     def broken(pdf, categories):
-        raise ExtractionError("Chiave Gemini non configurata")
+        raise ExtractionError("Serve la tua chiave AI", "needs_key")
 
     run_scan(statement, extractor=broken)
     statement.refresh_from_db()
     assert statement.status == "failed"
-    assert "Chiave Gemini" in statement.error
+    assert "chiave AI" in statement.error
+    assert statement.error_code == "needs_key"
     assert statement.pdf is not None  # serve per riprovare
 
     with mock.patch("apps.ingestion.views.scan_statement.delay"):
@@ -227,64 +227,50 @@ def test_estratti_conto_altrui_invisibili(api, user, tracker, other_user):
     assert response.status_code in (403, 404)
 
 
-def _api_error(code):
-    from google.genai import errors
+def _fake_cornhub(monkeypatch, status, payload):
+    """cornhub finto: risponde ``payload`` e ricorda cosa gli e' arrivato."""
+    import httpx
 
-    return errors.APIError(code, {"error": {"code": code, "message": "x", "status": "S"}})
+    from apps.core import cornhub
 
+    seen = []
 
-def test_gemini_sovraccarico_si_riprova_da_solo(settings):
-    from apps.ingestion.services import gemini
+    def post(url, json=None, headers=None, timeout=None):
+        seen.append(json)
+        return httpx.Response(status, json=payload, request=httpx.Request("POST", url))
 
-    settings.GEMINI_API_KEY = "chiave-finta"
-    # Un modello solo: qui si provano i retry, le riserve hanno i loro test.
-    settings.GEMINI_FALLBACK_MODELS = []
-    cache.clear()
-    ok = mock.Mock(parsed=ExtractedStatement(lines=[]))
-    with (
-        mock.patch("google.genai.Client") as client,
-        mock.patch.object(gemini, "sleep") as pause,
-    ):
-        client.return_value.models.generate_content.side_effect = [_api_error(503), ok]
-        assert gemini.extract_statement(PDF, []).lines == []
-    pause.assert_called_once()
+    monkeypatch.setattr(cornhub.httpx, "post", post)
+    return seen
 
 
-def test_gemini_sempre_sovraccarico_messaggio_leggibile(settings):
-    from apps.ingestion.services import gemini
+def test_l_estratto_conto_va_a_cornhub_a_nome_di_chi_carica(monkeypatch, user):
+    from apps.ingestion.services import ai
 
-    settings.GEMINI_API_KEY = "chiave-finta"
-    # Un modello solo: qui si provano i retry, le riserve hanno i loro test.
-    settings.GEMINI_FALLBACK_MODELS = []
-    cache.clear()
-    with mock.patch("google.genai.Client") as client, mock.patch.object(gemini, "sleep"):
-        client.return_value.models.generate_content.side_effect = _api_error(503)
-        with pytest.raises(ExtractionError, match="sovraccarico"):
-            gemini.extract_statement(PDF, [])
-        assert client.return_value.models.generate_content.call_count == 3
-
-
-def test_il_client_usa_l_api_v1beta(settings):
-    # Gli alias "-latest" esistono solo in v1beta: con v1 ogni modello da' 404.
-    from apps.ingestion.services import gemini
-
-    settings.GEMINI_API_KEY = "chiave-finta"
-    ok = mock.Mock(parsed=ExtractedStatement(lines=[]))
-    with mock.patch("google.genai.Client") as client:
-        client.return_value.models.generate_content.return_value = ok
-        gemini.extract_statement(PDF, [])
-    assert client.call_args.kwargs["http_options"].api_version == "v1beta"
+    user.cornhub_sub = "2b6f5a8e-0000-4000-8000-000000000001"
+    seen = _fake_cornhub(monkeypatch, 200, {
+        "data": {"lines": [{"date": "2026-03-02", "description": "Esselunga",
+                            "amount": "45.30", "direction": "out"}]},
+        "model": "gemini-flash-latest", "billed_to": "user",
+    })
+    statement = ai.extract_statement(PDF, [], user=user)
+    assert statement.lines[0].description == "Esselunga"
+    assert statement._model == "gemini-flash-latest"
+    [body] = seen
+    assert body["feature"] == "statement" and body["user"].endswith("0001")
+    assert body["fast"] is False
+    assert body["parts"][0]["mime"] == "application/pdf"
 
 
-def test_chiave_rifiutata_non_si_riprova(settings):
-    from apps.ingestion.services import gemini
+def test_senza_chiave_l_errore_di_cornhub_arriva_all_utente(monkeypatch, user):
+    from apps.ingestion.services import ai
 
-    settings.GEMINI_API_KEY = "chiave-finta"
-    with mock.patch("google.genai.Client") as client, mock.patch.object(gemini, "sleep"):
-        client.return_value.models.generate_content.side_effect = _api_error(403)
-        with pytest.raises(ExtractionError, match="chiave"):
-            gemini.extract_statement(PDF, [])
-        assert client.return_value.models.generate_content.call_count == 1
+    _fake_cornhub(monkeypatch, 402, {
+        "code": "needs_key", "detail": "Per gli estratti conto serve la tua chiave AI.",
+        "account_url": "https://cornhub.test/account/ai/",
+    })
+    with pytest.raises(ExtractionError, match="tua chiave") as exc:
+        ai.extract_statement(PDF, [], user=user)
+    assert exc.value.code == "needs_key"
 
 
 def test_doppione_anche_se_il_titolo_e_diverso(api, user, tracker, make_expense):

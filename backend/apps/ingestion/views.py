@@ -61,7 +61,7 @@ class StatementViewSet(
 
     @property
     def throttle_scope(self):
-        # Solo cio' che chiama Gemini: la revisione fa polling ogni 2,5 secondi.
+        # Solo cio' che chiama l'AI (cornhub): la revisione fa polling ogni 2,5 secondi.
         return "scan" if self.action in {"create", "retry", "voice"} else None
 
     @extend_schema(request=StatementUploadSerializer, responses={201: StatementImportSerializer})
@@ -198,7 +198,8 @@ class StatementViewSet(
             return Response({"detail": _("Niente da rileggere.")}, status=status.HTTP_409_CONFLICT)
         statement.status = StatementImport.Status.PROCESSING
         statement.error = ""
-        statement.save(update_fields=["status", "error", "updated_at"])
+        statement.error_code = ""
+        statement.save(update_fields=["status", "error", "error_code", "updated_at"])
         db_transaction.on_commit(lambda: scan_statement.delay(str(statement.pk)))
         return Response(self.get_serializer(statement).data, status=status.HTTP_202_ACCEPTED)
 

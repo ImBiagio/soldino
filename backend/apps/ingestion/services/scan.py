@@ -24,7 +24,7 @@ from apps.transactions.models import Transaction
 from apps.transactions.serializers import SettlementSerializer, TransactionSerializer
 
 from ..models import StatementImport, StatementLine
-from .gemini import (
+from .ai import (
     ExtractedStatement,
     ExtractionError,
     extract_receipt,
@@ -223,8 +223,9 @@ def suggest_missing_categories(statement: StatementImport, suggest=None) -> int:
     """Righe in bozza senza categoria (la banca): la propone il modello.
 
     Come nella lettura dell'estratto conto lo storico vince, quindi si chiede
-    solo per le righe che lo storico non copre. E' un aiuto: se Gemini non
+    solo per le righe che lo storico non copre. E' un aiuto: se l'AI non
     risponde le righe restano senza categoria. ``suggest`` e' sostituibile nei test.
+    La chiamata e' a nome di chi ha collegato la banca (``uploaded_by``).
     """
     lines = list(
         statement.lines.filter(
@@ -244,6 +245,7 @@ def suggest_missing_categories(statement: StatementImport, suggest=None) -> int:
                 for i, line in enumerate(lines)
             ],
             catalog,
+            user=statement.uploaded_by,
         )
     except ExtractionError as exc:
         logger.info("Categorie non suggerite per %s: %s", statement.pk, exc)
@@ -267,7 +269,7 @@ def suggest_missing_categories(statement: StatementImport, suggest=None) -> int:
 
 
 def voice_context(statement: StatementImport) -> dict:
-    """Quello che serve a Gemini per capire "ho dato 10 euro a Maurizio"."""
+    """Quello che serve all'AI per capire "ho dato 10 euro a Maurizio"."""
     speaker = statement.uploaded_by
     return {
         "members": [
@@ -280,32 +282,34 @@ def voice_context(statement: StatementImport) -> dict:
 
 
 def default_extractor(statement: StatementImport):
+    """Il lettore giusto, a nome di chi ha caricato: e' lui che chiede (e, per
+    l'estratto conto, che paga con la sua chiave su cornhub)."""
+    user = statement.uploaded_by
     if statement.is_receipt:
-        return partial(extract_receipt, mime_type=statement.mime_type)
+        return partial(extract_receipt, mime_type=statement.mime_type, user=user)
     if statement.is_voice:
         context = voice_context(statement)
         # La voce non ha file: si legge il testo trascritto.
         return lambda _file, categories: extract_voice(
-            statement.transcript, categories, **context
+            statement.transcript, categories, user=user, **context
         )
-    return extract_statement
+    return partial(extract_statement, user=user)
 
 
 def run_scan(statement: StatementImport, extractor=None) -> None:
     """Legge il file e prepara la bozza. ``extractor`` e' sostituibile nei test."""
-    from django.conf import settings
-
-    statement.model_name = settings.GEMINI_MODEL
+    statement.model_name = ""
     read = extractor or default_extractor(statement)
     try:
         extracted = read(bytes(statement.pdf or b""), category_catalog(statement.tracker))
-        # Quello che ha letto davvero: con il principale giu' e' una riserva.
-        statement.model_name = getattr(extracted, "_model", "") or settings.GEMINI_MODEL
+        # Il modello che ha letto davvero, come lo dice cornhub.
+        statement.model_name = (getattr(extracted, "_model", "") or "")[:80]
         with db_transaction.atomic():
             statement.lines.all().hard_delete()
             build_lines(statement, extracted)
             statement.status = StatementImport.Status.READY
             statement.error = ""
+            statement.error_code = ""
             # Letto: il PDF non serve piu' e non va tenuto. La foto dello
             # scontrino resta per la revisione e si cancella alla registrazione.
             if not statement.is_receipt:
@@ -320,7 +324,11 @@ def run_scan(statement: StatementImport, extractor=None) -> None:
         statement.error = (
             str(exc) if isinstance(exc, ExtractionError) else _("Errore imprevisto nella lettura.")
         )
-        statement.save(update_fields=["status", "error", "model_name", "updated_at"])
+        # needs_key, limit, house_empty: l'interfaccia porta alle chiavi AI su cornhub.
+        statement.error_code = exc.code[:20] if isinstance(exc, ExtractionError) else ""
+        statement.save(
+            update_fields=["status", "error", "error_code", "model_name", "updated_at"]
+        )
 
 
 @db_transaction.atomic

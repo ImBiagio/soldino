@@ -14,16 +14,24 @@ IT = {"HTTP_ACCEPT_LANGUAGE": "it"}
 EN = {"HTTP_ACCEPT_LANGUAGE": "en"}
 
 
+class Calls(list):
+    """Le chiamate al traduttore; ``users`` dice a nome di chi sono andate."""
+
+    users: list
+
+
 @pytest.fixture
-def gemini(settings, monkeypatch):
-    """Gemini finto: traduce con un dizionario e conta le chiamate."""
-    settings.GEMINI_API_KEY = "chiave-finta"
+def translator(monkeypatch):
+    """Traduttore finto (al posto di cornhub): traduce con un dizionario e
+    conta le chiamate."""
     dictionary = {"Palestra": "Gym", "Bollette": "Bills", "Gym": "Gym"}
     italian = {"Gym": "Palestra"}
-    calls = []
+    calls = Calls()
+    calls.users = []
 
-    def fake(items):
+    def fake(items, *, user):
         calls.append(items)
+        calls.users.append(user)
         return {
             item["index"]: {
                 "it": italian.get(item["name"], item["name"]),
@@ -33,7 +41,7 @@ def gemini(settings, monkeypatch):
         }
 
     monkeypatch.setattr(
-        "apps.ingestion.services.gemini.translate_category_names", fake
+        "apps.ingestion.services.ai.translate_category_names", fake
     )
     return calls
 
@@ -53,7 +61,7 @@ def test_le_categorie_di_default_nascono_tradotte(api, user):
 
 
 def test_una_categoria_nuova_si_traduce_nell_altra_lingua(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     client = api(user)
     url = reverse("category-list", args=[tracker.pk])
@@ -63,12 +71,14 @@ def test_una_categoria_nuova_si_traduce_nell_altra_lingua(
 
     category = Category.objects.get(pk=created.data["id"])
     assert category.name_translations == {"it": "Palestra", "en": "Gym"}
+    # A nome di chi l'ha scritta: cornhub rifiuta una chiamata senza utente.
+    assert translator.users == [user]
     assert "Gym" in _names(client, tracker, EN)
     assert "Palestra" in _names(client, tracker, IT)
 
 
 def test_rimandare_il_nome_tradotto_non_lo_cambia(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     category = Category.objects.create(
         tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Gym"}
@@ -84,11 +94,11 @@ def test_rimandare_il_nome_tradotto_non_lo_cambia(
     assert category.name == "Palestra"
     assert category.name_translations == {"it": "Palestra", "en": "Gym"}
     assert category.color == "#38656a"
-    assert gemini == []
+    assert translator == []
 
 
 def test_rinominare_rifa_le_altre_lingue(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     category = Category.objects.create(
         tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Gym"}
@@ -102,7 +112,7 @@ def test_rinominare_rifa_le_altre_lingue(
     assert category.name_translations == {"it": "Bollette", "en": "Bills"}
 
 
-def test_il_giro_orario_traduce_quelle_rimaste_indietro(tracker, gemini):
+def test_il_giro_orario_traduce_quelle_rimaste_indietro(tracker, translator):
     done = Category.objects.create(
         tracker=tracker, name="Casa", name_translations={"it": "Casa", "en": "Home"}
     )
@@ -111,14 +121,15 @@ def test_il_giro_orario_traduce_quelle_rimaste_indietro(tracker, gemini):
     assert translate_categories() == {"translated": 1}
     pending.refresh_from_db()
     assert pending.name_translations == {"it": "Palestra", "en": "Gym"}
-    # Solo quella che mancava e' andata a Gemini.
-    assert [item["name"] for item in gemini[0]] == ["Palestra"]
+    # Solo quella che mancava e' andata all'AI, a nome del proprietario.
+    assert [item["name"] for item in translator[0]] == ["Palestra"]
+    assert translator.users == [tracker.owner]
     done.refresh_from_db()
     assert done.name_translations == {"it": "Casa", "en": "Home"}
 
 
-def test_senza_chiave_gemini_resta_il_nome_scritto(api, user, tracker, settings):
-    settings.GEMINI_API_KEY = ""
+def test_senza_ai_resta_il_nome_scritto(api, user, tracker, settings):
+    settings.CORNHUB_APP_TOKEN = ""
     Category.objects.create(tracker=tracker, name="Palestra")
     assert translate_categories() == {"translated": 0}
     assert "Palestra" in _names(api(user), tracker, EN)
@@ -142,7 +153,7 @@ def test_grafici_e_movimenti_usano_il_nome_tradotto(api, user, tracker, make_exp
 
 
 def test_correggere_una_traduzione_non_tocca_il_nome_scritto(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     category = Category.objects.create(
         tracker=tracker,
@@ -162,11 +173,11 @@ def test_correggere_una_traduzione_non_tocca_il_nome_scritto(
     category.refresh_from_db()
     assert category.name == "Utilities"
     assert category.name_translations == {"it": "Utenze", "en": "Utilities"}
-    assert gemini == []
+    assert translator == []
 
 
 def test_svuotare_una_traduzione_la_fa_rifare(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     category = Category.objects.create(
         tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Sport"}
@@ -179,7 +190,7 @@ def test_svuotare_una_traduzione_la_fa_rifare(
 
 
 def test_cambiare_il_nome_originale_rifa_tutte_le_lingue(
-    api, user, tracker, gemini, django_capture_on_commit_callbacks
+    api, user, tracker, translator, django_capture_on_commit_callbacks
 ):
     category = Category.objects.create(
         tracker=tracker, name="Palestra", name_translations={"it": "Palestra", "en": "Gym"}
@@ -192,7 +203,7 @@ def test_cambiare_il_nome_originale_rifa_tutte_le_lingue(
     # La lingua del nome originale non e' nota: le fa tutte il traduttore.
     assert category.name == "Gym"
     assert category.name_translations == {"it": "Palestra", "en": "Gym"}
-    assert [item["name"] for item in gemini[0]] == ["Gym"]
+    assert [item["name"] for item in translator[0]] == ["Gym"]
 
 
 def test_lingua_sconosciuta_e_nome_doppio_sono_400(api, user, tracker):

@@ -354,7 +354,7 @@ def test_registrazione_automatica_lascia_in_bozza_i_doppioni(
 def test_righe_in_attesa_con_categoria_suggerita(
     user, tracker, linked, fake, make_expense, django_capture_on_commit_callbacks
 ):
-    """Come l'estratto conto: prima lo storico, poi Gemini per le righe scoperte."""
+    """Come l'estratto conto: prima lo storico, poi l'AI per le righe scoperte."""
     from apps.conftest import CategoryFactory
     from apps.ingestion.models import StatementLine
 
@@ -373,7 +373,9 @@ def test_righe_in_attesa_con_categoria_suggerita(
     ]
     asked = []
 
-    def suggest(lines, categories):
+    def suggest(lines, categories, *, user):
+        # A nome di chi ha collegato la banca.
+        assert user == linked.connection.user
         asked.extend(line["description"] for line in lines)
         by_title = {"NETFLIX": str(fun.pk), "ACME": str(food.pk)}  # ACME: tipo sbagliato
         return {line["index"]: by_title[line["description"]] for line in lines}
@@ -396,11 +398,11 @@ def test_righe_in_attesa_con_categoria_suggerita(
     assert lines["ACME"].category is None
 
 
-def test_senza_gemini_le_righe_restano_senza_categoria(
+def test_senza_ai_le_righe_restano_senza_categoria(
     user, tracker, linked, fake, django_capture_on_commit_callbacks
 ):
     from apps.conftest import CategoryFactory
-    from apps.ingestion.services.gemini import ExtractionError
+    from apps.ingestion.services.ai import ExtractionError
 
     CategoryFactory(tracker=tracker, name="Spesa")
     fake.transactions_data = [tx("r1", "12.50", creditor={"name": "ESSELUNGA"})]

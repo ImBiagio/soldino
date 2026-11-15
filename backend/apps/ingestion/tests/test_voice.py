@@ -10,7 +10,7 @@ from django.urls import reverse
 from apps.conftest import CategoryFactory
 from apps.ingestion.models import StatementImport, StatementLine
 from apps.ingestion.services import scan as scan_service
-from apps.ingestion.services.gemini import DraftLine, ExtractedStatement
+from apps.ingestion.services.ai import DraftLine, ExtractedStatement
 from apps.ingestion.services.scan import run_scan
 from apps.transactions.models import Settlement, Transaction
 

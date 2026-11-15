@@ -1,22 +1,27 @@
-"""Lettura di un estratto conto PDF con Gemini.
+"""Letture con l'intelligenza artificiale: estratto conto, scontrino, voce,
+categorie dei movimenti della banca e traduzione dei nomi delle categorie.
 
-Il PDF va direttamente al modello (legge testo e scansioni da se'), la risposta
-e' JSON vincolato a uno schema: niente parsing di testo libero. Il modello
-propone anche la categoria, scegliendo solo fra quelle del tracker in base alla
-loro *descrizione*: e' per questo che la descrizione esiste.
+Tutto passa da cornhub (ADR 0021): l'app non ha chiavi ne' sceglie il
+modello, cornhub decide chi paga e ripiega da solo su altri modelli o
+provider. Ogni lettura ha il suo nome nel listino di cornhub:
+
+- ``statement`` (grande: un PDF intero, la paga la chiave dell'utente);
+- ``receipt``, ``voice``, ``categories``, ``translate`` (piccole, la chiave di casa).
+
+La risposta e' JSON vincolato a uno schema pydantic: niente parsing di testo
+libero. Il modello propone anche la categoria, scegliendo solo fra quelle del
+tracker in base alla loro *descrizione*: e' per questo che la descrizione esiste.
 """
 
 from __future__ import annotations
 
 import json
-from time import sleep
 from typing import Literal
 
-from celery.exceptions import SoftTimeLimitExceeded
-from django.conf import settings
-from django.core.cache import cache
 from django.utils.translation import gettext as _
 from pydantic import BaseModel, Field, PrivateAttr
+
+from apps.core import cornhub
 
 
 class ExtractionError(Exception):
@@ -24,49 +29,22 @@ class ExtractionError(Exception):
 
     Si alza nel worker e finisce salvato su ``StatementImport.error``: il testo
     resta nella lingua di default (il worker non ha la lingua di chi ha caricato).
+    ``code`` viene da cornhub (``needs_key``, ``limit``, ``house_empty``,
+    ``overloaded``...): con i primi tre l'interfaccia porta alla pagina delle
+    chiavi AI su cornhub.
     """
 
-
-# 429 limite di frequenza, 500/503 sovraccarico, 504 timeout lato Google: passano da soli.
-TRANSIENT_CODES = {429, 500, 503, 504}
-API_VERSION = "v1beta"
-RETRY_PAUSES = (4, 12)
-# Per tentativo: un estratto conto lungo puo' metterci un minuto buono, uno
-# scontrino pochi secondi. Oltre, il modello e' "giu'" e si passa alla riserva.
-STATEMENT_TIMEOUT_MS = 90_000
-RECEIPT_TIMEOUT_MS = 30_000
+    def __init__(self, message: str, code: str = "", account_url: str = ""):
+        super().__init__(message)
+        self.code = code
+        self.account_url = account_url
 
 
-def _explain(exc, *, model: str) -> str:
-    if exc.code in (401, 403):
-        return _("Gemini ha rifiutato la chiave: controlla GEMINI_API_KEY.")
-    return _("Gemini ha risposto con un errore (%(code)s): %(message)s") % {
-        "code": exc.code,
-        "message": exc.message or exc.status,
-    }
-
-
-# --- Scelta del modello in base alla disponibilita' ---------------------------
-#
-# Si prova GEMINI_MODEL, poi i GEMINI_FALLBACK_MODELS. Un modello che risponde
-# "sovraccarico" (o non risponde) viene segnato giu' nella cache condivisa per
-# GEMINI_MODEL_COOLDOWN secondi: le letture successive, anche da altri worker,
-# partono da quello che funziona. Scaduta la pausa il principale torna primo.
-
-
-def _down_key(model: str) -> str:
-    return f"gemini:down:{model}"
-
-
-def mark_down(model: str, seconds: int | None = None) -> None:
-    cache.set(_down_key(model), True, seconds or settings.GEMINI_MODEL_COOLDOWN)
-
-
-def models_in_order() -> list[str]:
-    """Principale e riserve, quelli segnati giu' in fondo (non tolti: se sono
-    giu' tutti si riprova comunque, nello stesso ordine)."""
-    models = list(dict.fromkeys([settings.GEMINI_MODEL, *settings.GEMINI_FALLBACK_MODELS]))
-    return sorted(models, key=lambda model: bool(cache.get(_down_key(model))))
+# Un estratto conto lungo puo' metterci un minuto buono (e cornhub puo'
+# ripiegare su un altro modello), uno scontrino pochi secondi. Stanno sotto il
+# limite morbido del task (300 s).
+STATEMENT_TIMEOUT = 240
+SHORT_TIMEOUT = 90
 
 
 class ExtractedLine(BaseModel):
@@ -83,7 +61,7 @@ class ExtractedStatement(BaseModel):
     period_start: str | None = None
     period_end: str | None = None
     lines: list[ExtractedLine]
-    # Il modello che ha letto davvero (non fa parte dello schema chiesto a Gemini).
+    # Il modello che ha letto davvero (non fa parte dello schema chiesto all'AI).
     _model: str = PrivateAttr(default="")
 
 
@@ -209,7 +187,7 @@ class ExtractedVoice(BaseModel):
 class DraftLine(ExtractedLine):
     """Una riga letta con quello che la voce aggiunge: chi paga, a chi, se e' divisa.
 
-    Non va a Gemini come schema: quello dell'estratto conto resta com'e'.
+    Non va all'AI come schema: quello dell'estratto conto resta com'e'.
     """
 
     kind: Literal["expense", "income", "transfer"] | None = None
@@ -225,113 +203,56 @@ class ExtractedReceipt(BaseModel):
     category_id: str | None = Field(default=None, description="id di una categoria o null")
 
 
-def _generate(contents, schema, *, timeout_ms: int):
-    """Chiamata a Gemini con risposta JSON vincolata a ``schema``.
+def _generate(feature: str, parts: list, schema, *, user, fast: bool = False,
+              timeout: int = SHORT_TIMEOUT):
+    """Chiamata a cornhub con risposta JSON vincolata a ``schema``.
 
-    Restituisce ``(risposta, modello usato)``. Errori temporanei (429/5xx,
-    timeout, rete) passano subito al modello successivo; finito il giro si
-    aspetta e si riprova. Chiave rifiutata o richiesta non valida non
-    dipendono dal modello: si fermano subito.
+    Restituisce ``(risposta validata, modello usato)``. I ripieghi su altri
+    modelli li fa cornhub; qui ogni ``cornhub.AIError`` diventa un
+    ``ExtractionError`` col messaggio di cornhub, da mostrare cosi' com'e'.
     """
-    if not settings.GEMINI_API_KEY:
-        raise ExtractionError(
-            _("Chiave Gemini non configurata: imposta GEMINI_API_KEY nel file .env e riavvia.")
-        )
-
-    from google import genai
-    from google.genai import errors, types
-
-    # Senza timeout una chiamata appesa lasciava l'import "in lettura" per sempre.
-    # API v1beta esplicita: e' l'unica con gli alias "gemini-flash-latest" e lo
-    # schema di risposta; google-genai 3.0 passava di default a v1 e ogni
-    # modello rispondeva 404 (prod, 2026-11-06).
-    client = genai.Client(
-        api_key=settings.GEMINI_API_KEY,
-        http_options=types.HttpOptions(timeout=timeout_ms, api_version=API_VERSION),
-    )
-    config = types.GenerateContentConfig(
-        response_mime_type="application/json",
-        response_schema=schema,
-        temperature=0,
-    )
-
-    tried: list[str] = []
-    last_error = ""
-    for pause in (*RETRY_PAUSES, None):
-        for model in models_in_order():
-            try:
-                response = client.models.generate_content(
-                    model=model, contents=contents(types), config=config
-                )
-            except errors.APIError as exc:
-                if exc.code == 404:
-                    # Modello inesistente per questa chiave: inutile riprovarlo per un giorno.
-                    mark_down(model, 24 * 60 * 60)
-                elif exc.code in TRANSIENT_CODES:
-                    mark_down(model)
-                else:
-                    raise ExtractionError(_explain(exc, model=model)) from exc
-                tried.append(model)
-                last_error = _("errore %(code)s") % {"code": exc.code}
-                continue
-            except SoftTimeLimitExceeded:
-                # Il task ha finito il suo tempo: non e' colpa del modello.
-                raise
-            except Exception as exc:
-                mark_down(model)
-                tried.append(model)
-                last_error = str(exc)[:120] or type(exc).__name__
-                continue
-            cache.delete(_down_key(model))
-            return _parse(response, schema), model
-        if pause is not None:
-            sleep(pause)
-
-    models = ", ".join(dict.fromkeys(tried))
-    raise ExtractionError(
-        _(
-            "Gemini e' sovraccarico in questo momento: nessun modello ha risposto "
-            "(%(models)s; ultimo: %(error)s). Riprova tra qualche minuto."
-        )
-        % {"models": models, "error": last_error}
-    )
-
-
-def _parse(response, schema):
-    parsed = response.parsed
-    if isinstance(parsed, schema):
-        return parsed
     try:
-        return schema.model_validate_json(response.text or "")
-    except Exception as exc:
-        raise ExtractionError(_("La risposta di Gemini non e' nel formato atteso.")) from exc
+        result = cornhub.generate(
+            feature, parts, schema, user=user, fast=fast, temperature=0, timeout=timeout
+        )
+    except cornhub.AIError as exc:
+        raise ExtractionError(exc.message, exc.code, exc.account_url) from exc
+    return result.data, result.model
 
 
-def extract_statement(pdf: bytes, categories: list[dict]) -> ExtractedStatement:
+def extract_statement(pdf: bytes, categories: list[dict], *, user) -> ExtractedStatement:
+    """Funzione grande ``statement``: la paga la chiave AI di chi carica."""
     statement, model = _generate(
-        lambda types: [
-            types.Part.from_bytes(data=pdf, mime_type="application/pdf"),
+        "statement",
+        [
+            cornhub.file_part(pdf, "application/pdf"),
             PROMPT.format(categories=json.dumps(categories, ensure_ascii=False)),
         ],
         ExtractedStatement,
-        timeout_ms=STATEMENT_TIMEOUT_MS,
+        user=user,
+        timeout=STATEMENT_TIMEOUT,
     )
     statement._model = model
     return statement
 
 
 def extract_receipt(
-    image: bytes, categories: list[dict], *, mime_type: str
+    image: bytes, categories: list[dict], *, mime_type: str, user
 ) -> ExtractedStatement:
-    """Lo scontrino come un estratto conto di una riga: il resto della pipeline e' lo stesso."""
+    """Lo scontrino come un estratto conto di una riga: il resto della pipeline e' lo stesso.
+
+    ``fast``: chi ha scattato la foto di solito aspetta la revisione ("pochi secondi").
+    """
     expenses = [c for c in categories if c["type"] == "expense"]
     receipt, model = _generate(
-        lambda types: [
-            types.Part.from_bytes(data=image, mime_type=mime_type),
+        "receipt",
+        [
+            cornhub.file_part(image, mime_type),
             RECEIPT_PROMPT.format(categories=json.dumps(expenses, ensure_ascii=False)),
         ],
         ExtractedReceipt,
-        timeout_ms=RECEIPT_TIMEOUT_MS,
+        user=user,
+        fast=True,
     )
     if not receipt.total:
         raise ExtractionError(
@@ -362,10 +283,12 @@ def extract_voice(
     members: list[dict],
     speaker: dict,
     today: str,
+    user,
 ) -> ExtractedStatement:
     """Una frase detta a voce -> righe in bozza, come uno scontrino senza foto."""
     voice, model = _generate(
-        lambda types: [
+        "voice",
+        [
             VOICE_PROMPT.format(
                 speaker=speaker["name"],
                 speaker_id=speaker["id"],
@@ -376,7 +299,8 @@ def extract_voice(
             )
         ],
         ExtractedVoice,
-        timeout_ms=RECEIPT_TIMEOUT_MS,
+        user=user,
+        fast=True,
     )
     if not voice.lines:
         raise ExtractionError(
@@ -405,20 +329,23 @@ def extract_voice(
     return statement
 
 
-def suggest_categories(lines: list[dict], categories: list[dict]) -> dict[int, str]:
+def suggest_categories(lines: list[dict], categories: list[dict], *, user) -> dict[int, str]:
     """Solo la categoria, per righe gia' lette altrove (la banca): index -> id.
 
-    ``lines`` ha ``index``, ``description``, ``amount`` e ``type``.
+    ``lines`` ha ``index``, ``description``, ``amount`` e ``type``. ``user``:
+    chi ha collegato la banca.
     """
     result, _model = _generate(
-        lambda types: [
+        "categories",
+        [
             CATEGORIZE_PROMPT.format(
                 categories=json.dumps(categories, ensure_ascii=False),
                 lines=json.dumps(lines, ensure_ascii=False),
             )
         ],
         CategorizedLines,
-        timeout_ms=STATEMENT_TIMEOUT_MS,
+        user=user,
+        timeout=STATEMENT_TIMEOUT,
     )
     return {line.index: line.category_id for line in result.lines if line.category_id}
 
@@ -450,21 +377,23 @@ class TranslatedNames(BaseModel):
     names: list[TranslatedName]
 
 
-def translate_category_names(items: list[dict]) -> dict[int, dict[str, str]]:
+def translate_category_names(items: list[dict], *, user) -> dict[int, dict[str, str]]:
     """Il nome di ogni categoria in italiano e inglese: index -> {"it", "en"}.
 
     ``items`` ha ``index``, ``name``, ``type`` e ``description``. Le lingue sono
     quelle dello schema: con una terza lingua in ``LANGUAGES`` va aggiunta qui.
+    ``user``: chi ha scritto il nome, o il proprietario del tracker.
     """
     result, _model = _generate(
-        lambda types: [
+        "translate",
+        [
             TRANSLATE_PROMPT.format(
                 languages="it (italiano), en (inglese)",
                 categories=json.dumps(items, ensure_ascii=False),
             )
         ],
         TranslatedNames,
-        timeout_ms=RECEIPT_TIMEOUT_MS,
+        user=user,
     )
     return {
         line.index: {"it": line.it.strip(), "en": line.en.strip()}

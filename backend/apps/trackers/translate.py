@@ -3,9 +3,11 @@
 Le categorie sono dati scritti dall'utente, quindi non passano dal gettext
 (ADR 0016): ognuna tiene i suoi nomi in ``Category.name_translations``. Quelle
 di default nascono gia' tradotte (``DEFAULT_CATEGORY_NAMES``); per le altre il
-traduttore chiede a Gemini le lingue che mancano. Gira dopo ogni creazione o
-cambio di nome e, ogni ora, su quelle rimaste indietro (Gemini giu', chiave
-assente). Senza traduzione l'interfaccia mostra il nome com'e' stato scritto.
+traduttore chiede all'AI (cornhub, funzione piccola ``translate``) le lingue
+che mancano. Gira dopo ogni creazione o cambio di nome, a nome di chi l'ha
+scritto, e ogni ora su quelle rimaste indietro (cornhub giu', AI spenta), a
+nome del proprietario del tracker: cornhub rifiuta una chiamata senza utente.
+Senza traduzione l'interfaccia mostra il nome com'e' stato scritto.
 """
 
 from __future__ import annotations
@@ -14,6 +16,8 @@ import logging
 
 from django.conf import settings
 from django.db import transaction
+
+from apps.core import cornhub
 
 from .models import Category
 
@@ -54,7 +58,8 @@ def is_translated(category: Category) -> bool:
 
 def missing_translations():
     """Le categorie (non cancellate) a cui manca almeno una lingua."""
-    return [c for c in Category.objects.all().order_by("created_at") if not is_translated(c)]
+    categories = Category.objects.select_related("tracker__owner").order_by("created_at")
+    return [c for c in categories if not is_translated(c)]
 
 
 def name_written(category: Category, name: str, language: str | None) -> None:
@@ -88,45 +93,63 @@ def apply_manual_translations(category: Category, names: dict[str, str]) -> None
     category.name_translations = merged
 
 
-def schedule_translation(category: Category) -> None:
-    """Dopo il commit, se manca qualche lingua: nel worker, non nella richiesta."""
+def schedule_translation(category: Category, user=None) -> None:
+    """Dopo il commit, se manca qualche lingua: nel worker, non nella richiesta.
+
+    ``user``: chi ha scritto il nome, a cui va la chiamata su cornhub.
+    """
     if is_translated(category):
         return
     from .tasks import translate_categories
 
     category_id = str(category.pk)
-    transaction.on_commit(lambda: translate_categories.delay([category_id]))
+    user_id = str(user.pk) if user is not None and user.is_authenticated else None
+    transaction.on_commit(lambda: translate_categories.delay([category_id], user_id))
 
 
-def translate(categories: list[Category]) -> int:
+def translate(categories: list[Category], user=None) -> int:
     """Riempie le lingue mancanti; restituisce quante categorie ha completato.
 
     Le lingue gia' presenti non si toccano: sono quelle che ha scritto qualcuno.
+    Senza ``user`` (il giro orario) ogni categoria va a nome del proprietario
+    del suo tracker.
     """
     pending = [c for c in categories if not is_translated(c)]
-    if not pending or not settings.GEMINI_API_KEY:
+    if not pending or not cornhub.is_enabled():
         return 0
 
-    from apps.ingestion.services.gemini import ExtractionError, translate_category_names
+    from apps.ingestion.services.ai import ExtractionError, translate_category_names
+
+    groups: dict = {}
+    for category in pending:
+        owner = user or category.tracker.owner
+        groups.setdefault(owner.pk, (owner, []))[1].append(category)
 
     done = 0
-    for start in range(0, len(pending), BATCH_SIZE):
-        batch = pending[start : start + BATCH_SIZE]
-        items = [
-            {"index": i, "name": c.name, "type": c.type, "description": c.description[:200]}
-            for i, c in enumerate(batch)
-        ]
-        try:
-            names = translate_category_names(items)
-        except ExtractionError as exc:
-            # Riprova il giro dell'ora dopo: intanto si vede il nome scritto.
-            logger.warning("Traduzione delle categorie non riuscita: %s", exc)
-            return done
-        for i, category in enumerate(batch):
-            found = names.get(i)
-            if not found:
-                continue
-            merged = {**found, **(category.name_translations or {})}
-            Category.objects.filter(pk=category.pk).update(name_translations=merged)
-            done += 1
+    for owner, owned in groups.values():
+        for start in range(0, len(owned), BATCH_SIZE):
+            batch = owned[start : start + BATCH_SIZE]
+            try:
+                done += _translate_batch(batch, owner, translate_category_names)
+            except ExtractionError as exc:
+                # Riprova il giro dell'ora dopo: intanto si vede il nome scritto.
+                logger.warning("Traduzione delle categorie non riuscita: %s", exc)
+                break
+    return done
+
+
+def _translate_batch(batch: list[Category], user, translate_category_names) -> int:
+    items = [
+        {"index": i, "name": c.name, "type": c.type, "description": c.description[:200]}
+        for i, c in enumerate(batch)
+    ]
+    names = translate_category_names(items, user=user)
+    done = 0
+    for i, category in enumerate(batch):
+        found = names.get(i)
+        if not found:
+            continue
+        merged = {**found, **(category.name_translations or {})}
+        Category.objects.filter(pk=category.pk).update(name_translations=merged)
+        done += 1
     return done

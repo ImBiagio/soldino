@@ -4,10 +4,10 @@ from .models import StatementImport
 from .services.scan import run_scan, suggest_missing_categories
 
 
-# Tre giri sui modelli (90 s al massimo per chiamata di un estratto conto) piu' le
-# pause stanno di solito sotto il limite morbido: se lo si
-# supera, SoftTimeLimitExceeded arriva dentro run_scan, che segna l'import come
-# non riuscito (e quindi riprovabile) invece di lasciarlo "in lettura".
+# Una chiamata a cornhub (che ripiega da solo su altri modelli) sta sotto il
+# limite morbido: se lo si supera, SoftTimeLimitExceeded arriva dentro
+# run_scan, che segna l'import come non riuscito (e quindi riprovabile)
+# invece di lasciarlo "in lettura".
 @shared_task(soft_time_limit=300, time_limit=330)
 def scan_statement(statement_id: str) -> str:
     """Lettura di estratto conto o scontrino: secondi o decine di secondi, fuori dalla richiesta."""

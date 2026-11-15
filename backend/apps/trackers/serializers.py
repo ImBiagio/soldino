@@ -257,14 +257,19 @@ class CategorySerializer(serializers.ModelSerializer):
         for field, value in validated_data.items():
             setattr(category, field, value)
         category.save()
-        schedule_translation(category)
+        schedule_translation(category, self._author())
         return category
 
     def update(self, instance, validated_data):
         self._apply_names(instance, validated_data)
         category = super().update(instance, validated_data)
-        schedule_translation(category)
+        schedule_translation(category, self._author())
         return category
+
+    def _author(self):
+        """Chi scrive il nome: la traduzione va su cornhub a nome suo."""
+        request = self.context.get("request")
+        return getattr(request, "user", None)
 
 
 class TrackerDuplicateSerializer(serializers.Serializer):

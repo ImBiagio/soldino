@@ -51,6 +51,9 @@ class StatementImport(BaseModel):
     )
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.PROCESSING)
     error = models.TextField(blank=True)
+    # Il codice dell'errore di cornhub (needs_key, limit, house_empty,
+    # overloaded...), per mostrare il link alle chiavi AI accanto al messaggio.
+    error_code = models.CharField(max_length=20, blank=True)
     model_name = models.CharField(max_length=80, blank=True)
     period_start = models.DateField(null=True, blank=True)
     period_end = models.DateField(null=True, blank=True)
